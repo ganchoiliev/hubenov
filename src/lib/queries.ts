@@ -15,7 +15,7 @@ import type {
   Currency,
 } from '@/types/domain';
 import type { ShipmentInput } from '@/schemas';
-import { invoiceEmail } from './emailTemplates';
+import { invoiceEmail, statusEmail } from './emailTemplates';
 
 /* ── Profile ─────────────────────────────────────────────────────────────── */
 export function useMyProfile(userId: string | undefined) {
@@ -195,6 +195,48 @@ export function useCreateShipment() {
   });
 }
 
+/**
+ * Best-effort: email affected clients about a status change. Batches the client
+ * lookup and sends in parallel. Returns silently on any error — notifications
+ * must never block or fail an operations action (B.L.A.S.T. — degrade safely).
+ * Non-milestone statuses are skipped inside `statusEmail` (returns null).
+ */
+export async function notifyStatusEmails(
+  shipments: { public_code: string; client_id: string }[],
+  to: AnyStatus,
+): Promise<void> {
+  try {
+    const ids = [...new Set(shipments.map((s) => s.client_id))];
+    if (ids.length === 0) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, preferred_locale')
+      .in('id', ids);
+    type Row = { id: string; email: string | null; full_name: string | null; preferred_locale: string | null };
+    const byId = new Map(((data ?? []) as Row[]).map((p) => [p.id, p]));
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    await Promise.allSettled(
+      shipments.map(async (s) => {
+        const c = byId.get(s.client_id);
+        if (!c?.email) return;
+        const mail = statusEmail({
+          code: s.public_code,
+          status: to,
+          clientName: c.full_name ?? '',
+          locale: c.preferred_locale === 'en' ? 'en' : 'bg',
+          trackUrl: `${origin}/track?code=${encodeURIComponent(s.public_code)}`,
+        });
+        if (!mail) return;
+        await supabase.functions.invoke('send-email', {
+          body: { to: c.email, subject: mail.subject, html: mail.html, text: mail.text },
+        });
+      }),
+    );
+  } catch (err) {
+    console.warn('[status-notify] skipped:', err);
+  }
+}
+
 /** Operator manual status change → writes a tracking event too (§6). */
 export function useUpdateStatus() {
   const qc = useQueryClient();
@@ -220,6 +262,12 @@ export function useUpdateStatus() {
         source: args.source ?? 'manual',
       });
       if (evErr) throw evErr;
+
+      // Best-effort client notification (email now; SMS later). Never throws.
+      await notifyStatusEmails(
+        [{ public_code: args.shipment.public_code, client_id: args.shipment.client_id }],
+        args.to,
+      );
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['shipment', vars.shipment.id] });

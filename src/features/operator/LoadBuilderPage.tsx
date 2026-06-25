@@ -17,7 +17,7 @@ import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState, Stat } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
-import { resolveShipmentByCode } from '@/lib/queries';
+import { resolveShipmentByCode, notifyStatusEmails } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import { pdfSafe } from '@/lib/translit';
@@ -208,6 +208,10 @@ export function LoadBuilderPage() {
         }));
         const { error: evErr } = await supabase.from('tracking_events').insert(events);
         if (evErr) throw evErr;
+
+        // Best-effort: email every client in this load about the leg change
+        // (departed UK / arrived BG). Never throws.
+        await notifyStatusEmails(shipments, to);
       }
 
       toast.success(okMsg);

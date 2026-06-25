@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Search, ShieldCheck, PackageX } from 'lucide-react';
@@ -20,10 +21,10 @@ export function TrackPage() {
   const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
+  const [searchParams] = useSearchParams();
 
-  const onTrack = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = trackInputSchema.safeParse({ code });
+  const runTrack = useCallback(async (raw: string) => {
+    const parsed = trackInputSchema.safeParse({ code: raw });
     if (!parsed.success) return;
     setState({ kind: 'loading' });
     try {
@@ -32,7 +33,21 @@ export function TrackPage() {
     } catch {
       setState({ kind: 'error' });
     }
+  }, []);
+
+  const onTrack = (e: React.FormEvent) => {
+    e.preventDefault();
+    void runTrack(code);
   };
+
+  // Deep-link: /track?code=HB-0006 (e.g. from a status-change email) auto-runs.
+  useEffect(() => {
+    const c = searchParams.get('code');
+    if (!c) return;
+    const v = c.trim().toUpperCase();
+    setCode(v);
+    void runTrack(v);
+  }, [searchParams, runTrack]);
 
   return (
     <Section>
