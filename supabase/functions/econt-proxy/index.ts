@@ -23,7 +23,7 @@ const ENDPOINTS: Record<string, string> = {
   getOffices: 'Nomenclatures/NomenclaturesService.getOffices.json',
   getCities: 'Nomenclatures/NomenclaturesService.getCities.json',
   getStreets: 'Nomenclatures/NomenclaturesService.getStreets.json',
-  requestCourier: 'Shipments/ShipmentService.requestCourierTimeSlots.json',
+  requestCourier: 'Shipments/ShipmentService.requestCourier.json',
 };
 
 Deno.serve(async (req) => {

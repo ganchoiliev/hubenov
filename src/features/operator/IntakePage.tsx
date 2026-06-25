@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import {
   UserSearch,
+  UserPlus,
   CheckCircle2,
   PackagePlus,
   ScanLine,
@@ -70,6 +71,10 @@ export function IntakePage() {
           line1: 'Адрес',
           econt_office: 'Офис на Еконт (по избор)',
           need_client: 'Заредете клиент, за да създадете пратка.',
+          new_client: 'Нов клиент (без профил)',
+          new_client_hint: 'Няма такъв клиент? Създайте го — веднага получава ОТ номер за проследяване.',
+          email_label: 'Имейл (по избор)',
+          create_client: 'Създай клиент',
           created_code: 'Номер на пратката',
           to_scan: 'Към сканиране и печат',
           copy: 'Копирай',
@@ -102,6 +107,10 @@ export function IntakePage() {
           line1: 'Address',
           econt_office: 'Econt office (optional)',
           need_client: 'Resolve a client to create a shipment.',
+          new_client: 'New client (no account)',
+          new_client_hint: 'No such client? Create them — they get an OT number for tracking instantly.',
+          email_label: 'Email (optional)',
+          create_client: 'Create client',
           created_code: 'Shipment code',
           to_scan: 'To scan & print',
           copy: 'Copy',
@@ -121,6 +130,8 @@ export function IntakePage() {
   const [resolving, setResolving] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const lastResolved = useRef<string>('');
+  const [newClient, setNewClient] = useState({ name: '', phone: '', email: '' });
+  const [creatingClient, setCreatingClient] = useState(false);
 
   const resolveClient = async () => {
     const code = codeInput.trim().toUpperCase();
@@ -145,6 +156,39 @@ export function IntakePage() {
       toast.error(t('common.error'));
     } finally {
       setResolving(false);
+    }
+  };
+
+  // Create a walk-in client (no login account yet) — instant OT number.
+  const createWalkIn = async () => {
+    if (!newClient.name.trim() || !newClient.phone.trim()) {
+      toast.error(t('common.error'));
+      return;
+    }
+    setCreatingClient(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        // `as never`: generated types predate nullable user_id + client_code
+        // default (migration 0009). Regenerate later with `npm run db:types`.
+        .insert({
+          role: 'client',
+          full_name: newClient.name.trim(),
+          phone: newClient.phone.trim(),
+          email: newClient.email.trim() || null,
+          preferred_locale: 'bg',
+        } as never)
+        .select('id,full_name,client_code')
+        .single();
+      if (error) throw error;
+      setClient(data as ResolvedClient);
+      setNotFound(false);
+      setNewClient({ name: '', phone: '', email: '' });
+      toast.success((data as ResolvedClient).client_code);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setCreatingClient(false);
     }
   };
 
@@ -191,6 +235,11 @@ export function IntakePage() {
     setValue('sender.country', sender);
     setValue('receiver.country', receiver);
   }, [direction, setValue]);
+
+  // Prefill the sender from the loaded/created client (they're the account holder).
+  useEffect(() => {
+    if (client) setValue('sender.name', client.full_name);
+  }, [client, setValue]);
 
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -311,7 +360,31 @@ export function IntakePage() {
           )}
 
           {notFound && !resolving && (
-            <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>
+            <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
+              <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>
+              <p className="text-sm font-semibold text-foreground">{L.new_client}</p>
+              <p className="text-xs text-muted-fg">{L.new_client_hint}</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Input
+                  placeholder={t('wizard.name')}
+                  value={newClient.name}
+                  onChange={(e) => setNewClient((c) => ({ ...c, name: e.target.value }))}
+                />
+                <Input
+                  placeholder={t('wizard.phone')}
+                  value={newClient.phone}
+                  onChange={(e) => setNewClient((c) => ({ ...c, phone: e.target.value }))}
+                />
+                <Input
+                  placeholder={L.email_label}
+                  value={newClient.email}
+                  onChange={(e) => setNewClient((c) => ({ ...c, email: e.target.value }))}
+                />
+              </div>
+              <Button type="button" className="gap-2" loading={creatingClient} onClick={() => void createWalkIn()}>
+                <UserPlus className="h-4 w-4" /> {L.create_client}
+              </Button>
+            </div>
           )}
         </CardBody>
       </Card>

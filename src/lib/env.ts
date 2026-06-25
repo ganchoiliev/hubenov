@@ -11,6 +11,8 @@ const schema = z.object({
   VITE_COMPANY_ADDRESS: z
     .string()
     .default('542 Liverpool Road, Eccles, Manchester, M30 7JA'),
+  // 'true' once the econt-proxy Edge Function is deployed + credentials are set.
+  VITE_ECONT_ENABLED: z.string().default('false'),
 });
 
 const parsed = schema.safeParse(import.meta.env);
