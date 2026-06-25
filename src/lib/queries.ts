@@ -1,0 +1,249 @@
+/**
+ * Server-state hooks (TanStack Query). All reads/writes go through Supabase
+ * with RLS enforcing access — the browser is untrusted (A.N.T. — No-trust).
+ */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from './supabase';
+import type {
+  Invoice,
+  Load,
+  Profile,
+  Shipment,
+  TrackingEvent,
+  AnyStatus,
+} from '@/types/domain';
+import type { ShipmentInput } from '@/schemas';
+
+/* ── Profile ─────────────────────────────────────────────────────────────── */
+export function useMyProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['profile', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<Profile | null> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Profile | null;
+    },
+  });
+}
+
+/* ── Shipments ───────────────────────────────────────────────────────────── */
+export function useMyShipments(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['shipments', 'client', clientId],
+    enabled: !!clientId,
+    queryFn: async (): Promise<Shipment[]> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('*')
+        .eq('client_id', clientId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Shipment[];
+    },
+  });
+}
+
+export function useShipment(id: string | undefined) {
+  return useQuery({
+    queryKey: ['shipment', id],
+    enabled: !!id,
+    queryFn: async (): Promise<Shipment | null> => {
+      const { data, error } = await supabase.from('shipments').select('*').eq('id', id!).maybeSingle();
+      if (error) throw error;
+      return data as unknown as Shipment | null;
+    },
+  });
+}
+
+export function useTrackingEvents(shipmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['tracking', shipmentId],
+    enabled: !!shipmentId,
+    queryFn: async (): Promise<TrackingEvent[]> => {
+      const { data, error } = await supabase
+        .from('tracking_events')
+        .select('*')
+        .eq('shipment_id', shipmentId!)
+        .order('occurred_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as TrackingEvent[];
+    },
+  });
+}
+
+/** Operator: resolve a scanned/typed code to a shipment (by AWB or public code). */
+export async function resolveShipmentByCode(code: string): Promise<Shipment | null> {
+  // Sanitize: the `.or` filter takes a raw PostgREST string, so restrict the
+  // input to the safe code alphabet to avoid filter injection (§1 Secure).
+  const c = code.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (c.length < 3) return null;
+  const { data, error } = await supabase
+    .from('shipments')
+    .select('*')
+    .or(`awb_barcode.eq.${c},public_code.eq.${c}`)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as Shipment | null;
+}
+
+/** Fetch a client's OT code (for the printed label). */
+export async function getClientCode(clientId: string): Promise<string | null> {
+  const { data } = await supabase.from('profiles').select('client_code').eq('id', clientId).maybeSingle();
+  return (data as { client_code: string } | null)?.client_code ?? null;
+}
+
+/* ── Operator: OT lookup (§7) ────────────────────────────────────────────── */
+export function useOtLookup(code: string | null) {
+  return useQuery({
+    queryKey: ['ot-lookup', code],
+    enabled: !!code,
+    queryFn: async (): Promise<{ profile: Profile; shipments: Shipment[]; invoices: Invoice[] } | null> => {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('client_code', code!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!profile) return null;
+      const p = profile as Profile;
+      const [{ data: shipments }, { data: invoices }] = await Promise.all([
+        supabase.from('shipments').select('*').eq('client_id', p.id).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('*').eq('client_id', p.id).order('created_at', { ascending: false }),
+      ]);
+      return {
+        profile: p,
+        shipments: (shipments ?? []) as unknown as Shipment[],
+        invoices: (invoices ?? []) as Invoice[],
+      };
+    },
+  });
+}
+
+/* ── Loads ───────────────────────────────────────────────────────────────── */
+export function useLoads() {
+  return useQuery({
+    queryKey: ['loads'],
+    queryFn: async (): Promise<Load[]> => {
+      const { data, error } = await supabase
+        .from('loads')
+        .select('*')
+        .order('scheduled_departure', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Load[];
+    },
+  });
+}
+
+/* ── Invoices ────────────────────────────────────────────────────────────── */
+export function useMyInvoices(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['invoices', clientId],
+    enabled: !!clientId,
+    queryFn: async (): Promise<Invoice[]> => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('client_id', clientId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Invoice[];
+    },
+  });
+}
+
+/* ── Mutations ───────────────────────────────────────────────────────────── */
+export function useCreateShipment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ShipmentInput & { client_id: string; created_by: string }): Promise<Shipment> => {
+      const { client_id, created_by, ...rest } = input;
+      const { data, error } = await supabase
+        .from('shipments')
+        .insert({
+          client_id,
+          created_by,
+          direction: rest.direction,
+          parcel_type: rest.parcel_type,
+          sender: rest.sender,
+          receiver: rest.receiver,
+          weight_kg: rest.weight_kg,
+          length_cm: rest.length_cm,
+          width_cm: rest.width_cm,
+          height_cm: rest.height_cm,
+          declared_value: rest.declared_value,
+          currency: rest.currency,
+          is_gift: rest.is_gift,
+          notes: rest.notes ?? null,
+          status: 'booked',
+        })
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data as unknown as Shipment;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['shipments'] });
+    },
+  });
+}
+
+/** Operator manual status change → writes a tracking event too (§6). */
+export function useUpdateStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      shipment: Shipment;
+      to: AnyStatus;
+      note_bg?: string;
+      note_en?: string;
+      source?: 'scan' | 'manual';
+    }) => {
+      const { error: upErr } = await supabase
+        .from('shipments')
+        .update({ status: args.to })
+        .eq('id', args.shipment.id);
+      if (upErr) throw upErr;
+      const { error: evErr } = await supabase.from('tracking_events').insert({
+        shipment_id: args.shipment.id,
+        leg: 'own',
+        status: args.to,
+        note_bg: args.note_bg ?? null,
+        note_en: args.note_en ?? null,
+        source: args.source ?? 'manual',
+      });
+      if (evErr) throw evErr;
+    },
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['shipment', vars.shipment.id] });
+      void qc.invalidateQueries({ queryKey: ['tracking', vars.shipment.id] });
+      void qc.invalidateQueries({ queryKey: ['shipments'] });
+    },
+  });
+}
+
+/** Public, PII-safe track-by-number (§10) — calls the SECURITY DEFINER RPC. */
+export interface PublicTracking {
+  public_code: string;
+  direction: string;
+  status: AnyStatus;
+  updated_at: string;
+  events: {
+    status: AnyStatus;
+    leg: string;
+    location: string | null;
+    note_bg: string | null;
+    note_en: string | null;
+    occurred_at: string;
+  }[];
+}
+
+export async function trackPublic(code: string): Promise<PublicTracking | null> {
+  const { data, error } = await supabase.rpc('track_public', { p_code: code });
+  if (error) throw error;
+  return (data as PublicTracking | null) ?? null;
+}

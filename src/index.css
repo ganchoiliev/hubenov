@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────────────────────────────────────────────────────
+   Design tokens (§9). Warm, trust-forward, BG-first.
+   brand = evergreen (BG flag green + "go"); accent = warm amber.
+   ─────────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --background: 40 30% 99%;
+    --foreground: 160 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 25% 12%;
+
+    --muted: 150 14% 96%;
+    --muted-foreground: 155 8% 42%;
+
+    --brand: 152 70% 22%;
+    --brand-foreground: 0 0% 100%;
+    --brand-50: 150 48% 96%;
+    --brand-100: 150 44% 90%;
+    --brand-600: 152 72% 20%;
+    --brand-700: 153 76% 15%;
+
+    --accent: 35 92% 52%;
+    --accent-foreground: 30 50% 12%;
+
+    --success: 142 70% 38%;
+    --warning: 38 92% 50%;
+    --danger: 0 72% 51%;
+    --info: 209 78% 46%;
+
+    --border: 150 12% 89%;
+    --input: 150 12% 86%;
+    --ring: 152 70% 30%;
+    --shadow: 158 40% 14%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 158 28% 7%;
+    --foreground: 150 16% 94%;
+
+    --card: 158 24% 10%;
+    --card-foreground: 150 16% 94%;
+
+    --muted: 158 18% 15%;
+    --muted-foreground: 150 8% 62%;
+
+    --brand: 150 56% 46%;
+    --brand-foreground: 158 40% 8%;
+    --brand-50: 156 30% 16%;
+    --brand-100: 156 28% 20%;
+    --brand-600: 150 56% 50%;
+    --brand-700: 150 50% 40%;
+
+    --accent: 35 90% 56%;
+    --accent-foreground: 30 50% 10%;
+
+    --border: 156 14% 20%;
+    --input: 156 14% 22%;
+    --ring: 150 56% 46%;
+    --shadow: 0 0% 0%;
+
+    /* Semantic colours need higher lightness to stay readable on the dark bg
+       (used by form errors, the booking cut-off, toasts, exception states). */
+    --success: 142 58% 58%;
+    --warning: 38 95% 62%;
+    --danger: 0 84% 72%;
+    --info: 209 82% 66%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Respect reduced-motion globally (§9) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  .container-tight {
+    @apply container max-w-5xl;
+  }
+
+  /* Subtle skeleton shimmer for loading states */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full;
+    content: '';
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--card) / 0.6),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}

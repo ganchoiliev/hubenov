@@ -1,0 +1,277 @@
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Save, SlidersHorizontal } from 'lucide-react';
+import { Button, Card, CardBody, CardHeader, Input, Spinner, Skeleton, Badge } from '@/components/ui';
+import { PageHeading, EmptyState } from '@/components/shared/common';
+import { Stagger, StaggerItem } from '@/components/motion';
+import { useToast } from '@/components/ui/toast';
+import { supabase } from '@/lib/supabase';
+import { cn, formatMoney } from '@/lib/utils';
+import type { Direction, PricingRate } from '@/types/domain';
+
+const DIRECTIONS: Direction[] = ['UK_BG', 'BG_UK'];
+
+interface RowEdit {
+  price: number;
+  surcharge_remote: number;
+}
+
+export function SettingsPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
+  const intlLocale = locale === 'en' ? 'en-GB' : 'bg-BG';
+  const toast = useToast();
+
+  const L =
+    locale === 'bg'
+      ? {
+          placeholder_title: 'Примерни тарифи',
+          placeholder_text:
+            'Това са примерни (placeholder) стойности. Собственикът трябва да зададе реалните тарифи преди стартиране на ценообразуването.',
+          direction_uk_bg: 'Великобритания → България',
+          direction_bg_uk: 'България → Великобритания',
+          weight_range: 'Тегловен диапазон',
+          base_price: 'Базова цена',
+          surcharge_remote: 'Надбавка отдалечен район',
+          save_row: 'Запази реда',
+          saved: 'Тарифата е запазена',
+          save_error: 'Запазването не бе успешно',
+          empty_title: 'Няма зададени тарифи',
+          empty_desc: 'Все още няма редове в таблицата с тарифи.',
+          load_error: 'Тарифите не можаха да се заредят.',
+          todo: 'TODO: добавяне/изтриване на редове, обемно тегло и надбавка за подарък.',
+        }
+      : {
+          placeholder_title: 'Placeholder rates',
+          placeholder_text:
+            'These are placeholder values. The owner must set the real tariffs before pricing goes live.',
+          direction_uk_bg: 'United Kingdom → Bulgaria',
+          direction_bg_uk: 'Bulgaria → United Kingdom',
+          weight_range: 'Weight range',
+          base_price: 'Base price',
+          surcharge_remote: 'Remote area surcharge',
+          save_row: 'Save row',
+          saved: 'Rate saved',
+          save_error: 'Save failed',
+          empty_title: 'No rates configured',
+          empty_desc: 'There are no rows in the pricing table yet.',
+          load_error: 'Failed to load pricing rates.',
+          todo: 'TODO: add/remove rows, volumetric weight and gift surcharge.',
+        };
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['pricing_rates'],
+    queryFn: async (): Promise<PricingRate[]> => {
+      const { data: rows, error } = await supabase
+        .from('pricing_rates')
+        .select('*')
+        .order('direction')
+        .order('weight_from_kg');
+      if (error) throw error;
+      return (rows ?? []) as PricingRate[];
+    },
+  });
+
+  const [edits, setEdits] = useState<Record<string, RowEdit>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  // Seed local edit state once rows arrive (and when fresh rows differ).
+  useEffect(() => {
+    if (!data) return;
+    setEdits((prev) => {
+      const next: Record<string, RowEdit> = { ...prev };
+      for (const row of data) {
+        if (!next[row.id]) {
+          next[row.id] = { price: row.price, surcharge_remote: row.surcharge_remote };
+        }
+      }
+      return next;
+    });
+  }, [data]);
+
+  const setField = (id: string, field: keyof RowEdit, value: number) => {
+    setEdits((prev) => {
+      const base: RowEdit = prev[id] ?? { price: 0, surcharge_remote: 0 };
+      const updated: RowEdit = { ...base, [field]: Number.isFinite(value) ? value : 0 };
+      return { ...prev, [id]: updated };
+    });
+  };
+
+  const saveRow = async (row: PricingRate) => {
+    const edit = edits[row.id];
+    if (!edit) return;
+    setSavingId(row.id);
+    try {
+      const { error } = await supabase
+        .from('pricing_rates')
+        .update({ price: edit.price, surcharge_remote: edit.surcharge_remote })
+        .eq('id', row.id);
+      if (error) throw error;
+      toast.success(L.saved);
+    } catch {
+      toast.error(L.save_error);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const directionLabel = (dir: Direction): string =>
+    dir === 'UK_BG' ? L.direction_uk_bg : L.direction_bg_uk;
+
+  const rows = data ?? [];
+  const grouped = DIRECTIONS.map((dir) => ({
+    dir,
+    rows: rows.filter((r) => r.direction === dir),
+  })).filter((g) => g.rows.length > 0);
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <PageHeading title={t('operator.settings')} subtitle={t('operator.pricing_editor')} />
+
+      {/* Placeholder callout */}
+      <Card className="mb-6 border-warning/40 bg-warning/10">
+        <CardBody className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/20 text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-display text-sm font-bold text-foreground">{L.placeholder_title}</p>
+            <p className="mt-1 text-sm text-muted-fg">{L.placeholder_text}</p>
+            <p className="mt-2 text-xs text-muted-fg">{L.todo}</p>
+          </div>
+        </CardBody>
+      </Card>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : isError ? (
+        <EmptyState
+          title={L.load_error}
+          icon={<AlertTriangle className="h-7 w-7" />}
+        />
+      ) : grouped.length === 0 ? (
+        <EmptyState
+          title={L.empty_title}
+          description={L.empty_desc}
+          icon={<SlidersHorizontal className="h-7 w-7" />}
+        />
+      ) : (
+        <Stagger className="space-y-6">
+          {grouped.map((group) => (
+            <StaggerItem key={group.dir}>
+              <Card>
+                <CardHeader className="flex items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+                    <SlidersHorizontal className="h-4 w-4 text-brand" />
+                    {directionLabel(group.dir)}
+                  </h2>
+                  <Badge tone="brand">{group.rows.length}</Badge>
+                </CardHeader>
+                <CardBody className="space-y-3 pt-4">
+                  {/* Column labels (md+) */}
+                  <div className="hidden grid-cols-[1.3fr_1fr_1fr_auto] gap-3 px-1 text-xs font-medium uppercase tracking-wide text-muted-fg md:grid">
+                    <span>{L.weight_range}</span>
+                    <span>{L.base_price}</span>
+                    <span>{L.surcharge_remote}</span>
+                    <span className="sr-only">{t('common.actions')}</span>
+                  </div>
+
+                  {group.rows.map((row) => {
+                    const edit = edits[row.id] ?? {
+                      price: row.price,
+                      surcharge_remote: row.surcharge_remote,
+                    };
+                    const dirty =
+                      edit.price !== row.price || edit.surcharge_remote !== row.surcharge_remote;
+                    const saving = savingId === row.id;
+                    return (
+                      <div
+                        key={row.id}
+                        className={cn(
+                          'grid grid-cols-1 items-end gap-3 rounded-xl border border-border bg-background p-3',
+                          'md:grid-cols-[1.3fr_1fr_1fr_auto] md:items-center',
+                          dirty && 'border-brand/40',
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-mono text-sm font-semibold text-foreground">
+                            {row.weight_from_kg}–{row.weight_to_kg} {t('common.kg')}
+                          </p>
+                          <p className="text-xs text-muted-fg md:hidden">{L.base_price}</p>
+                        </div>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs text-muted-fg md:hidden">
+                            {L.base_price}
+                          </span>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              step="0.01"
+                              value={Number.isFinite(edit.price) ? edit.price : 0}
+                              onChange={(e) => setField(row.id, 'price', e.target.valueAsNumber)}
+                              className="font-mono"
+                              aria-label={`${L.base_price} ${row.weight_from_kg}-${row.weight_to_kg}`}
+                            />
+                          </div>
+                          <span className="mt-1 block text-[11px] text-muted-fg">
+                            {formatMoney(edit.price || 0, row.currency, intlLocale)}
+                          </span>
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs text-muted-fg md:hidden">
+                            {L.surcharge_remote}
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="0.01"
+                            value={Number.isFinite(edit.surcharge_remote) ? edit.surcharge_remote : 0}
+                            onChange={(e) =>
+                              setField(row.id, 'surcharge_remote', e.target.valueAsNumber)
+                            }
+                            className="font-mono"
+                            aria-label={`${L.surcharge_remote} ${row.weight_from_kg}-${row.weight_to_kg}`}
+                          />
+                        </label>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={dirty ? 'primary' : 'outline'}
+                          loading={saving}
+                          disabled={!dirty || saving}
+                          onClick={() => void saveRow(row)}
+                          className="w-full md:w-auto"
+                        >
+                          {!saving && <Save className="h-4 w-4" />}
+                          {L.save_row}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </CardBody>
+              </Card>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      )}
+
+      {/* subtle inline activity hint while a save is in flight */}
+      {savingId && (
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-fg">
+          <Spinner className="h-3.5 w-3.5" /> {t('common.loading')}
+        </div>
+      )}
+    </div>
+  );
+}
