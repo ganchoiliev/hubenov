@@ -21,13 +21,17 @@ export function LoginPage() {
   const { signInWithPhone, verifyPhone, signInWithEmail, session, role, isStaff } = useAuth();
 
   // After auth, route by role: staff → operator console, clients → portal.
-  // An explicit redirect target (set when bounced from a protected page) wins.
+  // Wait until the profile (role) resolves — otherwise the brief null-profile
+  // window after sign-in would fall through to /portal and unmount this page
+  // before the staff branch could correct it. A deep-link (set when bounced from
+  // a protected page) is only honored if it belongs to the user's own area, so
+  // staff never land in the client portal.
   useEffect(() => {
-    if (!session) return;
+    if (!session || !role) return;
     const explicitFrom = (location.state as { from?: string } | null)?.from;
-    if (explicitFrom) navigate(explicitFrom, { replace: true });
-    else if (isStaff) navigate('/op', { replace: true });
-    else if (role) navigate('/portal', { replace: true });
+    const area = isStaff ? '/op' : '/portal';
+    const target = explicitFrom && explicitFrom.startsWith(area) ? explicitFrom : area;
+    navigate(target, { replace: true });
   }, [session, role, isStaff, location.state, navigate]);
 
   const [mode, setMode] = useState<Mode>('phone');

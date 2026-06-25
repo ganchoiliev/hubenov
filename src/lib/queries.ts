@@ -426,7 +426,7 @@ export function useRealtimeSync() {
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, () => inval([['loads']]))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () =>
-        inval([['invoices'], ['ot-lookup']]),
+        inval([['invoices'], ['op-invoices'], ['ot-lookup']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pricing_rates' }, () =>
         inval([['pricing_rates']]),

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Receipt, CreditCard, X } from 'lucide-react';
+import { Receipt, CreditCard, X, Send, Pencil } from 'lucide-react';
 import {
   Button,
   Card,
@@ -17,16 +17,23 @@ import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
+import { useSendInvoiceEmail } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatMoney, formatDate } from '@/lib/utils';
 import { recordPaymentSchema } from '@/schemas';
 import type { Database } from '@/types/database.types';
-import type { Invoice, InvoiceStatus, PaymentMethod } from '@/types/domain';
+import type { Invoice, InvoiceStatus, PaymentMethod, Currency } from '@/types/domain';
 
 type PaymentInsert = Database['public']['Tables']['payments']['Insert'];
 type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
 
+type InvoiceRow = Invoice & {
+  client?: { full_name: string | null; email: string | null; preferred_locale: string | null } | null;
+};
+
 const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'bank_transfer', 'card_office', 'cod'];
+const STATUSES: InvoiceStatus[] = ['unpaid', 'partial', 'paid'];
+const CURRENCIES: Currency[] = ['GBP', 'EUR', 'BGN'];
 
 const INVOICE_TONE: Record<InvoiceStatus, 'success' | 'warning' | 'danger'> = {
   paid: 'success',
@@ -43,7 +50,17 @@ export function OpInvoicesPage() {
           payment_recorded: 'Payment recorded',
           client: 'Client',
           amount: 'Amount',
+          currency: 'Currency',
+          status: 'Status',
           save_payment: 'Save payment',
+          save: 'Save',
+          edit: 'Edit',
+          send: 'Send',
+          sending: 'Sending…',
+          sent: 'Email sent',
+          simulated: 'Test mode: email logged (RESEND_API_KEY not set)',
+          no_email: 'No email on file for this client',
+          saved: 'Invoice updated',
           no_invoices: 'No invoices yet.',
           no_invoices_desc: 'Invoices issued to clients will appear here.',
           invalid_amount: 'Enter a valid amount.',
@@ -52,7 +69,17 @@ export function OpInvoicesPage() {
           payment_recorded: 'Плащането е записано',
           client: 'Клиент',
           amount: 'Сума',
+          currency: 'Валута',
+          status: 'Статус',
           save_payment: 'Запиши плащане',
+          save: 'Запази',
+          edit: 'Редактирай',
+          send: 'Изпрати',
+          sending: 'Изпращане…',
+          sent: 'Имейлът е изпратен',
+          simulated: 'Тест режим: имейлът е логнат (липсва RESEND_API_KEY)',
+          no_email: 'Няма имейл за този клиент',
+          saved: 'Фактурата е обновена',
           no_invoices: 'Все още няма фактури.',
           no_invoices_desc: 'Издадените към клиенти фактури ще се показват тук.',
           invalid_amount: 'Въведете валидна сума.',
@@ -61,44 +88,54 @@ export function OpInvoicesPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const { profile } = useAuth();
+  const sendEmail = useSendInvoiceEmail();
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ['op-invoices'],
-    queryFn: async (): Promise<Invoice[]> => {
+    queryFn: async (): Promise<InvoiceRow[]> => {
+      // Embed the client (one FK invoices.client_id → profiles) for name/email.
       const { data, error } = await supabase
         .from('invoices')
-        .select('*')
+        .select('*, client:profiles!client_id(full_name, email, preferred_locale)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Invoice[];
+      return (data ?? []) as unknown as InvoiceRow[];
     },
   });
 
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [payId, setPayId] = useState<string | null>(null);
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [amount, setAmount] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function openForm(inv: Invoice) {
-    setOpenId(inv.id);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [eAmount, setEAmount] = useState('');
+  const [eCurrency, setECurrency] = useState<Currency>('GBP');
+  const [eStatus, setEStatus] = useState<InvoiceStatus>('unpaid');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  function openPay(inv: InvoiceRow) {
+    setPayId(inv.id);
+    setEditId(null);
     setMethod('cash');
     setAmount(String(inv.amount));
     setFormError(null);
   }
 
-  function closeForm() {
-    setOpenId(null);
-    setFormError(null);
+  function openEdit(inv: InvoiceRow) {
+    setEditId(inv.id);
+    setPayId(null);
+    setEAmount(String(inv.amount));
+    setECurrency(inv.currency);
+    setEStatus(inv.status);
   }
 
-  async function submit(inv: Invoice) {
+  async function submitPayment(inv: InvoiceRow) {
     setFormError(null);
-    const parsed = recordPaymentSchema.safeParse({
-      invoice_id: inv.id,
-      method,
-      amount: Number(amount),
-    });
+    const parsed = recordPaymentSchema.safeParse({ invoice_id: inv.id, method, amount: Number(amount) });
     if (!parsed.success) {
       setFormError(L.invalid_amount);
       return;
@@ -107,7 +144,6 @@ export function OpInvoicesPage() {
       toast.error(t('common.error'));
       return;
     }
-
     setSubmitting(true);
     try {
       const paymentRow: PaymentInsert = {
@@ -116,9 +152,7 @@ export function OpInvoicesPage() {
         amount: parsed.data.amount,
         recorded_by: profile.id,
       };
-      const { error: insErr } = await supabase
-        .from('payments')
-        .insert(paymentRow as never);
+      const { error: insErr } = await supabase.from('payments').insert(paymentRow as never);
       if (insErr) throw insErr;
 
       const { data: pays, error: sumErr } = await supabase
@@ -127,26 +161,62 @@ export function OpInvoicesPage() {
         .eq('invoice_id', inv.id);
       if (sumErr) throw sumErr;
 
-      const total = (pays ?? []).reduce(
-        (acc, p) => acc + Number((p as { amount: number }).amount),
-        0,
-      );
+      const total = (pays ?? []).reduce((acc, p) => acc + Number((p as { amount: number }).amount), 0);
       const nextStatus: InvoiceStatus = total >= inv.amount ? 'paid' : 'partial';
 
       const invoiceUpdate: InvoiceUpdate = { status: nextStatus };
-      const { error: updErr } = await supabase
-        .from('invoices')
-        .update(invoiceUpdate as never)
-        .eq('id', inv.id);
+      const { error: updErr } = await supabase.from('invoices').update(invoiceUpdate as never).eq('id', inv.id);
       if (updErr) throw updErr;
 
       toast.success(L.payment_recorded);
-      closeForm();
+      setPayId(null);
       await qc.invalidateQueries({ queryKey: ['op-invoices'] });
     } catch {
       toast.error(t('common.error'));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function saveEdit(inv: InvoiceRow) {
+    const amt = Number(eAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error(L.invalid_amount);
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const patch: InvoiceUpdate = { amount: amt, currency: eCurrency, status: eStatus };
+      const { error } = await supabase.from('invoices').update(patch as never).eq('id', inv.id);
+      if (error) throw error;
+      toast.success(L.saved);
+      setEditId(null);
+      await qc.invalidateQueries({ queryKey: ['op-invoices'] });
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function send(inv: InvoiceRow) {
+    if (!inv.client?.email) {
+      toast.error(L.no_email);
+      return;
+    }
+    setSendingId(inv.id);
+    try {
+      const res = await sendEmail.mutateAsync({
+        invoice: inv,
+        toEmail: inv.client.email,
+        clientName: inv.client.full_name ?? '',
+        locale: inv.client.preferred_locale === 'en' ? 'en' : 'bg',
+      });
+      toast.success(res.simulated ? L.simulated : L.sent);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSendingId(null);
     }
   }
 
@@ -161,11 +231,7 @@ export function OpInvoicesPage() {
           ))}
         </div>
       ) : !invoices || invoices.length === 0 ? (
-        <EmptyState
-          title={L.no_invoices}
-          description={L.no_invoices_desc}
-          icon={<Receipt className="h-7 w-7" />}
-        />
+        <EmptyState title={L.no_invoices} description={L.no_invoices_desc} icon={<Receipt className="h-7 w-7" />} />
       ) : (
         <Stagger className="space-y-3">
           {invoices.map((inv) => (
@@ -175,29 +241,42 @@ export function OpInvoicesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-foreground">
-                          {inv.number}
-                        </span>
-                        <Badge tone={INVOICE_TONE[inv.status]}>
-                          {t(`portal.invoice_${inv.status}`)}
-                        </Badge>
+                        <span className="font-mono text-sm font-semibold text-foreground">{inv.number}</span>
+                        <Badge tone={INVOICE_TONE[inv.status]}>{t(`portal.invoice_${inv.status}`)}</Badge>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-fg">
-                        {L.client}: <span className="font-mono">{inv.client_id.slice(0, 8)}</span> ·{' '}
-                        {formatDate(inv.created_at, locale)}
+                      <p className="mt-0.5 truncate text-xs text-muted-fg">
+                        {L.client}: {inv.client?.full_name || inv.client_id.slice(0, 8)} · {formatDate(inv.created_at, locale)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-display text-lg font-extrabold text-foreground">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="mr-1 font-display text-lg font-extrabold text-foreground">
                         {formatMoney(inv.amount, inv.currency, locale)}
                       </span>
                       <Button
                         size="sm"
-                        variant={openId === inv.id ? 'secondary' : 'outline'}
-                        className="gap-2"
-                        onClick={() => (openId === inv.id ? closeForm() : openForm(inv))}
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={!inv.client?.email || sendingId === inv.id}
+                        title={!inv.client?.email ? L.no_email : undefined}
+                        onClick={() => void send(inv)}
                       >
-                        {openId === inv.id ? (
+                        <Send className="h-4 w-4" /> {sendingId === inv.id ? L.sending : L.send}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={editId === inv.id ? 'secondary' : 'outline'}
+                        className="gap-1.5"
+                        onClick={() => (editId === inv.id ? setEditId(null) : openEdit(inv))}
+                      >
+                        <Pencil className="h-4 w-4" /> {L.edit}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={payId === inv.id ? 'secondary' : 'outline'}
+                        className="gap-1.5"
+                        onClick={() => (payId === inv.id ? setPayId(null) : openPay(inv))}
+                      >
+                        {payId === inv.id ? (
                           <>
                             <X className="h-4 w-4" /> {t('common.cancel')}
                           </>
@@ -211,7 +290,7 @@ export function OpInvoicesPage() {
                   </div>
 
                   <AnimatePresence initial={false}>
-                    {openId === inv.id && (
+                    {editId === inv.id && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -222,7 +301,68 @@ export function OpInvoicesPage() {
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
-                            void submit(inv);
+                            void saveEdit(inv);
+                          }}
+                          className="mt-4 grid gap-3 rounded-xl border border-border bg-muted/40 p-4 sm:grid-cols-3"
+                        >
+                          <Field label={L.amount} htmlFor={`e-amount-${inv.id}`}>
+                            <Input
+                              id={`e-amount-${inv.id}`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              value={eAmount}
+                              onChange={(e) => setEAmount(e.target.value)}
+                            />
+                          </Field>
+                          <Field label={L.currency} htmlFor={`e-cur-${inv.id}`}>
+                            <Select
+                              id={`e-cur-${inv.id}`}
+                              value={eCurrency}
+                              onChange={(e) => setECurrency(e.target.value as Currency)}
+                            >
+                              {CURRENCIES.map((c) => (
+                                <option key={c} value={c}>
+                                  {c}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                          <Field label={L.status} htmlFor={`e-st-${inv.id}`}>
+                            <Select
+                              id={`e-st-${inv.id}`}
+                              value={eStatus}
+                              onChange={(e) => setEStatus(e.target.value as InvoiceStatus)}
+                            >
+                              {STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {t(`portal.invoice_${s}`)}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                          <div className="flex justify-end sm:col-span-3">
+                            <Button type="submit" size="sm" loading={savingEdit} className="gap-2">
+                              {L.save}
+                            </Button>
+                          </div>
+                        </form>
+                      </motion.div>
+                    )}
+
+                    {payId === inv.id && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        className="overflow-hidden"
+                      >
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void submitPayment(inv);
                           }}
                           className="mt-4 grid gap-3 rounded-xl border border-border bg-muted/40 p-4 sm:grid-cols-2"
                         >
@@ -239,7 +379,6 @@ export function OpInvoicesPage() {
                               ))}
                             </Select>
                           </Field>
-
                           <Field
                             label={t('operator.amount_received')}
                             htmlFor={`amount-${inv.id}`}
@@ -255,8 +394,7 @@ export function OpInvoicesPage() {
                               onChange={(e) => setAmount(e.target.value)}
                             />
                           </Field>
-
-                          <div className="sm:col-span-2 flex justify-end">
+                          <div className="flex justify-end sm:col-span-2">
                             <Button type="submit" size="sm" loading={submitting} className="gap-2">
                               <CreditCard className="h-4 w-4" /> {L.save_payment}
                             </Button>
