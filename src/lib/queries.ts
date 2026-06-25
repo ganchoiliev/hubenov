@@ -12,8 +12,10 @@ import type {
   Shipment,
   TrackingEvent,
   AnyStatus,
+  Currency,
 } from '@/types/domain';
 import type { ShipmentInput } from '@/schemas';
+import { invoiceEmail } from './emailTemplates';
 
 /* ── Profile ─────────────────────────────────────────────────────────────── */
 export function useMyProfile(userId: string | undefined) {
@@ -344,6 +346,67 @@ export function useUpdateProfile() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['ot-lookup'] });
       void qc.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+
+/* ── Invoices: create + email (operator) ──────────────────────────────────── */
+export function useCreateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      client_id: string;
+      amount: number;
+      currency: Currency;
+      shipment_id?: string | null;
+    }): Promise<Invoice> => {
+      const { data, error } = await supabase
+        .from('invoices')
+        // `number` is auto-filled by the 0010 trigger (INV-0001…); `status`
+        // defaults to 'unpaid'. `as never`: generated types still require number.
+        .insert({
+          client_id: input.client_id,
+          amount: input.amount,
+          currency: input.currency,
+          shipment_id: input.shipment_id ?? null,
+        } as never)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data as unknown as Invoice;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ot-lookup'] });
+      void qc.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+/** Send an invoice to the client by email via the staff-only `send-email` fn. */
+export function useSendInvoiceEmail() {
+  return useMutation({
+    mutationFn: async (args: {
+      invoice: Invoice;
+      toEmail: string;
+      clientName: string;
+      locale: 'bg' | 'en';
+    }): Promise<{ ok: boolean; simulated?: boolean }> => {
+      const mail = invoiceEmail({
+        number: args.invoice.number,
+        amount: args.invoice.amount,
+        currency: args.invoice.currency,
+        status: args.invoice.status,
+        clientName: args.clientName,
+        locale: args.locale,
+        portalUrl: `${window.location.origin}/portal/invoices`,
+      });
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: { to: args.toEmail, subject: mail.subject, html: mail.html, text: mail.text },
+      });
+      if (error) throw error;
+      const res = (data ?? {}) as { ok?: boolean; simulated?: boolean };
+      if (!res.ok) throw new Error('send_failed');
+      return { ok: true, simulated: res.simulated };
     },
   });
 }

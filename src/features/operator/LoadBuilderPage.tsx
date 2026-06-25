@@ -502,7 +502,7 @@ export function LoadBuilderPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.03, 0.2) }}
             >
-              <Link to={`/portal/shipments/${s.id}`}>
+              <Link to={`/op/shipments/${s.id}`}>
                 <Card className="transition-shadow hover:shadow-lift">
                   <CardBody className="flex items-center justify-between gap-4 py-4">
                     <div className="min-w-0">

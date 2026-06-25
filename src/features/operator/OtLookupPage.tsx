@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { UserSearch, Phone, Mail, Package, Receipt, Pencil } from 'lucide-react';
-import { Button, Card, CardBody, Input, Spinner, Badge } from '@/components/ui';
+import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send } from 'lucide-react';
+import { Button, Card, CardBody, Input, Spinner, Badge, Select } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { PageHeading, EmptyState } from '@/components/shared/common';
-import { useOtLookup, useUpdateProfile } from '@/lib/queries';
+import { useOtLookup, useUpdateProfile, useCreateInvoice, useSendInvoiceEmail } from '@/lib/queries';
 import { otCodeSchema } from '@/schemas';
 import { formatMoney } from '@/lib/utils';
-import type { Profile } from '@/types/domain';
+import type { Profile, Invoice, Shipment, Currency } from '@/types/domain';
 
 export function OtLookupPage() {
   const { t, i18n } = useTranslation();
@@ -87,7 +87,7 @@ export function OtLookupPage() {
               ) : (
                 <div className="space-y-2">
                   {data.shipments.map((s) => (
-                    <Link key={s.id} to={`/portal/shipments/${s.id}`}>
+                    <Link key={s.id} to={`/op/shipments/${s.id}`}>
                       <Card className="transition-shadow hover:shadow-lift">
                         <CardBody className="flex items-center justify-between gap-4 py-4">
                           <div>
@@ -106,30 +106,13 @@ export function OtLookupPage() {
             </div>
 
             {/* Invoices */}
-            <div>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-fg">
-                <Receipt className="h-4 w-4" /> {t('operator.invoices')} ({data.invoices.length})
-              </h3>
-              {data.invoices.length === 0 ? (
-                <p className="text-sm text-muted-fg">—</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.invoices.map((inv) => (
-                    <Card key={inv.id}>
-                      <CardBody className="flex items-center justify-between py-3.5">
-                        <span className="font-mono text-sm">{inv.number}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold">{formatMoney(inv.amount, inv.currency, locale)}</span>
-                          <Badge tone={inv.status === 'paid' ? 'success' : 'warning'}>
-                            {t(`portal.invoice_${inv.status}`)}
-                          </Badge>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
+            <InvoicesPanel
+              profile={data.profile}
+              invoices={data.invoices}
+              shipments={data.shipments}
+              lang={lang}
+              locale={locale}
+            />
           </motion.div>
         )}
       </div>
@@ -226,5 +209,195 @@ function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function InvoicesPanel({
+  profile,
+  invoices,
+  shipments,
+  lang,
+  locale,
+}: {
+  profile: Profile;
+  invoices: Invoice[];
+  shipments: Shipment[];
+  lang: 'bg' | 'en';
+  locale: string;
+}) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const create = useCreateInvoice();
+  const sendEmail = useSendInvoiceEmail();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('GBP');
+  const [shipmentId, setShipmentId] = useState('');
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const T =
+    lang === 'bg'
+      ? {
+          title: 'Фактури',
+          create: 'Нова фактура',
+          amount: 'Сума',
+          currency: 'Валута',
+          link: 'Свържи с пратка (по избор)',
+          none: 'Без пратка',
+          save: 'Създай',
+          cancel: 'Отказ',
+          created: 'Фактурата е създадена',
+          err: 'Грешка',
+          send: 'Изпрати',
+          sending: 'Изпращане…',
+          sent: 'Имейлът е изпратен',
+          simulated: 'Тест режим: имейлът е логнат (липсва RESEND_API_KEY)',
+          noEmail: 'Няма имейл за този клиент',
+          badAmount: 'Невалидна сума',
+        }
+      : {
+          title: 'Invoices',
+          create: 'New invoice',
+          amount: 'Amount',
+          currency: 'Currency',
+          link: 'Link to shipment (optional)',
+          none: 'No shipment',
+          save: 'Create',
+          cancel: 'Cancel',
+          created: 'Invoice created',
+          err: 'Error',
+          send: 'Send',
+          sending: 'Sending…',
+          sent: 'Email sent',
+          simulated: 'Test mode: email logged (RESEND_API_KEY not set)',
+          noEmail: 'No email on file for this client',
+          badAmount: 'Invalid amount',
+        };
+
+  const submit = async () => {
+    const amt = Number(amount.replace(',', '.'));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error(T.badAmount);
+      return;
+    }
+    try {
+      await create.mutateAsync({ client_id: profile.id, amount: amt, currency, shipment_id: shipmentId || null });
+      toast.success(T.created);
+      setOpen(false);
+      setAmount('');
+      setShipmentId('');
+    } catch {
+      toast.error(T.err);
+    }
+  };
+
+  const send = async (inv: Invoice) => {
+    if (!profile.email) {
+      toast.error(T.noEmail);
+      return;
+    }
+    setSendingId(inv.id);
+    try {
+      const res = await sendEmail.mutateAsync({
+        invoice: inv,
+        toEmail: profile.email,
+        clientName: profile.full_name,
+        locale: lang,
+      });
+      toast.success(res.simulated ? T.simulated : T.sent);
+    } catch {
+      toast.error(T.err);
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-fg">
+          <Receipt className="h-4 w-4" /> {T.title} ({invoices.length})
+        </h3>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen((v) => !v)}>
+          <Plus className="h-4 w-4" /> {T.create}
+        </Button>
+      </div>
+
+      {open && (
+        <Card className="mb-3">
+          <CardBody className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{T.amount}</span>
+                <Input
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{T.currency}</span>
+                <Select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+                  <option value="GBP">GBP £</option>
+                  <option value="EUR">EUR €</option>
+                  <option value="BGN">BGN лв</option>
+                </Select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{T.link}</span>
+                <Select value={shipmentId} onChange={(e) => setShipmentId(e.target.value)}>
+                  <option value="">{T.none}</option>
+                  {shipments.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.public_code}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                {T.cancel}
+              </Button>
+              <Button size="sm" onClick={() => void submit()} loading={create.isPending}>
+                {T.save}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {invoices.length === 0 ? (
+        <p className="text-sm text-muted-fg">—</p>
+      ) : (
+        <div className="space-y-2">
+          {invoices.map((inv) => (
+            <Card key={inv.id}>
+              <CardBody className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+                <span className="font-mono text-sm">{inv.number}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold">{formatMoney(inv.amount, inv.currency, locale)}</span>
+                  <Badge tone={inv.status === 'paid' ? 'success' : 'warning'}>
+                    {t(`portal.invoice_${inv.status}`)}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={!profile.email || sendingId === inv.id}
+                    title={!profile.email ? T.noEmail : undefined}
+                    onClick={() => void send(inv)}
+                  >
+                    <Send className="h-3.5 w-3.5" /> {sendingId === inv.id ? T.sending : T.send}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

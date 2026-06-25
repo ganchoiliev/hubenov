@@ -149,6 +149,7 @@ export const router = createBrowserRouter([
       { path: 'loads', element: <LoadsPage /> },
       { path: 'loads/:id', element: <LoadBuilderPage /> },
       { path: 'shipments', element: <OpShipmentsPage /> },
+      { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'invoices', element: <OpInvoicesPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],

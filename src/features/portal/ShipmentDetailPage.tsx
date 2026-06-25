@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, MapPin, Package, Gift } from 'lucide-react';
@@ -16,6 +16,13 @@ export function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en-GB' : 'bg-BG';
+  // Scope-aware: this page is mounted under BOTH /portal (client) and /op
+  // (operator). Keep the back-link in the same scope so staff don't fall into
+  // the client portal with no way back.
+  const { pathname } = useLocation();
+  const inOperator = pathname.startsWith('/op');
+  const listPath = inOperator ? '/op/shipments' : '/portal/shipments';
+  const listLabel = inOperator ? t('operator.shipments') : t('portal.my_shipments');
   const qc = useQueryClient();
   const { data: shipment, isLoading } = useShipment(id);
   const { data: events } = useTrackingEvents(id);
@@ -52,7 +59,7 @@ export function ShipmentDetailPage() {
       <PageHeading
         title={t('track.not_found')}
         action={
-          <Link to="/portal/shipments" className="text-sm text-brand">
+          <Link to={listPath} className="text-sm text-brand">
             ← {t('common.back')}
           </Link>
         }
@@ -63,10 +70,10 @@ export function ShipmentDetailPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <Link
-        to="/portal/shipments"
+        to={listPath}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-fg hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> {t('portal.my_shipments')}
+        <ArrowLeft className="h-4 w-4" /> {listLabel}
       </Link>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
