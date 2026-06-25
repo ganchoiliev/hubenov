@@ -359,9 +359,9 @@ export function IntakePage() {
             </motion.div>
           )}
 
-          {notFound && !resolving && (
+          {!client && !resolving && (
             <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
-              <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>
+              {notFound && <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>}
               <p className="text-sm font-semibold text-foreground">{L.new_client}</p>
               <p className="text-xs text-muted-fg">{L.new_client_hint}</p>
               <div className="grid gap-3 sm:grid-cols-3">
