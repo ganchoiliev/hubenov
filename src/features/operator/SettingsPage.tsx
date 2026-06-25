@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Save, SlidersHorizontal } from 'lucide-react';
-import { Button, Card, CardBody, CardHeader, Input, Spinner, Skeleton, Badge } from '@/components/ui';
+import { AlertTriangle, Save, SlidersHorizontal, KeyRound } from 'lucide-react';
+import { Button, Card, CardBody, CardHeader, Input, Select, Spinner, Skeleton, Badge } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings, useUpdateCompanySettings } from '@/lib/queries';
 import { cn, formatMoney } from '@/lib/utils';
 import type { Direction, PricingRate } from '@/types/domain';
 
@@ -129,19 +130,8 @@ export function SettingsPage() {
     <div className="mx-auto max-w-4xl">
       <PageHeading title={t('operator.settings')} subtitle={t('operator.pricing_editor')} />
 
-      {/* Placeholder callout */}
-      <Card className="mb-6 border-warning/40 bg-warning/10">
-        <CardBody className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/20 text-amber-700 dark:text-amber-300">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="font-display text-sm font-bold text-foreground">{L.placeholder_title}</p>
-            <p className="mt-1 text-sm text-muted-fg">{L.placeholder_text}</p>
-            <p className="mt-2 text-xs text-muted-fg">{L.todo}</p>
-          </div>
-        </CardBody>
-      </Card>
+      <CompanySettingsCard lang={locale} />
+      <ChangePasswordCard lang={locale} />
 
       {isLoading ? (
         <div className="space-y-3">
@@ -273,5 +263,198 @@ export function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
+  const toast = useToast();
+  const { data, isLoading } = useCompanySettings();
+  const update = useUpdateCompanySettings();
+  const [eori, setEori] = useState('');
+  const [labelSize, setLabelSize] = useState<'A6' | '100x150' | 'A4'>('A6');
+  const [printMethod, setPrintMethod] = useState<'browser' | 'qz'>('browser');
+  const [returnAddr, setReturnAddr] = useState('');
+
+  useEffect(() => {
+    if (!data) return;
+    setEori(data.eori ?? '');
+    setLabelSize(data.label_size);
+    setPrintMethod(data.print_method);
+    setReturnAddr(data.return_address ?? '');
+  }, [data]);
+
+  const T =
+    lang === 'bg'
+      ? {
+          title: 'Фирмени настройки',
+          sub: 'Митница и печат на етикети — задават се веднъж от собственика.',
+          eori: 'EORI номер',
+          eoriHint: 'Нужен за митница при износ от UK. Печата се на търговската фактура.',
+          label: 'Размер на етикета',
+          method: 'Метод на печат',
+          mBrowser: 'Браузър (PDF) — всеки принтер',
+          mQz: 'QZ Tray (тих печат) — термопринтер',
+          ret: 'Адрес за връщане (по избор)',
+          save: 'Запази',
+          saved: 'Запазено',
+          err: 'Грешка при запазване',
+        }
+      : {
+          title: 'Company settings',
+          sub: 'Customs & label printing — set once by the owner.',
+          eori: 'EORI number',
+          eoriHint: 'Required for UK export customs; printed on the commercial invoice.',
+          label: 'Label size',
+          method: 'Print method',
+          mBrowser: 'Browser (PDF) — any printer',
+          mQz: 'QZ Tray (silent) — thermal printer',
+          ret: 'Return address (optional)',
+          save: 'Save',
+          saved: 'Saved',
+          err: 'Save failed',
+        };
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({
+        eori: eori.trim() || null,
+        label_size: labelSize,
+        print_method: printMethod,
+        return_address: returnAddr.trim() || null,
+      });
+      toast.success(T.saved);
+    } catch {
+      toast.error(T.err);
+    }
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+          <SlidersHorizontal className="h-4 w-4 text-brand" /> {T.title}
+        </h2>
+      </CardHeader>
+      <CardBody className="space-y-4 pt-4">
+        {isLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <>
+            <p className="text-sm text-muted-fg">{T.sub}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">{T.eori}</span>
+                <Input value={eori} onChange={(e) => setEori(e.target.value)} placeholder="GB123456789000" className="font-mono" />
+                <span className="mt-1 block text-xs text-muted-fg">{T.eoriHint}</span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">{T.ret}</span>
+                <Input value={returnAddr} onChange={(e) => setReturnAddr(e.target.value)} placeholder="542 Liverpool Road, Eccles, M30 7JA" />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">{T.label}</span>
+                <Select value={labelSize} onChange={(e) => setLabelSize(e.target.value as 'A6' | '100x150' | 'A4')}>
+                  <option value="A6">A6 (105×148 mm)</option>
+                  <option value="100x150">100×150 mm</option>
+                  <option value="A4">A4</option>
+                </Select>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">{T.method}</span>
+                <Select value={printMethod} onChange={(e) => setPrintMethod(e.target.value as 'browser' | 'qz')}>
+                  <option value="browser">{T.mBrowser}</option>
+                  <option value="qz">{T.mQz}</option>
+                </Select>
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => void save()} loading={update.isPending} className="gap-2">
+                <Save className="h-4 w-4" /> {T.save}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function ChangePasswordCard({ lang }: { lang: 'bg' | 'en' }) {
+  const toast = useToast();
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const T =
+    lang === 'bg'
+      ? {
+          title: 'Смяна на парола',
+          neu: 'Нова парола',
+          confirm: 'Повтори паролата',
+          save: 'Запази паролата',
+          saved: 'Паролата е сменена',
+          short: 'Минимум 6 символа',
+          mismatch: 'Паролите не съвпадат',
+          err: 'Грешка при смяна на паролата',
+        }
+      : {
+          title: 'Change password',
+          neu: 'New password',
+          confirm: 'Confirm password',
+          save: 'Update password',
+          saved: 'Password changed',
+          short: 'At least 6 characters',
+          mismatch: 'Passwords do not match',
+          err: 'Could not change password',
+        };
+
+  const submit = async () => {
+    if (pw.length < 6) {
+      toast.error(T.short);
+      return;
+    }
+    if (pw !== pw2) {
+      toast.error(T.mismatch);
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pw });
+      if (error) throw error;
+      toast.success(T.saved);
+      setPw('');
+      setPw2('');
+    } catch {
+      toast.error(T.err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+          <KeyRound className="h-4 w-4 text-brand" /> {T.title}
+        </h2>
+      </CardHeader>
+      <CardBody className="space-y-4 pt-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">{T.neu}</span>
+            <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">{T.confirm}</span>
+            <Input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+          </label>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={() => void submit()} loading={busy} className="gap-2">
+            <KeyRound className="h-4 w-4" /> {T.save}
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
   );
 }

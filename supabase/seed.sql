@@ -7,18 +7,18 @@
 
 -- ── Pricing bands (placeholder — mirror src/lib/rates.ts) ───────────────────
 insert into public.pricing_rates (direction, weight_from_kg, weight_to_kg, price, currency, volumetric_divisor, surcharge_gift, surcharge_remote) values
-  ('UK_BG', 0, 2, 12, 'GBP', 5000, 0, 6),
-  ('UK_BG', 2, 5, 18, 'GBP', 5000, 0, 6),
-  ('UK_BG', 5, 10, 28, 'GBP', 5000, 0, 6),
-  ('UK_BG', 10, 20, 45, 'GBP', 5000, 0, 6),
-  ('UK_BG', 20, 30, 65, 'GBP', 5000, 0, 6),
-  ('UK_BG', 30, 1000, 95, 'GBP', 5000, 0, 6),
-  ('BG_UK', 0, 2, 14, 'GBP', 5000, 0, 6),
-  ('BG_UK', 2, 5, 20, 'GBP', 5000, 0, 6),
-  ('BG_UK', 5, 10, 32, 'GBP', 5000, 0, 6),
-  ('BG_UK', 10, 20, 52, 'GBP', 5000, 0, 6),
-  ('BG_UK', 20, 30, 74, 'GBP', 5000, 0, 6),
-  ('BG_UK', 30, 1000, 110, 'GBP', 5000, 0, 6);
+  ('UK_BG', 0, 2, 7, 'GBP', 5000, 0, 6),
+  ('UK_BG', 2, 5, 11, 'GBP', 5000, 0, 6),
+  ('UK_BG', 5, 10, 16, 'GBP', 5000, 0, 6),
+  ('UK_BG', 10, 20, 26, 'GBP', 5000, 0, 6),
+  ('UK_BG', 20, 30, 38, 'GBP', 5000, 0, 6),
+  ('UK_BG', 30, 1000, 52, 'GBP', 5000, 0, 6),
+  ('BG_UK', 0, 2, 9, 'GBP', 5000, 0, 6),
+  ('BG_UK', 2, 5, 13, 'GBP', 5000, 0, 6),
+  ('BG_UK', 5, 10, 19, 'GBP', 5000, 0, 6),
+  ('BG_UK', 10, 20, 30, 'GBP', 5000, 0, 6),
+  ('BG_UK', 20, 30, 42, 'GBP', 5000, 0, 6),
+  ('BG_UK', 30, 1000, 58, 'GBP', 5000, 0, 6);
 
 -- ── Next Friday load ─────────────────────────────────────────────────────────
 do $$

@@ -2,6 +2,7 @@
  * Server-state hooks (TanStack Query). All reads/writes go through Supabase
  * with RLS enforcing access — the browser is untrusted (A.N.T. — No-trust).
  */
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
@@ -246,4 +247,87 @@ export async function trackPublic(code: string): Promise<PublicTracking | null> 
   const { data, error } = await supabase.rpc('track_public', { p_code: code });
   if (error) throw error;
   return (data as PublicTracking | null) ?? null;
+}
+
+/* ── Company settings (operator-configurable: EORI, label, print) ─────────── */
+export interface CompanySettings {
+  id: number;
+  company_name: string;
+  eori: string | null;
+  label_size: 'A6' | '100x150' | 'A4';
+  print_method: 'browser' | 'qz';
+  return_address: string | null;
+  updated_at: string;
+}
+
+export function useCompanySettings() {
+  return useQuery({
+    queryKey: ['company_settings'],
+    queryFn: async (): Promise<CompanySettings | null> => {
+      const { data, error } = await supabase.from('company_settings').select('*').eq('id', 1).maybeSingle();
+      if (error) throw error;
+      return data as CompanySettings | null;
+    },
+  });
+}
+
+export function useUpdateCompanySettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<Omit<CompanySettings, 'id' | 'updated_at'>>) => {
+      const { error } = await supabase
+        .from('company_settings')
+        // `as never`: generated DB types predate this table — regenerate with
+        // `npm run db:types` after applying migration 0007 to type it properly.
+        .update({ ...patch, updated_at: new Date().toISOString() } as never)
+        .eq('id', 1);
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['company_settings'] }),
+  });
+}
+
+/* ── Operator: edit a customer's profile (staff-only via RLS) ─────────────── */
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { id: string; patch: Partial<Pick<Profile, 'full_name' | 'phone' | 'email'>> }) => {
+      const { error } = await supabase.from('profiles').update(args.patch).eq('id', args.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ot-lookup'] });
+      void qc.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+
+/* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
+export function useRealtimeSync() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const inval = (keys: string[][]) => keys.forEach((k) => void qc.invalidateQueries({ queryKey: k }));
+    const channel = supabase
+      .channel('global-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
+        inval([['shipments'], ['shipment'], ['ot-lookup']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
+        inval([['tracking'], ['shipment']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, () => inval([['loads']]))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () =>
+        inval([['invoices'], ['ot-lookup']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pricing_rates' }, () =>
+        inval([['pricing_rates']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () =>
+        inval([['company_settings']]),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
 }

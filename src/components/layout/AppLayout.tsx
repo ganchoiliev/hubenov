@@ -6,6 +6,7 @@ import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { useRealtimeSync } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export interface NavItem {
@@ -20,6 +21,7 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useRealtimeSync(); // live updates across the app — no manual refresh
 
   const onSignOut = async () => {
     await signOut();

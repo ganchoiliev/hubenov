@@ -1,4 +1,4 @@
--- Доставки Хубенов — CLOUD BOOTSTRAP (v6 — short codes) — paste & Run once on a fresh project.
+-- Доставки Хубенов — CLOUD BOOTSTRAP (v8) — fresh project only. Run once.
 set check_function_bodies = off;
 drop type if exists public.shipment_status cascade;
 drop type if exists public.payment_method cascade;
@@ -676,6 +676,66 @@ begin
 end;
 $$;
 
+-- ▼ migrations/0007_company_settings.sql
+-- ============================================================================
+-- 0007_company_settings — single-row config the owner edits in Operator →
+-- Settings: company EORI (customs), label size, and print method. Kept generic
+-- so printing stays model-agnostic (PDF works on any printer; QZ later).
+-- ============================================================================
+create table if not exists public.company_settings (
+  id             int primary key default 1,
+  company_name   text not null default 'Доставки Хубенов',
+  eori           text,
+  label_size     text not null default 'A6',      -- 'A6' | '100x150' | 'A4'
+  print_method   text not null default 'browser', -- 'browser' | 'qz'
+  return_address text,
+  updated_at     timestamptz not null default now(),
+  constraint company_settings_singleton check (id = 1)
+);
+
+alter table public.company_settings enable row level security;
+
+-- Staff manage it; nothing public needs it yet (label-render reads it server-side).
+do $$
+begin
+  create policy company_settings_staff on public.company_settings for all to authenticated
+    using (public.is_staff()) with check (public.is_staff());
+exception when duplicate_object then null;
+end $$;
+
+insert into public.company_settings (id) values (1) on conflict (id) do nothing;
+
+-- ▼ migrations/0008_real_rates_realtime.sql
+-- ============================================================================
+-- 0008 — real, competitive diaspora-van pricing + broadcast more tables so the
+-- UI updates live (no manual refresh). Run AFTER 0007.
+--
+-- Rates benchmarked against UK→BG diaspora/consolidated van couriers (much
+-- cheaper than express couriers). The owner can fine-tune in Operator → Settings.
+-- ============================================================================
+delete from public.pricing_rates;
+insert into public.pricing_rates
+  (direction, weight_from_kg, weight_to_kg, price, currency, volumetric_divisor, surcharge_gift, surcharge_remote) values
+  ('UK_BG', 0,  2,    7, 'GBP', 5000, 0, 6),
+  ('UK_BG', 2,  5,   11, 'GBP', 5000, 0, 6),
+  ('UK_BG', 5,  10,  16, 'GBP', 5000, 0, 6),
+  ('UK_BG', 10, 20,  26, 'GBP', 5000, 0, 6),
+  ('UK_BG', 20, 30,  38, 'GBP', 5000, 0, 6),
+  ('UK_BG', 30, 1000, 52, 'GBP', 5000, 0, 6),
+  ('BG_UK', 0,  2,    9, 'GBP', 5000, 0, 6),
+  ('BG_UK', 2,  5,   13, 'GBP', 5000, 0, 6),
+  ('BG_UK', 5,  10,  19, 'GBP', 5000, 0, 6),
+  ('BG_UK', 10, 20,  30, 'GBP', 5000, 0, 6),
+  ('BG_UK', 20, 30,  42, 'GBP', 5000, 0, 6),
+  ('BG_UK', 30, 1000, 58, 'GBP', 5000, 0, 6);
+
+-- Live updates: broadcast row changes for these tables too.
+-- (shipments / tracking_events / messages were added in 0004.)
+do $$ begin alter publication supabase_realtime add table public.loads;            exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.invoices;         exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.pricing_rates;    exception when others then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.company_settings; exception when others then null; end $$;
+
 -- ▼ seed.sql
 -- ============================================================================
 -- seed.sql — reproducible demo data (§11). Runs on `supabase db reset`.
@@ -686,18 +746,18 @@ $$;
 
 -- ── Pricing bands (placeholder — mirror src/lib/rates.ts) ───────────────────
 insert into public.pricing_rates (direction, weight_from_kg, weight_to_kg, price, currency, volumetric_divisor, surcharge_gift, surcharge_remote) values
-  ('UK_BG', 0, 2, 12, 'GBP', 5000, 0, 6),
-  ('UK_BG', 2, 5, 18, 'GBP', 5000, 0, 6),
-  ('UK_BG', 5, 10, 28, 'GBP', 5000, 0, 6),
-  ('UK_BG', 10, 20, 45, 'GBP', 5000, 0, 6),
-  ('UK_BG', 20, 30, 65, 'GBP', 5000, 0, 6),
-  ('UK_BG', 30, 1000, 95, 'GBP', 5000, 0, 6),
-  ('BG_UK', 0, 2, 14, 'GBP', 5000, 0, 6),
-  ('BG_UK', 2, 5, 20, 'GBP', 5000, 0, 6),
-  ('BG_UK', 5, 10, 32, 'GBP', 5000, 0, 6),
-  ('BG_UK', 10, 20, 52, 'GBP', 5000, 0, 6),
-  ('BG_UK', 20, 30, 74, 'GBP', 5000, 0, 6),
-  ('BG_UK', 30, 1000, 110, 'GBP', 5000, 0, 6);
+  ('UK_BG', 0, 2, 7, 'GBP', 5000, 0, 6),
+  ('UK_BG', 2, 5, 11, 'GBP', 5000, 0, 6),
+  ('UK_BG', 5, 10, 16, 'GBP', 5000, 0, 6),
+  ('UK_BG', 10, 20, 26, 'GBP', 5000, 0, 6),
+  ('UK_BG', 20, 30, 38, 'GBP', 5000, 0, 6),
+  ('UK_BG', 30, 1000, 52, 'GBP', 5000, 0, 6),
+  ('BG_UK', 0, 2, 9, 'GBP', 5000, 0, 6),
+  ('BG_UK', 2, 5, 13, 'GBP', 5000, 0, 6),
+  ('BG_UK', 5, 10, 19, 'GBP', 5000, 0, 6),
+  ('BG_UK', 10, 20, 30, 'GBP', 5000, 0, 6),
+  ('BG_UK', 20, 30, 42, 'GBP', 5000, 0, 6),
+  ('BG_UK', 30, 1000, 58, 'GBP', 5000, 0, 6);
 
 -- ── Next Friday load ─────────────────────────────────────────────────────────
 do $$

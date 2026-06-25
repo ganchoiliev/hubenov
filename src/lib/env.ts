@@ -25,6 +25,6 @@ export const env = parsed.success ? parsed.data : schema.parse({});
 export const company = {
   phone: env.VITE_COMPANY_PHONE,
   address: env.VITE_COMPANY_ADDRESS,
-  email: 'info@hubenov.co.uk', // TODO(owner): confirm contact email
-  domain: 'hubenov.co.uk',
+  email: 'info@hubenov.delivery', // TODO(owner): confirm contact mailbox is set up
+  domain: 'hubenov.delivery',
 } as const;
