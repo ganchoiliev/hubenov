@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Receipt, CreditCard, X, Send, Pencil } from 'lucide-react';
+import { Receipt, CreditCard, X, Send, Pencil, Plus, Download, Search } from 'lucide-react';
 import {
   Button,
   Card,
@@ -17,9 +17,17 @@ import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { useSendInvoiceEmail } from '@/lib/queries';
+import {
+  useSendInvoiceEmail,
+  useCreateInvoice,
+  useCreateClient,
+  useClients,
+  useCompanySettings,
+  type ClientRow,
+} from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
-import { formatMoney, formatDate } from '@/lib/utils';
+import { cn, formatMoney, formatDate } from '@/lib/utils';
+import { transliterate } from '@/lib/translit';
 import { recordPaymentSchema } from '@/schemas';
 import type { Database } from '@/types/database.types';
 import type { Invoice, InvoiceStatus, PaymentMethod, Currency } from '@/types/domain';
@@ -64,6 +72,7 @@ export function OpInvoicesPage() {
           no_invoices: 'No invoices yet.',
           no_invoices_desc: 'Invoices issued to clients will appear here.',
           invalid_amount: 'Enter a valid amount.',
+          new_invoice: 'New invoice',
         }
       : {
           payment_recorded: 'Плащането е записано',
@@ -83,12 +92,15 @@ export function OpInvoicesPage() {
           no_invoices: 'Все още няма фактури.',
           no_invoices_desc: 'Издадените към клиенти фактури ще се показват тук.',
           invalid_amount: 'Въведете валидна сума.',
+          new_invoice: 'Нова фактура',
         };
 
   const toast = useToast();
   const qc = useQueryClient();
   const { profile } = useAuth();
   const sendEmail = useSendInvoiceEmail();
+  const { data: settings } = useCompanySettings();
+  const [creating, setCreating] = useState(false);
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ['op-invoices'],
@@ -220,9 +232,54 @@ export function OpInvoicesPage() {
     }
   }
 
+  async function downloadPdf(inv: InvoiceRow) {
+    try {
+      const { downloadInvoicePdf } = await import('@/lib/invoicePdf');
+      let shipmentCode: string | null = null;
+      if (inv.shipment_id) {
+        const { data: ship } = await supabase
+          .from('shipments')
+          .select('public_code')
+          .eq('id', inv.shipment_id)
+          .maybeSingle();
+        shipmentCode = (ship as { public_code?: string } | null)?.public_code ?? null;
+      }
+      await downloadInvoicePdf({
+        number: inv.number,
+        dateISO: inv.created_at,
+        amount: inv.amount,
+        currency: inv.currency,
+        status: inv.status,
+        clientName: inv.client?.full_name ?? '',
+        clientEmail: inv.client?.email ?? null,
+        company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
+        shipmentCode,
+      });
+    } catch {
+      toast.error(t('common.error'));
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeading title={t('operator.invoices')} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeading title={t('operator.invoices')} />
+        <Button className="gap-2" onClick={() => setCreating((v) => !v)}>
+          <Plus className="h-4 w-4" /> {L.new_invoice}
+        </Button>
+      </div>
+
+      {creating && (
+        <div className="mb-5">
+          <NewInvoicePanel
+            lang={i18n.resolvedLanguage === 'en' ? 'en' : 'bg'}
+            onDone={() => {
+              setCreating(false);
+              void qc.invalidateQueries({ queryKey: ['op-invoices'] });
+            }}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -252,6 +309,9 @@ export function OpInvoicesPage() {
                       <span className="mr-1 font-display text-lg font-extrabold text-foreground">
                         {formatMoney(inv.amount, inv.currency, locale)}
                       </span>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void downloadPdf(inv)}>
+                        <Download className="h-4 w-4" /> PDF
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -410,5 +470,224 @@ export function OpInvoicesPage() {
         </Stagger>
       )}
     </div>
+  );
+}
+
+function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => void }) {
+  const toast = useToast();
+  const { data: clients } = useClients();
+  const createClient = useCreateClient();
+  const createInvoice = useCreateInvoice();
+
+  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [search, setSearch] = useState('');
+  const [picked, setPicked] = useState<ClientRow | null>(null);
+  const [nName, setNName] = useState('');
+  const [nPhone, setNPhone] = useState('');
+  const [nEmail, setNEmail] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('GBP');
+  const [busy, setBusy] = useState(false);
+
+  const L =
+    lang === 'bg'
+      ? {
+          existing: 'Съществуващ клиент',
+          neu: 'Нов клиент',
+          search: 'Търси по име, ОТ, телефон…',
+          noMatches: 'Няма съвпадения',
+          change: 'Смени',
+          name: 'Име',
+          phone: 'Телефон',
+          email: 'Имейл',
+          amount: 'Сума',
+          currency: 'Валута',
+          create: 'Създай фактура',
+          cancel: 'Отказ',
+          created: 'Фактурата е създадена',
+          badAmount: 'Невалидна сума',
+          needClient: 'Изберете клиент',
+          needName: 'Въведете име',
+          err: 'Грешка',
+        }
+      : {
+          existing: 'Existing client',
+          neu: 'New client',
+          search: 'Search by name, OT, phone…',
+          noMatches: 'No matches',
+          change: 'Change',
+          name: 'Name',
+          phone: 'Phone',
+          email: 'Email',
+          amount: 'Amount',
+          currency: 'Currency',
+          create: 'Create invoice',
+          cancel: 'Cancel',
+          created: 'Invoice created',
+          badAmount: 'Invalid amount',
+          needClient: 'Select a client',
+          needName: 'Enter a name',
+          err: 'Error',
+        };
+
+  const matches = useMemo(() => {
+    const list = clients ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return list
+      .filter((c) =>
+        [c.full_name, transliterate(c.full_name), c.client_code, c.phone ?? '', c.email ?? '']
+          .some((h) => h.toLowerCase().includes(q)),
+      )
+      .slice(0, 6);
+  }, [clients, search]);
+
+  const submit = async () => {
+    const amt = Number(amount.replace(',', '.'));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error(L.badAmount);
+      return;
+    }
+    setBusy(true);
+    try {
+      let clientId: string;
+      if (mode === 'new') {
+        if (!nName.trim()) {
+          toast.error(L.needName);
+          setBusy(false);
+          return;
+        }
+        const p = await createClient.mutateAsync({
+          full_name: nName.trim(),
+          phone: nPhone.trim() || null,
+          email: nEmail.trim() || null,
+          preferred_locale: lang,
+        });
+        clientId = p.id;
+      } else {
+        if (!picked) {
+          toast.error(L.needClient);
+          setBusy(false);
+          return;
+        }
+        clientId = picked.id;
+      }
+      await createInvoice.mutateAsync({ client_id: clientId, amount: amt, currency });
+      toast.success(L.created);
+      onDone();
+    } catch {
+      toast.error(L.err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tab = (m: 'existing' | 'new', label: string) => (
+    <button
+      type="button"
+      onClick={() => setMode(m)}
+      className={cn(
+        'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+        mode === m ? 'bg-brand text-brand-fg' : 'text-muted-fg hover:text-foreground',
+      )}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <Card>
+      <CardBody className="space-y-4">
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+          {tab('existing', L.existing)}
+          {tab('new', L.neu)}
+        </div>
+
+        {mode === 'existing' ? (
+          picked ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 p-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{picked.full_name || '—'}</p>
+                <p className="truncate text-xs text-muted-fg">
+                  {picked.client_code}
+                  {picked.phone ? ` · ${picked.phone}` : ''}
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>
+                {L.change}
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={L.search} className="pl-9" />
+              </div>
+              {search.trim() && (
+                <div className="mt-2 space-y-1">
+                  {matches.length === 0 ? (
+                    <p className="px-1 text-xs text-muted-fg">{L.noMatches}</p>
+                  ) : (
+                    matches.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setPicked(c);
+                          setSearch('');
+                        }}
+                        className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+                      >
+                        <span className="text-sm font-medium text-foreground">{c.full_name || '—'}</span>
+                        <span className="font-mono text-xs text-muted-fg">{c.client_code}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted-fg">{L.name}</span>
+              <Input value={nName} onChange={(e) => setNName(e.target.value)} autoFocus />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted-fg">{L.phone}</span>
+              <Input value={nPhone} onChange={(e) => setNPhone(e.target.value)} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted-fg">{L.email}</span>
+              <Input value={nEmail} onChange={(e) => setNEmail(e.target.value)} />
+            </label>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted-fg">{L.amount}</span>
+            <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted-fg">{L.currency}</span>
+            <Select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+              <option value="GBP">GBP £</option>
+              <option value="EUR">EUR €</option>
+              <option value="BGN">BGN лв</option>
+            </Select>
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={onDone}>
+            {L.cancel}
+          </Button>
+          <Button size="sm" onClick={() => void submit()} loading={busy} className="gap-2">
+            <Plus className="h-4 w-4" /> {L.create}
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
   );
 }

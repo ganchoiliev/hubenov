@@ -464,6 +464,37 @@ export function useSendInvoiceEmail() {
       clientName: string;
       locale: 'bg' | 'en';
     }): Promise<{ ok: boolean; simulated?: boolean }> => {
+      // Linked shipment code + company details for the attached PDF (best-effort).
+      let shipmentCode: string | null = null;
+      if (args.invoice.shipment_id) {
+        const { data: ship } = await supabase
+          .from('shipments')
+          .select('public_code')
+          .eq('id', args.invoice.shipment_id)
+          .maybeSingle();
+        shipmentCode = (ship as { public_code?: string } | null)?.public_code ?? null;
+      }
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('company_name, eori, return_address')
+        .eq('id', 1)
+        .maybeSingle();
+      const s = settings as { company_name?: string; eori?: string | null; return_address?: string | null } | null;
+
+      // Lazy-load pdf-lib (heavy) so it never enters the main bundle.
+      const { buildInvoicePdf, bytesToBase64 } = await import('./invoicePdf');
+      const pdf = await buildInvoicePdf({
+        number: args.invoice.number,
+        dateISO: args.invoice.created_at,
+        amount: args.invoice.amount,
+        currency: args.invoice.currency,
+        status: args.invoice.status,
+        clientName: args.clientName,
+        clientEmail: args.toEmail,
+        company: { name: s?.company_name, eori: s?.eori, returnAddress: s?.return_address },
+        shipmentCode,
+      });
+
       const mail = invoiceEmail({
         number: args.invoice.number,
         amount: args.invoice.amount,
@@ -474,13 +505,48 @@ export function useSendInvoiceEmail() {
         portalUrl: `${window.location.origin}/portal/invoices`,
       });
       const { data, error } = await supabase.functions.invoke('send-email', {
-        body: { to: args.toEmail, subject: mail.subject, html: mail.html, text: mail.text },
+        body: {
+          to: args.toEmail,
+          subject: mail.subject,
+          html: mail.html,
+          text: mail.text,
+          attachments: [{ filename: `${args.invoice.number}.pdf`, content: bytesToBase64(pdf) }],
+        },
       });
       if (error) throw error;
       const res = (data ?? {}) as { ok?: boolean; simulated?: boolean };
       if (!res.ok) throw new Error('send_failed');
       return { ok: true, simulated: res.simulated };
     },
+  });
+}
+
+/** Operator: create a walk-in client (no account). Returns the new profile. */
+export function useCreateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      full_name: string;
+      phone?: string | null;
+      email?: string | null;
+      preferred_locale?: 'bg' | 'en';
+    }): Promise<Profile> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        // `as never`: walk-in insert (user_id null, client_code auto) — generated types predate 0009.
+        .insert({
+          role: 'client',
+          full_name: input.full_name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          preferred_locale: input.preferred_locale ?? 'bg',
+        } as never)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data as unknown as Profile;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
 

@@ -16,6 +16,11 @@ const schema = z.object({
   html: z.string().min(1),
   text: z.string().optional(),
   replyTo: z.string().email().optional(),
+  // Resend attachments: base64 `content` + filename. Cap size to blunt abuse.
+  attachments: z
+    .array(z.object({ filename: z.string().min(1).max(120), content: z.string().min(1).max(7_000_000) }))
+    .max(5)
+    .optional(),
 });
 
 Deno.serve(async (req) => {
@@ -46,7 +51,7 @@ Deno.serve(async (req) => {
   // ── Validate payload ───────────────────────────────────────────────────────
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: 'invalid_input' }, 422);
-  const { to, subject, html, text, replyTo } = parsed.data;
+  const { to, subject, html, text, replyTo, attachments } = parsed.data;
 
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const from = Deno.env.get('RESEND_FROM') ?? 'Доставки Хубенов <noreply@hubenov.delivery>';
@@ -59,7 +64,7 @@ Deno.serve(async (req) => {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject, html, text, reply_to: replyTo }),
+    body: JSON.stringify({ from, to: [to], subject, html, text, reply_to: replyTo, attachments }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return json({ ok: false, status: res.status, data }, 502);
