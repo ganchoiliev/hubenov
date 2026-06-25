@@ -287,6 +287,52 @@ export function useUpdateCompanySettings() {
   });
 }
 
+/* ── Clients (operator: every client + their shipment count) ──────────────── */
+export interface ClientRow {
+  id: string;
+  full_name: string;
+  client_code: string;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+  shipment_count: number;
+}
+
+export function useClients() {
+  return useQuery({
+    queryKey: ['clients'],
+    queryFn: async (): Promise<ClientRow[]> => {
+      // `shipments!client_id(count)` disambiguates the embed: shipments has TWO
+      // FKs to profiles (client_id + created_by), so the column hint is required.
+      // Cast via `unknown` — generated DB types don't model the aggregate embed.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, client_code, phone, email, created_at, shipments!client_id(count)')
+        .eq('role', 'client')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      type Row = {
+        id: string;
+        full_name: string;
+        client_code: string;
+        phone: string | null;
+        email: string | null;
+        created_at: string;
+        shipments?: { count: number }[];
+      };
+      return ((data ?? []) as unknown as Row[]).map((row) => ({
+        id: row.id,
+        full_name: row.full_name,
+        client_code: row.client_code,
+        phone: row.phone,
+        email: row.email,
+        created_at: row.created_at,
+        shipment_count: row.shipments?.[0]?.count ?? 0,
+      }));
+    },
+  });
+}
+
 /* ── Operator: edit a customer's profile (staff-only via RLS) ─────────────── */
 export function useUpdateProfile() {
   const qc = useQueryClient();
@@ -310,7 +356,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
         inval([['tracking'], ['shipment']]),

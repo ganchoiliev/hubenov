@@ -10,6 +10,7 @@ import {
   User,
   ScanLine,
   UserSearch,
+  Users,
   Truck,
   Settings,
   Boxes,
@@ -55,6 +56,7 @@ const ProfilePage = lazyPage(() => import('@/features/portal/ProfilePage'), 'Pro
 // Operator
 const OperatorHomePage = lazyPage(() => import('@/features/operator/OperatorHomePage'), 'OperatorHomePage');
 const OtLookupPage = lazyPage(() => import('@/features/operator/OtLookupPage'), 'OtLookupPage');
+const ClientsPage = lazyPage(() => import('@/features/operator/ClientsPage'), 'ClientsPage');
 const IntakePage = lazyPage(() => import('@/features/operator/IntakePage'), 'IntakePage');
 const ScanStationPage = lazyPage(() => import('@/features/operator/ScanStationPage'), 'ScanStationPage');
 const LoadsPage = lazyPage(() => import('@/features/operator/LoadsPage'), 'LoadsPage');
@@ -90,6 +92,7 @@ export const OPERATOR_NAV: NavItem[] = [
   { to: '/op', labelKey: 'operator.console', icon: LayoutDashboard, end: true },
   { to: '/op/scan', labelKey: 'operator.scan_title', icon: ScanLine },
   { to: '/op/lookup', labelKey: 'operator.lookup_title', icon: UserSearch },
+  { to: '/op/clients', labelKey: 'operator.customers', icon: Users },
   { to: '/op/intake', labelKey: 'operator.intake_title', icon: PackagePlus },
   { to: '/op/loads', labelKey: 'operator.loads', icon: Truck },
   { to: '/op/shipments', labelKey: 'operator.shipments', icon: Boxes },
@@ -141,6 +144,7 @@ export const router = createBrowserRouter([
       { index: true, element: <OperatorHomePage /> },
       { path: 'scan', element: <ScanStationPage /> },
       { path: 'lookup', element: <OtLookupPage /> },
+      { path: 'clients', element: <ClientsPage /> },
       { path: 'intake', element: <IntakePage /> },
       { path: 'loads', element: <LoadsPage /> },
       { path: 'loads/:id', element: <LoadBuilderPage /> },

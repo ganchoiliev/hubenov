@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { UserSearch, Phone, Mail, Package, Receipt, Pencil } from 'lucide-react';
@@ -20,6 +20,17 @@ export function OtLookupPage() {
   const [code, setCode] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { data, isFetching } = useOtLookup(code);
+  const [searchParams] = useSearchParams();
+
+  // Deep-link: /op/lookup?code=HB-0001 (e.g. from the Clients tab) auto-resolves.
+  useEffect(() => {
+    const c = searchParams.get('code');
+    if (!c) return;
+    const v = c.trim().toUpperCase();
+    setInput(v);
+    setCode(v);
+    setErr(null);
+  }, [searchParams]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
