@@ -49,6 +49,7 @@ export interface Profile {
   phone: string | null;
   email: string | null;
   preferred_locale: Locale;
+  notify_email: boolean;
   created_at: string;
   updated_at: string;
 }

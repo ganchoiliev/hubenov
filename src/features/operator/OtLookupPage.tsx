@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send } from 'lucide-react';
-import { Button, Card, CardBody, Input, Spinner, Badge, Select } from '@/components/ui';
+import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { PageHeading, EmptyState } from '@/components/shared/common';
@@ -127,25 +127,27 @@ function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }
   const [name, setName] = useState(profile.full_name);
   const [phone, setPhone] = useState(profile.phone ?? '');
   const [email, setEmail] = useState(profile.email ?? '');
+  const [notify, setNotify] = useState(profile.notify_email ?? true);
 
   // Reset the form when a different customer is looked up.
   useEffect(() => {
     setName(profile.full_name);
     setPhone(profile.phone ?? '');
     setEmail(profile.email ?? '');
+    setNotify(profile.notify_email ?? true);
     setEditing(false);
-  }, [profile.id, profile.full_name, profile.phone, profile.email]);
+  }, [profile.id, profile.full_name, profile.phone, profile.email, profile.notify_email]);
 
   const T =
     lang === 'bg'
-      ? { edit: 'Редактирай', save: 'Запази', cancel: 'Отказ', saved: 'Профилът е обновен', err: 'Грешка при запазване', name: 'Име', phone: 'Телефон', email: 'Имейл' }
-      : { edit: 'Edit', save: 'Save', cancel: 'Cancel', saved: 'Profile updated', err: 'Save failed', name: 'Name', phone: 'Phone', email: 'Email' };
+      ? { edit: 'Редактирай', save: 'Запази', cancel: 'Отказ', saved: 'Профилът е обновен', err: 'Грешка при запазване', name: 'Име', phone: 'Телефон', email: 'Имейл', notify: 'Имейл известия за статус', notifyOff: 'Известия изкл.' }
+      : { edit: 'Edit', save: 'Save', cancel: 'Cancel', saved: 'Profile updated', err: 'Save failed', name: 'Name', phone: 'Phone', email: 'Email', notify: 'Status email notifications', notifyOff: 'Notifications off' };
 
   const save = async () => {
     try {
       await update.mutateAsync({
         id: profile.id,
-        patch: { full_name: name.trim(), phone: phone.trim() || null, email: email.trim() || null },
+        patch: { full_name: name.trim(), phone: phone.trim() || null, email: email.trim() || null, notify_email: notify },
       });
       toast.success(T.saved);
       setEditing(false);
@@ -173,6 +175,7 @@ function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }
                 <Input value={email} onChange={(e) => setEmail(e.target.value)} />
               </label>
             </div>
+            <Switch checked={notify} onChange={setNotify} label={T.notify} id={`notify-${profile.id}`} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
                 {T.cancel}
@@ -188,6 +191,7 @@ function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-xl font-extrabold text-foreground">{profile.full_name}</h2>
                 <Badge tone="brand">{profile.client_code}</Badge>
+                {profile.notify_email === false && <Badge tone="neutral">{T.notifyOff}</Badge>}
               </div>
               <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-muted-fg">
                 {profile.phone && (

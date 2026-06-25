@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Save, SlidersHorizontal, KeyRound } from 'lucide-react';
-import { Button, Card, CardBody, CardHeader, Input, Select, Spinner, Skeleton, Badge } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, Input, Select, Spinner, Skeleton, Badge, Switch } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
@@ -274,6 +274,7 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
   const [labelSize, setLabelSize] = useState<'A6' | '100x150' | 'A4'>('A6');
   const [printMethod, setPrintMethod] = useState<'browser' | 'qz'>('browser');
   const [returnAddr, setReturnAddr] = useState('');
+  const [notify, setNotify] = useState(true);
 
   useEffect(() => {
     if (!data) return;
@@ -281,6 +282,7 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
     setLabelSize(data.label_size);
     setPrintMethod(data.print_method);
     setReturnAddr(data.return_address ?? '');
+    setNotify(data.notify_status_emails ?? true);
   }, [data]);
 
   const T =
@@ -295,6 +297,8 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
           mBrowser: 'Браузър (PDF) — всеки принтер',
           mQz: 'QZ Tray (тих печат) — термопринтер',
           ret: 'Адрес за връщане (по избор)',
+          notify: 'Имейл известия до клиентите',
+          notifyHint: 'Изпраща имейл при ключови етапи (заявена, тръгнала от UK, доставена…). Може да се изключи и за отделен клиент.',
           save: 'Запази',
           saved: 'Запазено',
           err: 'Грешка при запазване',
@@ -309,6 +313,8 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
           mBrowser: 'Browser (PDF) — any printer',
           mQz: 'QZ Tray (silent) — thermal printer',
           ret: 'Return address (optional)',
+          notify: 'Status emails to clients',
+          notifyHint: 'Emails clients at key milestones (booked, departed UK, delivered…). Can also be turned off per client.',
           save: 'Save',
           saved: 'Saved',
           err: 'Save failed',
@@ -321,6 +327,7 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
         label_size: labelSize,
         print_method: printMethod,
         return_address: returnAddr.trim() || null,
+        notify_status_emails: notify,
       });
       toast.success(T.saved);
     } catch {
@@ -366,6 +373,13 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
                   <option value="qz">{T.mQz}</option>
                 </Select>
               </label>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">{T.notify}</p>
+                <p className="mt-0.5 text-xs text-muted-fg">{T.notifyHint}</p>
+              </div>
+              <Switch checked={notify} onChange={setNotify} id="notify-status" />
             </div>
             <div className="flex justify-end">
               <Button onClick={() => void save()} loading={update.isPending} className="gap-2">

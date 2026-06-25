@@ -102,6 +102,49 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
 );
 Select.displayName = 'Select';
 
+/* ── Switch (accessible toggle) ─────────────────────────────────────────── */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled,
+  id,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label?: ReactNode;
+  disabled?: boolean;
+  id?: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={cn('inline-flex items-center gap-2.5', disabled ? 'opacity-50' : 'cursor-pointer')}
+    >
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={cn(
+          'relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
+          checked ? 'bg-brand' : 'bg-muted',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
+          )}
+        />
+      </button>
+      {label != null && <span className="text-sm text-foreground">{label}</span>}
+    </label>
+  );
+}
+
 /* ── Field (label + error wrapper) ──────────────────────────────────────── */
 export function Field({
   label,

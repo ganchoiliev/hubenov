@@ -208,17 +208,37 @@ export async function notifyStatusEmails(
   try {
     const ids = [...new Set(shipments.map((s) => s.client_id))];
     if (ids.length === 0) return;
+
+    // Global master switch — owner can pause all status emails. Resilient: if the
+    // column doesn't exist yet (pre-0011), default ON rather than going silent.
+    try {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('notify_status_emails')
+        .eq('id', 1)
+        .maybeSingle();
+      if (settings && (settings as { notify_status_emails?: boolean }).notify_status_emails === false) return;
+    } catch {
+      /* column missing pre-migration — treat as enabled */
+    }
+
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, full_name, preferred_locale')
+      .select('id, email, full_name, preferred_locale, notify_email')
       .in('id', ids);
-    type Row = { id: string; email: string | null; full_name: string | null; preferred_locale: string | null };
+    type Row = {
+      id: string;
+      email: string | null;
+      full_name: string | null;
+      preferred_locale: string | null;
+      notify_email: boolean | null;
+    };
     const byId = new Map(((data ?? []) as Row[]).map((p) => [p.id, p]));
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     await Promise.allSettled(
       shipments.map(async (s) => {
         const c = byId.get(s.client_id);
-        if (!c?.email) return;
+        if (!c?.email || c.notify_email === false) return; // no email or opted out
         const mail = statusEmail({
           code: s.public_code,
           status: to,
@@ -307,6 +327,7 @@ export interface CompanySettings {
   label_size: 'A6' | '100x150' | 'A4';
   print_method: 'browser' | 'qz';
   return_address: string | null;
+  notify_status_emails: boolean;
   updated_at: string;
 }
 
@@ -387,8 +408,12 @@ export function useClients() {
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { id: string; patch: Partial<Pick<Profile, 'full_name' | 'phone' | 'email'>> }) => {
-      const { error } = await supabase.from('profiles').update(args.patch).eq('id', args.id);
+    mutationFn: async (args: {
+      id: string;
+      patch: Partial<Pick<Profile, 'full_name' | 'phone' | 'email' | 'notify_email'>>;
+    }) => {
+      // `as never`: generated DB types predate profiles.notify_email (0011).
+      const { error } = await supabase.from('profiles').update(args.patch as never).eq('id', args.id);
       if (error) throw error;
     },
     onSuccess: () => {
