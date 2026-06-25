@@ -21,6 +21,7 @@ const COPY = {
     filter_all: 'Всички статуси',
     none: 'Няма пратки за този филтър.',
     apply: 'Приложи',
+    other: 'Друго…',
     no_next: 'Няма промяна',
     updated: 'Статусът е обновен',
     count: 'пратки',
@@ -31,37 +32,42 @@ const COPY = {
     filter_all: 'All statuses',
     none: 'No shipments match this filter.',
     apply: 'Apply',
+    other: 'Other…',
     no_next: 'No change',
     updated: 'Status updated',
     count: 'shipments',
   },
 } as const;
 
-/** Per-row manual status control. Keeps its own pending-target select state. */
+/**
+ * Per-row status control. One click advances to the happy-path next status; the
+ * exceptions (side states) sit in an auto-applying dropdown. Stateless re: the
+ * target — it's derived from the live `shipment.status` each render, so after the
+ * list refetches the control shows the *new* next step (no stale selection, no
+ * manual refresh).
+ */
 function StatusChanger({
   shipment,
   locale,
-  applyLabel,
+  otherLabel,
   noNextLabel,
   errorLabel,
 }: {
   shipment: Shipment;
   locale: 'bg' | 'en';
-  applyLabel: string;
+  otherLabel: string;
   noNextLabel: string;
   errorLabel: string;
 }) {
   const toast = useToast();
   const update = useUpdateStatus();
   const options = nextStatuses(shipment.status);
-  const [to, setTo] = useState<AnyStatus | ''>(options[0] ?? '');
 
   if (options.length === 0) {
     return <span className="text-xs text-muted-fg">{noNextLabel}</span>;
   }
 
-  const apply = async () => {
-    if (!to) return;
+  const apply = async (to: AnyStatus) => {
     try {
       await update.mutateAsync({ shipment, to, source: 'manual' });
       toast.success(`${shipment.public_code} · ${statusLabel(to, locale)}`);
@@ -70,31 +76,39 @@ function StatusChanger({
     }
   };
 
+  const next = options[0]!; // safe: guarded by options.length === 0 above
+  const alternatives = options.slice(1);
+
   return (
     <div className="flex items-center gap-2">
-      <Select
-        aria-label="status"
-        value={to}
-        onChange={(e) => setTo(e.target.value as AnyStatus)}
-        className="h-9 w-44 py-1.5 text-xs"
-        disabled={update.isPending}
-      >
-        {options.map((s) => (
-          <option key={s} value={s}>
-            {statusLabel(s, locale)}
-          </option>
-        ))}
-      </Select>
       <Button
         size="sm"
-        variant="outline"
         loading={update.isPending}
-        disabled={!to || update.isPending}
-        onClick={() => void apply()}
-        className="shrink-0"
+        disabled={update.isPending}
+        onClick={() => void apply(next)}
+        className="shrink-0 gap-1.5"
       >
-        {applyLabel}
+        <ArrowRight className="h-4 w-4" /> {statusLabel(next, locale)}
       </Button>
+      {alternatives.length > 0 && (
+        <Select
+          aria-label="other status"
+          value=""
+          onChange={(e) => {
+            const v = e.target.value as AnyStatus;
+            if (v) void apply(v);
+          }}
+          className="h-9 w-32 py-1.5 text-xs"
+          disabled={update.isPending}
+        >
+          <option value="">{otherLabel}</option>
+          {alternatives.map((s) => (
+            <option key={s} value={s}>
+              {statusLabel(s, locale)}
+            </option>
+          ))}
+        </Select>
+      )}
     </div>
   );
 }
@@ -219,7 +233,7 @@ export function OpShipmentsPage() {
                       <StatusChanger
                         shipment={s}
                         locale={locale}
-                        applyLabel={L.apply}
+                        otherLabel={L.other}
                         noNextLabel={L.no_next}
                         errorLabel={t('common.error')}
                       />

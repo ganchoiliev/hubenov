@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send } from 'lucide-react';
+import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { PageHeading, EmptyState } from '@/components/shared/common';
-import { useOtLookup, useUpdateProfile, useCreateInvoice, useSendInvoiceEmail } from '@/lib/queries';
+import {
+  useOtLookup,
+  useUpdateProfile,
+  useCreateInvoice,
+  useSendInvoiceEmail,
+  useClients,
+} from '@/lib/queries';
 import { otCodeSchema } from '@/schemas';
 import { formatMoney } from '@/lib/utils';
+import { transliterate } from '@/lib/translit';
 import type { Profile, Invoice, Shipment, Currency } from '@/types/domain';
 
 export function OtLookupPage() {
@@ -31,6 +38,28 @@ export function OtLookupPage() {
     setCode(v);
     setErr(null);
   }, [searchParams]);
+
+  // Search clients by name / phone / email / OT — not just the exact OT code.
+  const { data: allClients } = useClients();
+  const [clientSearch, setClientSearch] = useState('');
+  const matches = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return [];
+    return (allClients ?? [])
+      .filter((c) =>
+        [c.full_name, transliterate(c.full_name), c.client_code, c.phone ?? '', c.email ?? ''].some((h) =>
+          h.toLowerCase().includes(q),
+        ),
+      )
+      .slice(0, 6);
+  }, [allClients, clientSearch]);
+  const pickClient = (clientCode: string) => {
+    const v = clientCode.toUpperCase();
+    setInput(v);
+    setCode(v);
+    setErr(null);
+    setClientSearch('');
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +90,36 @@ export function OtLookupPage() {
       </form>
       {err && <p className="mt-2 text-sm text-danger">{err}</p>}
 
+      {/* Search by name / phone / email — when the OT number isn't known */}
+      <div className="relative mt-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+        <Input
+          value={clientSearch}
+          onChange={(e) => setClientSearch(e.target.value)}
+          placeholder={lang === 'bg' ? 'Или търси по име, телефон, имейл…' : 'Or search by name, phone, email…'}
+          className="pl-9"
+        />
+      </div>
+      {clientSearch.trim() && (
+        <div className="mt-2 space-y-1">
+          {matches.length === 0 ? (
+            <p className="px-1 text-xs text-muted-fg">{lang === 'bg' ? 'Няма съвпадения' : 'No matches'}</p>
+          ) : (
+            matches.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => pickClient(c.client_code)}
+                className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+              >
+                <span className="text-sm font-medium text-foreground">{c.full_name || '—'}</span>
+                <span className="font-mono text-xs text-muted-fg">{c.client_code}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
       <div className="mt-8">
         {isFetching && (
           <div className="flex justify-center py-10">
@@ -79,9 +138,16 @@ export function OtLookupPage() {
 
             {/* Shipments */}
             <div>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-fg">
-                <Package className="h-4 w-4" /> {t('operator.shipments')} ({data.shipments.length})
-              </h3>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-fg">
+                  <Package className="h-4 w-4" /> {t('operator.shipments')} ({data.shipments.length})
+                </h3>
+                <Link to={`/op/intake?code=${encodeURIComponent(data.profile.client_code)}`}>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <PackagePlus className="h-4 w-4" /> {lang === 'bg' ? 'Нова пратка' : 'New shipment'}
+                  </Button>
+                </Link>
+              </div>
               {data.shipments.length === 0 ? (
                 <p className="text-sm text-muted-fg">{t('portal.no_shipments')}</p>
               ) : (

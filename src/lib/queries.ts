@@ -293,6 +293,8 @@ export function useUpdateStatus() {
       void qc.invalidateQueries({ queryKey: ['shipment', vars.shipment.id] });
       void qc.invalidateQueries({ queryKey: ['tracking', vars.shipment.id] });
       void qc.invalidateQueries({ queryKey: ['shipments'] });
+      void qc.invalidateQueries({ queryKey: ['op-shipments'] });
+      void qc.invalidateQueries({ queryKey: ['ot-lookup'] });
     },
   });
 }
@@ -558,7 +560,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
         inval([['tracking'], ['shipment']]),

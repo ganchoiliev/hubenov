@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useForm,
@@ -17,11 +17,14 @@ import {
   ScanLine,
   ArrowRight,
   Copy,
+  Search,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
+import { useClients } from '@/lib/queries';
+import { transliterate } from '@/lib/translit';
 import { supabase } from '@/lib/supabase';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
 import type { Shipment, Country, Direction, ParcelType, Currency } from '@/types/domain';
@@ -54,6 +57,9 @@ export function IntakePage() {
       ? {
           client_code: 'ОТ номер на клиент',
           client_code_hint: 'Въведете и натиснете Enter, за да заредите клиента.',
+          search_client: 'Търси клиент по име или телефон…',
+          no_matches: 'Няма съвпадения',
+          or: 'или',
           resolving: 'Търсене на клиент…',
           resolved: 'Клиент зареден',
           direction: 'Посока',
@@ -90,6 +96,9 @@ export function IntakePage() {
       : {
           client_code: 'Client OT code',
           client_code_hint: 'Type and press Enter to load the client.',
+          search_client: 'Search client by name or phone…',
+          no_matches: 'No matches',
+          or: 'or',
           resolving: 'Resolving client…',
           resolved: 'Client loaded',
           direction: 'Direction',
@@ -133,8 +142,30 @@ export function IntakePage() {
   const [newClient, setNewClient] = useState({ name: '', phone: '', email: '' });
   const [creatingClient, setCreatingClient] = useState(false);
 
-  const resolveClient = async () => {
-    const code = codeInput.trim().toUpperCase();
+  // Search clients by name/phone — no OT number needed.
+  const { data: allClients } = useClients();
+  const [clientSearch, setClientSearch] = useState('');
+  const clientMatches = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return [];
+    return (allClients ?? [])
+      .filter((c) =>
+        [c.full_name, transliterate(c.full_name), c.client_code, c.phone ?? '', c.email ?? ''].some((h) =>
+          h.toLowerCase().includes(q),
+        ),
+      )
+      .slice(0, 6);
+  }, [allClients, clientSearch]);
+  const pickClient = (c: { id: string; full_name: string; client_code: string }) => {
+    setClient({ id: c.id, full_name: c.full_name, client_code: c.client_code });
+    setNotFound(false);
+    setClientSearch('');
+    setCodeInput(c.client_code);
+    lastResolved.current = c.client_code;
+  };
+
+  const resolveClient = async (override?: string) => {
+    const code = (override ?? codeInput).trim().toUpperCase();
     if (!code || code === lastResolved.current) return;
     lastResolved.current = code;
     setResolving(true);
@@ -198,6 +229,17 @@ export function IntakePage() {
       void resolveClient();
     }
   };
+
+  // Deep-link: /op/intake?code=HB-XXXX (e.g. "New shipment" from a client record).
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const c = searchParams.get('code');
+    if (!c) return;
+    const v = c.trim().toUpperCase();
+    setCodeInput(v);
+    void resolveClient(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   /* ── Shipment form ─────────────────────────────────────────────────────── */
   const {
@@ -360,30 +402,70 @@ export function IntakePage() {
           )}
 
           {!client && !resolving && (
-            <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
-              {notFound && <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>}
-              <p className="text-sm font-semibold text-foreground">{L.new_client}</p>
-              <p className="text-xs text-muted-fg">{L.new_client_hint}</p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Input
-                  placeholder={t('wizard.name')}
-                  value={newClient.name}
-                  onChange={(e) => setNewClient((c) => ({ ...c, name: e.target.value }))}
-                />
-                <Input
-                  placeholder={t('wizard.phone')}
-                  value={newClient.phone}
-                  onChange={(e) => setNewClient((c) => ({ ...c, phone: e.target.value }))}
-                />
-                <Input
-                  placeholder={L.email_label}
-                  value={newClient.email}
-                  onChange={(e) => setNewClient((c) => ({ ...c, email: e.target.value }))}
-                />
+            <div className="space-y-4">
+              {/* Search by name / phone — no OT number needed */}
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase tracking-wide text-muted-fg">{L.or}</span>
+                <span className="h-px flex-1 bg-border" />
               </div>
-              <Button type="button" className="gap-2" loading={creatingClient} onClick={() => void createWalkIn()}>
-                <UserPlus className="h-4 w-4" /> {L.create_client}
-              </Button>
+              <div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+                  <Input
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder={L.search_client}
+                    className="pl-9"
+                  />
+                </div>
+                {clientSearch.trim() && (
+                  <div className="mt-2 space-y-1">
+                    {clientMatches.length === 0 ? (
+                      <p className="px-1 text-xs text-muted-fg">{L.no_matches}</p>
+                    ) : (
+                      clientMatches.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => pickClient(c)}
+                          className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+                        >
+                          <span className="text-sm font-medium text-foreground">{c.full_name || '—'}</span>
+                          <span className="font-mono text-xs text-muted-fg">{c.client_code}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* New walk-in client */}
+              <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
+                {notFound && <p className="text-sm font-medium text-danger">{t('operator.lookup_not_found')}</p>}
+                <p className="text-sm font-semibold text-foreground">{L.new_client}</p>
+                <p className="text-xs text-muted-fg">{L.new_client_hint}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input
+                    placeholder={t('wizard.name')}
+                    value={newClient.name}
+                    onChange={(e) => setNewClient((c) => ({ ...c, name: e.target.value }))}
+                  />
+                  <Input
+                    placeholder={t('wizard.phone')}
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient((c) => ({ ...c, phone: e.target.value }))}
+                  />
+                  <Input
+                    placeholder={L.email_label}
+                    value={newClient.email}
+                    onChange={(e) => setNewClient((c) => ({ ...c, email: e.target.value }))}
+                  />
+                </div>
+                <Button type="button" className="gap-2" loading={creatingClient} onClick={() => void createWalkIn()}>
+                  <UserPlus className="h-4 w-4" /> {L.create_client}
+                </Button>
+              </div>
             </div>
           )}
         </CardBody>
