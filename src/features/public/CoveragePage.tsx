@@ -160,6 +160,16 @@ export function CoveragePage() {
         </Stagger>
       </div>
 
+      {/* Rate */}
+      <div className="mt-14 flex flex-col items-center gap-1 rounded-3xl border border-brand/20 bg-brand-50 p-8 text-center dark:bg-brand-50/20">
+        <p className="font-display text-4xl font-extrabold text-brand-700">£2 / {locale === 'bg' ? 'кг' : 'kg'}</p>
+        <p className="mt-1 max-w-md text-sm text-muted-fg">
+          {locale === 'bg'
+            ? 'Прозрачна цена на килограм. При обемни кутии се таксува по-голямото от реалното и обемното тегло.'
+            : 'Transparent per-kilo price. Bulky boxes are charged on the greater of actual and volumetric weight.'}
+        </p>
+      </div>
+
       {/* CTA */}
       <div className="mt-14 flex flex-col items-start gap-5 rounded-3xl border border-border bg-card p-8 shadow-soft md:flex-row md:items-center md:justify-between md:p-10">
         <div>

@@ -1,7 +1,7 @@
 import { NavLink, Outlet, Link, useNavigate, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut, type LucideIcon } from 'lucide-react';
-import { Suspense, useState } from 'react';
+import { LogOut, Menu, X, type LucideIcon } from 'lucide-react';
+import { Suspense, useState, useEffect } from 'react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Spinner } from '@/components/ui';
@@ -23,6 +23,16 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
   const [mobileOpen, setMobileOpen] = useState(false);
   useRealtimeSync(); // live updates across the app — no manual refresh
 
+  // Close the mobile drawer on Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
+
   const onSignOut = async () => {
     await signOut();
     navigate('/');
@@ -31,10 +41,19 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
   return (
     <div className="flex min-h-screen bg-muted/30">
       <ScrollRestoration />
+      {/* Mobile drawer backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       {/* Sidebar */}
       <aside
+        id="app-sidebar"
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 -translate-x-full border-r border-border bg-card transition-transform lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 w-64 -translate-x-full border-r border-border bg-card transition-transform lg:translate-x-0',
           mobileOpen && 'translate-x-0',
         )}
       >
@@ -79,11 +98,13 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/85 px-5 backdrop-blur-lg">
           <button
-            className="rounded-lg p-2 text-foreground lg:hidden"
+            className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted lg:hidden"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Menu"
+            aria-expanded={mobileOpen}
+            aria-controls="app-sidebar"
           >
-            <span className="i">≡</span>
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-fg">
             {scope === 'operator' ? t('nav.console') : t('nav.portal')}

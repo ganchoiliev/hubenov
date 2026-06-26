@@ -153,6 +153,10 @@ export interface PricingRate {
   volumetric_divisor: number;
   surcharge_gift: number;
   surcharge_remote: number;
+  /** Linear per-kg price. When set (>0) it overrides the flat band `price`. */
+  price_per_kg?: number;
+  /** Optional floor applied to per-kg pricing. */
+  min_charge?: number;
 }
 
 export interface CustomsItem {

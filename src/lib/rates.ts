@@ -1,37 +1,23 @@
 /**
- * PLACEHOLDER pricing bands — mirror supabase/seed.sql so the public quote
- * works in Wave 1 before the DB is wired. TODO(owner): set real rates in the
- * admin pricing editor; these are illustrative only.
+ * PLACEHOLDER pricing — mirrors supabase/seed.sql so the public quote works
+ * before the DB is wired. The business charges a flat £2/kg (chargeable weight =
+ * the greater of actual and volumetric). Owner can override in the admin pricing
+ * editor / DB.
  */
 import type { PricingRate } from '@/types/domain';
 
-export const PLACEHOLDER_RATES: PricingRate[] = [
-  band('UK_BG', 0, 2, 12),
-  band('UK_BG', 2, 5, 18),
-  band('UK_BG', 5, 10, 28),
-  band('UK_BG', 10, 20, 45),
-  band('UK_BG', 20, 30, 65),
-  band('UK_BG', 30, 1000, 95),
-  band('BG_UK', 0, 2, 14),
-  band('BG_UK', 2, 5, 20),
-  band('BG_UK', 5, 10, 32),
-  band('BG_UK', 10, 20, 52),
-  band('BG_UK', 20, 30, 74),
-  band('BG_UK', 30, 1000, 110),
-];
+export const PLACEHOLDER_RATES: PricingRate[] = [perKg('UK_BG', 2), perKg('BG_UK', 2)];
 
-function band(
-  direction: 'UK_BG' | 'BG_UK',
-  from: number,
-  to: number,
-  price: number,
-): PricingRate {
+/** A single linear per-kg band covering all weights for a direction. */
+function perKg(direction: 'UK_BG' | 'BG_UK', pricePerKg: number): PricingRate {
   return {
-    id: `${direction}-${from}-${to}`,
+    id: `${direction}-perkg`,
     direction,
-    weight_from_kg: from,
-    weight_to_kg: to,
-    price,
+    weight_from_kg: 0,
+    weight_to_kg: 1000,
+    price: 0,
+    price_per_kg: pricePerKg,
+    min_charge: 0,
     currency: 'GBP',
     volumetric_divisor: 5000,
     surcharge_gift: 0,

@@ -81,12 +81,18 @@ export function calculateQuote(args: PriceArgs, rates: PricingRate[]): Quote {
     surcharges.push({ label: 'remote', amount: rate.surcharge_remote });
   }
 
-  const total = round2(rate.price + surcharges.reduce((s, x) => s + x.amount, 0));
+  // Per-kg pricing (linear) when the rate defines it; otherwise the flat band price.
+  const base =
+    rate.price_per_kg && rate.price_per_kg > 0
+      ? Math.max(rate.min_charge ?? 0, round2(chargeable * rate.price_per_kg))
+      : rate.price;
+
+  const total = round2(base + surcharges.reduce((s, x) => s + x.amount, 0));
 
   return {
     direction: args.direction,
     chargeable_weight_kg: chargeable,
-    base_price: rate.price,
+    base_price: base,
     surcharges,
     total,
     currency: args.currency ?? rate.currency,

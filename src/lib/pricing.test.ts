@@ -23,19 +23,19 @@ describe('chargeableWeight', () => {
 });
 
 describe('findRate', () => {
-  it('matches the correct band (upper-inclusive)', () => {
+  it('returns the per-kg band for a weight in range', () => {
     const r = findRate(PLACEHOLDER_RATES, 'UK_BG', 2);
-    expect(r?.weight_to_kg).toBe(2);
+    expect(r?.price_per_kg).toBe(2);
+    expect(r?.weight_to_kg).toBe(1000);
   });
-  it('rolls to the next band just over a boundary', () => {
+  it('returns the per-kg band for a heavier parcel too', () => {
     const r = findRate(PLACEHOLDER_RATES, 'UK_BG', 2.5);
-    expect(r?.weight_from_kg).toBe(2);
-    expect(r?.weight_to_kg).toBe(5);
+    expect(r?.price_per_kg).toBe(2);
   });
 });
 
-describe('calculateQuote', () => {
-  it('prices a small UK→BG parcel', () => {
+describe('calculateQuote (£2/kg linear)', () => {
+  it('prices a small UK→BG parcel at £2/kg of chargeable weight', () => {
     const q = calculateQuote(
       {
         direction: 'UK_BG',
@@ -48,9 +48,10 @@ describe('calculateQuote', () => {
       },
       PLACEHOLDER_RATES,
     );
-    expect(q.total).toBe(12);
-    expect(q.currency).toBe('GBP');
+    // volumetric 1.6 > actual 1.5 → chargeable 2.0kg → 2 × £2 = £4
     expect(q.chargeable_weight_kg).toBe(2);
+    expect(q.total).toBe(4);
+    expect(q.currency).toBe('GBP');
   });
 
   it('adds a remote-area surcharge', () => {
@@ -66,8 +67,9 @@ describe('calculateQuote', () => {
       },
       PLACEHOLDER_RATES,
     );
+    // 1kg × £2 = £2, + £6 remote = £8
     expect(q.surcharges).toEqual([{ label: 'remote', amount: 6 }]);
-    expect(q.total).toBe(18);
+    expect(q.total).toBe(8);
   });
 
   it('uses volumetric weight when bulky-but-light', () => {
@@ -83,8 +85,8 @@ describe('calculateQuote', () => {
       },
       PLACEHOLDER_RATES,
     );
-    // volumetric = 120000/5000 = 24kg → 20–30 band = 65
+    // volumetric = 120000/5000 = 24kg → 24 × £2 = £48
     expect(q.chargeable_weight_kg).toBe(24);
-    expect(q.total).toBe(65);
+    expect(q.total).toBe(48);
   });
 });
