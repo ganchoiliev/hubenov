@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
-import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef } from '@/lib/queries';
+import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/utils';
 import { assessCustoms } from '@/lib/customs';
@@ -137,6 +137,7 @@ function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: 
   const toast = useToast();
   const { data: courier } = useCourierShipment(shipment.id);
   const save = useSaveCourierRef();
+  const markRemit = useMarkCodRemitted();
   const [ref, setRef] = useState('');
   const [cod, setCod] = useState('');
 
@@ -159,6 +160,11 @@ function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: 
           save: 'Запази',
           saved: 'Запазено',
           err: 'Грешка',
+          remitTitle: 'Превод на COD от Еконт',
+          remitAwaiting: 'очаква получаване',
+          remitDone: 'получено',
+          markReceived: 'Отбележи получено',
+          markUndo: 'Отмени',
         }
       : {
           title: 'Econt (last mile)',
@@ -169,6 +175,11 @@ function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: 
           save: 'Save',
           saved: 'Saved',
           err: 'Error',
+          remitTitle: 'COD payout from Econt',
+          remitAwaiting: 'awaiting receipt',
+          remitDone: 'received',
+          markReceived: 'Mark received',
+          markUndo: 'Undo',
         };
 
   const onSave = async () => {
@@ -177,6 +188,7 @@ function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: 
         shipment_id: shipment.id,
         carrier_ref: ref.trim() || null,
         cod_amount: cod.trim() ? Number(cod.replace(',', '.')) : null,
+        cod_currency: cod.trim() ? shipment.currency : null,
       });
       toast.success(L.saved);
     } catch {
@@ -216,6 +228,27 @@ function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: 
                 <Save className="h-4 w-4" /> {L.save}
               </Button>
             </div>
+
+            {shipment.status === 'delivered' && courier?.cod_amount != null && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{L.remitTitle}</p>
+                  <p className="text-xs text-muted-fg">
+                    {formatMoney(courier.cod_amount, shipment.currency, locale)} ·{' '}
+                    {courier.cod_remitted_at ? L.remitDone : L.remitAwaiting}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={courier.cod_remitted_at ? 'outline' : 'primary'}
+                  loading={markRemit.isPending}
+                  onClick={() => markRemit.mutate({ shipment_id: shipment.id, remitted: !courier.cod_remitted_at })}
+                  className="shrink-0"
+                >
+                  {courier.cod_remitted_at ? L.markUndo : L.markReceived}
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <div className="space-y-1.5 text-sm">

@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight } from 'lucide-react';
-import { Card, CardBody } from '@/components/ui';
+import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { Button, Card, CardBody } from '@/components/ui';
 import { Stat, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
-import { useOperatorDashboard } from '@/lib/queries';
+import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted } from '@/lib/queries';
 import { useAuth } from '@/lib/auth';
 import { statusLabel, timelineIndex } from '@/lib/status';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, cn } from '@/lib/utils';
 import type { AnyStatus, Currency } from '@/types/domain';
 
 const ACTIONS = [
@@ -32,7 +32,9 @@ export function OperatorHomePage() {
   const lang: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const intlLocale = lang === 'en' ? 'en-GB' : 'bg-BG';
   const { profile } = useAuth();
-  const { data: dash } = useOperatorDashboard();
+  const { data: dash, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useOperatorDashboard();
+  const { data: awaiting } = useCodAwaitingRemittance();
+  const markRemit = useMarkCodRemitted();
 
   const roleLabel = profile?.role ? (lang === 'bg' ? (ROLE_BG[profile.role] ?? profile.role) : profile.role) : '';
 
@@ -40,7 +42,9 @@ export function OperatorHomePage() {
     lang === 'bg'
       ? {
           cod: 'COD за събиране',
-          codHint: 'непредадени пратки',
+          codHint: 'пратки в транзит',
+          codRemit: 'COD при Еконт',
+          codRemitHint: 'доставени, очакват превод',
           due: 'Дължими (неплатени)',
           dueHint: 'издадени фактури',
           paid: 'Приход (платени)',
@@ -50,10 +54,19 @@ export function OperatorHomePage() {
           delivered: 'Доставени',
           inflight: 'Пратки по статус',
           none: 'Няма активни пратки',
+          reconTitle: 'COD за получаване от Еконт',
+          reconNone: 'Няма суми за получаване',
+          received: 'Получено',
+          updated: 'Обновено',
+          refresh: 'Обнови',
+          loadErr: 'Грешка при зареждане на данните',
+          retry: 'Опитай пак',
         }
       : {
           cod: 'COD to collect',
           codHint: 'parcels in transit',
+          codRemit: 'COD held by Econt',
+          codRemitHint: 'delivered, awaiting payout',
           due: 'Outstanding (unpaid)',
           dueHint: 'issued invoices',
           paid: 'Revenue (paid)',
@@ -63,6 +76,13 @@ export function OperatorHomePage() {
           delivered: 'Delivered',
           inflight: 'Parcels by status',
           none: 'No active parcels',
+          reconTitle: 'COD awaiting payout from Econt',
+          reconNone: 'Nothing awaiting payout',
+          received: 'Received',
+          updated: 'Updated',
+          refresh: 'Refresh',
+          loadErr: 'Could not load dashboard data',
+          retry: 'Retry',
         };
 
   const fmtRec = (rec: Record<string, number>): string => {
@@ -70,6 +90,10 @@ export function OperatorHomePage() {
     if (entries.length === 0) return formatMoney(0, 'GBP', intlLocale);
     return entries.map(([ccy, v]) => formatMoney(v, ccy as Currency, intlLocale)).join(' · ');
   };
+
+  const sk = <span className="inline-block h-7 w-24 max-w-full animate-pulse rounded bg-muted align-middle" />;
+  const money = (rec: Record<string, number> | undefined) => (isLoading ? sk : isError ? '—' : fmtRec(rec ?? {}));
+  const num = (n: number | undefined) => (isLoading ? sk : isError ? '—' : (n ?? 0));
 
   const activeStatuses = Object.entries(dash?.shipments.byStatus ?? {})
     .filter(([s]) => !HIDDEN_STATUSES.has(s))
@@ -82,23 +106,94 @@ export function OperatorHomePage() {
         subtitle={profile?.full_name ? `${profile.full_name} · ${roleLabel}` : undefined}
       />
 
+      {/* Freshness */}
+      <div className="mb-3 flex items-center justify-end gap-2 text-xs text-muted-fg">
+        {dataUpdatedAt && !isError ? (
+          <span>
+            {L.updated}{' '}
+            {new Date(dataUpdatedAt).toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        ) : null}
+        <button
+          onClick={() => void refetch()}
+          className="rounded-md p-1 hover:bg-muted hover:text-foreground"
+          aria-label={L.refresh}
+          title={L.refresh}
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
+        </button>
+      </div>
+
+      {isError && (
+        <Card className="mb-4 border-red-300 bg-red-50">
+          <CardBody className="flex flex-wrap items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-sm font-medium text-red-700">
+              <AlertCircle className="h-4 w-4" /> {L.loadErr}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => void refetch()}>
+              {L.retry}
+            </Button>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Money */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat
-          label={L.cod}
-          value={dash ? formatMoney(dash.cod.outstanding, 'BGN', intlLocale) : '—'}
-          hint={`${dash?.cod.count ?? 0} ${L.codHint}`}
-        />
-        <Stat label={L.due} value={dash ? fmtRec(dash.invoices.due) : '—'} hint={L.dueHint} />
-        <Stat label={L.paid} value={dash ? fmtRec(dash.invoices.paid) : '—'} hint={L.paidHint} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label={L.cod} value={money(dash?.cod.collecting)} hint={`${dash?.cod.collectingCount ?? 0} ${L.codHint}`} />
+        <Stat label={L.codRemit} value={money(dash?.cod.awaiting)} hint={`${dash?.cod.awaitingCount ?? 0} · ${L.codRemitHint}`} />
+        <Stat label={L.due} value={money(dash?.invoices.due)} hint={L.dueHint} />
+        <Stat label={L.paid} value={money(dash?.invoices.paid)} hint={L.paidHint} />
       </div>
 
       {/* Ops */}
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <Stat label={L.active} value={dash?.shipments.active ?? '—'} />
-        <Stat label={L.today} value={dash?.shipments.today ?? '—'} />
-        <Stat label={L.delivered} value={dash?.shipments.delivered ?? '—'} />
+        <Stat label={L.active} value={num(dash?.shipments.active)} />
+        <Stat label={L.today} value={num(dash?.shipments.today)} />
+        <Stat label={L.delivered} value={num(dash?.shipments.delivered)} />
       </div>
+
+      {/* COD awaiting payout — reconciliation */}
+      {awaiting && awaiting.length > 0 && (
+        <Card className="mt-4">
+          <CardBody>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">{L.reconTitle}</p>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-fg">
+                {awaiting.length}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {awaiting.slice(0, 8).map((r) => (
+                <div
+                  key={r.shipment_id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <Link to={`/op/shipments/${r.shipment_id}`} className="font-mono font-semibold text-brand-700 hover:underline">
+                      {r.public_code}
+                    </Link>
+                    {r.receiver_name && <span className="truncate text-muted-fg">{r.receiver_name}</span>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {formatMoney(r.cod_amount, r.cod_currency as Currency, intlLocale)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      loading={markRemit.isPending && markRemit.variables?.shipment_id === r.shipment_id}
+                      onClick={() => markRemit.mutate({ shipment_id: r.shipment_id, remitted: true })}
+                    >
+                      <Check className="h-3.5 w-3.5" /> {L.received}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Quick actions */}
       <Stagger className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

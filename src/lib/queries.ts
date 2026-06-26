@@ -134,6 +134,8 @@ export interface CourierShipment {
   carrier: string;
   carrier_ref: string | null;
   cod_amount: number | null;
+  cod_currency: string | null;
+  cod_remitted_at: string | null;
 }
 
 export function useCourierShipment(shipmentId: string | undefined) {
@@ -143,7 +145,7 @@ export function useCourierShipment(shipmentId: string | undefined) {
     queryFn: async (): Promise<CourierShipment | null> => {
       const { data, error } = await supabase
         .from('courier_shipments')
-        .select('id, shipment_id, carrier, carrier_ref, cod_amount')
+        .select('id, shipment_id, carrier, carrier_ref, cod_amount, cod_currency, cod_remitted_at')
         .eq('shipment_id', shipmentId!)
         .maybeSingle();
       if (error) throw error;
@@ -155,7 +157,12 @@ export function useCourierShipment(shipmentId: string | undefined) {
 export function useSaveCourierRef() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { shipment_id: string; carrier_ref: string | null; cod_amount: number | null }) => {
+    mutationFn: async (args: {
+      shipment_id: string;
+      carrier_ref: string | null;
+      cod_amount: number | null;
+      cod_currency: string | null;
+    }) => {
       // Upsert by shipment_id (unique idx, 0012). `as never`: generated types.
       const { error } = await supabase
         .from('courier_shipments')
@@ -165,12 +172,36 @@ export function useSaveCourierRef() {
             carrier: 'econt',
             carrier_ref: args.carrier_ref,
             cod_amount: args.cod_amount,
+            cod_currency: args.cod_currency,
           } as never,
           { onConflict: 'shipment_id' },
         );
       if (error) throw error;
     },
-    onSuccess: (_d, vars) => void qc.invalidateQueries({ queryKey: ['courier', vars.shipment_id] }),
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['courier', vars.shipment_id] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['cod-remit'] });
+    },
+  });
+}
+
+/** Mark (or un-mark) a shipment's COD as remitted to us by Econt. */
+export function useMarkCodRemitted() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { shipment_id: string; remitted: boolean }) => {
+      const { error } = await supabase
+        .from('courier_shipments')
+        .update({ cod_remitted_at: args.remitted ? new Date().toISOString() : null } as never)
+        .eq('shipment_id', args.shipment_id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['courier', vars.shipment_id] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['cod-remit'] });
+    },
   });
 }
 
@@ -482,6 +513,16 @@ export function useCreateInvoice() {
       currency: Currency;
       shipment_id?: string | null;
     }): Promise<Invoice> => {
+      // One invoice per shipment (0013 unique index is the hard guard; this
+      // pre-check lets callers surface "already invoiced" instead of a raw error).
+      if (input.shipment_id) {
+        const { data: existing } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('shipment_id', input.shipment_id)
+          .maybeSingle();
+        if (existing) throw new Error('invoice_exists');
+      }
       const { data, error } = await supabase
         .from('invoices')
         // `number` is auto-filled by the 0010 trigger (INV-0001…); `status`
@@ -604,7 +645,12 @@ export function useCreateClient() {
 export interface OperatorDashboard {
   shipments: { total: number; active: number; today: number; delivered: number; byStatus: Record<string, number> };
   invoices: { paid: Record<string, number>; due: Record<string, number> };
-  cod: { outstanding: number; count: number };
+  cod: {
+    collecting: Record<string, number>; // out for collection (in transit)
+    awaiting: Record<string, number>; // delivered, Econt holding our cash
+    collectingCount: number;
+    awaitingCount: number;
+  };
 }
 
 export function useOperatorDashboard() {
@@ -614,7 +660,11 @@ export function useOperatorDashboard() {
       const [shRes, invRes, codRes] = await Promise.all([
         supabase.from('shipments').select('status, created_at').limit(5000),
         supabase.from('invoices').select('amount, currency, status').limit(5000),
-        supabase.from('courier_shipments').select('cod_amount, shipments!shipment_id(status)').not('cod_amount', 'is', null).limit(5000),
+        supabase
+          .from('courier_shipments')
+          .select('cod_amount, cod_currency, cod_remitted_at, shipments!shipment_id(status, currency)')
+          .not('cod_amount', 'is', null)
+          .limit(5000),
       ]);
 
       const sh = (shRes.data ?? []) as { status: string; created_at: string }[];
@@ -640,21 +690,77 @@ export function useOperatorDashboard() {
         bucket[i.currency] = (bucket[i.currency] ?? 0) + Number(i.amount);
       }
 
-      const cod = (codRes.data ?? []) as unknown as { cod_amount: number; shipments: { status: string } | null }[];
-      let outstanding = 0;
-      let count = 0;
+      const cod = (codRes.data ?? []) as unknown as {
+        cod_amount: number;
+        cod_currency: string | null;
+        cod_remitted_at: string | null;
+        shipments: { status: string; currency: string } | null;
+      }[];
+      const collecting: Record<string, number> = {};
+      const awaiting: Record<string, number> = {};
+      let collectingCount = 0;
+      let awaitingCount = 0;
+      const codTerminal = new Set(['cancelled', 'returned']);
       for (const c of cod) {
-        if (c.shipments?.status && c.shipments.status !== 'delivered') {
-          outstanding += Number(c.cod_amount);
-          count += 1;
+        const st = c.shipments?.status;
+        if (!st || codTerminal.has(st)) continue;
+        const ccy = c.cod_currency ?? c.shipments?.currency ?? 'BGN';
+        const amt = Number(c.cod_amount);
+        if (st === 'delivered') {
+          if (!c.cod_remitted_at) {
+            awaiting[ccy] = (awaiting[ccy] ?? 0) + amt;
+            awaitingCount += 1;
+          }
+        } else {
+          collecting[ccy] = (collecting[ccy] ?? 0) + amt;
+          collectingCount += 1;
         }
       }
 
       return {
         shipments: { total: sh.length, active, today, delivered, byStatus },
         invoices: { paid, due },
-        cod: { outstanding, count },
+        cod: { collecting, awaiting, collectingCount, awaitingCount },
       };
+    },
+  });
+}
+
+/* ── COD reconciliation list (delivered, Econt holding our cash) ──────────── */
+export interface CodAwaitingRow {
+  shipment_id: string;
+  public_code: string;
+  receiver_name: string;
+  cod_amount: number;
+  cod_currency: string;
+}
+
+export function useCodAwaitingRemittance() {
+  return useQuery({
+    queryKey: ['cod-remit'],
+    queryFn: async (): Promise<CodAwaitingRow[]> => {
+      const { data, error } = await supabase
+        .from('courier_shipments')
+        .select('shipment_id, cod_amount, cod_currency, shipments!shipment_id(public_code, status, currency, receiver)')
+        .not('cod_amount', 'is', null)
+        .is('cod_remitted_at', null)
+        .limit(300);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as {
+        shipment_id: string;
+        cod_amount: number;
+        cod_currency: string | null;
+        shipments: { public_code: string; status: string; currency: string; receiver: { name?: string } | null } | null;
+      }[];
+      return rows
+        .filter((r) => r.shipments?.status === 'delivered')
+        .map((r) => ({
+          shipment_id: r.shipment_id,
+          public_code: r.shipments?.public_code ?? '',
+          receiver_name: r.shipments?.receiver?.name ?? '',
+          cod_amount: Number(r.cod_amount),
+          cod_currency: r.cod_currency ?? r.shipments?.currency ?? 'BGN',
+        }));
     },
   });
 }
@@ -667,7 +773,10 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
+        inval([['courier'], ['dashboard'], ['cod-remit']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
         inval([['tracking'], ['shipment']]),
