@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
 import { Phone, Mail, ArrowLeft } from 'lucide-react';
-import { Button, Card, CardBody, Field, Input } from '@/components/ui';
+import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { LanguageSwitch } from '@/components/controls';
 import { Logo } from '@/components/brand/Logo';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { phoneLoginSchema, otpVerifySchema } from '@/schemas';
+import { otpVerifySchema } from '@/schemas';
+import { DIAL_COUNTRIES, DEFAULT_DIAL, toE164, isE164 } from '@/lib/phone';
 
 type Mode = 'phone' | 'email';
 type PhoneStep = 'enter' | 'verify';
@@ -37,6 +38,7 @@ export function LoginPage() {
   const [mode, setMode] = useState<Mode>('phone');
   const [step, setStep] = useState<PhoneStep>('enter');
   const [phone, setPhone] = useState('');
+  const [dial, setDial] = useState(DEFAULT_DIAL);
   const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,13 +54,13 @@ export function LoginPage() {
   };
 
   const sendCode = async () => {
-    const parsed = phoneLoginSchema.safeParse({ phone });
-    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? t('common.error'));
+    const e164 = toE164(dial, phone);
+    if (!isE164(e164)) return toast.error(t('auth.phone_invalid'));
     setBusy(true);
     try {
-      await signInWithPhone(parsed.data.phone);
+      await signInWithPhone(e164);
       setStep('verify');
-      toast.info(t('auth.code_sent', { phone }));
+      toast.info(t('auth.code_sent', { phone: e164 }));
     } catch {
       toast.error(t('common.error'));
     } finally {
@@ -67,11 +69,12 @@ export function LoginPage() {
   };
 
   const verify = async () => {
-    const parsed = otpVerifySchema.safeParse({ phone, token });
+    const e164 = toE164(dial, phone);
+    const parsed = otpVerifySchema.safeParse({ phone: e164, token });
     if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? t('common.error'));
     setBusy(true);
     try {
-      await verifyPhone(parsed.data.phone, parsed.data.token);
+      await verifyPhone(e164, parsed.data.token);
       toast.success(t('portal.welcome', { name: '' }));
       // redirect handled by the role-based effect once the session is set
     } catch {
@@ -152,13 +155,29 @@ export function LoginPage() {
                   {step === 'enter' ? (
                     <>
                       <Field label={t('auth.phone_label')}>
-                        <Input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder={t('auth.phone_placeholder')}
-                          autoFocus
-                        />
+                        <div className="flex gap-2">
+                          <Select
+                            aria-label={t('auth.country_code')}
+                            value={dial}
+                            onChange={(e) => setDial(e.target.value)}
+                            className="w-24 shrink-0"
+                          >
+                            {DIAL_COUNTRIES.map((c) => (
+                              <option key={c.code} value={c.dial}>
+                                {c.flag} {c.dial}
+                              </option>
+                            ))}
+                          </Select>
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder={t('auth.phone_placeholder')}
+                            autoFocus
+                            className="flex-1"
+                          />
+                        </div>
                       </Field>
                       <Button onClick={sendCode} loading={busy} className="w-full gap-2">
                         <Phone className="h-4 w-4" /> {t('auth.send_code')}
@@ -170,7 +189,7 @@ export function LoginPage() {
                         onClick={() => setStep('enter')}
                         className="flex items-center gap-1.5 text-sm text-muted-fg hover:text-foreground"
                       >
-                        <ArrowLeft className="h-4 w-4" /> {phone}
+                        <ArrowLeft className="h-4 w-4" /> {dial} {phone}
                       </button>
                       <Field label={t('auth.code_label')}>
                         <Input

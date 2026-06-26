@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Spinner } from '@/components/ui';
+import { NameGate } from '@/components/layout/NameGate';
 
 function FullScreenLoader() {
   return (
@@ -17,7 +18,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
   if (loading) return <FullScreenLoader />;
   if (!session) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
-  return <>{children}</>;
+  return <NameGate>{children}</NameGate>;
 }
 
 /** Require staff (operator/owner/driver) — gate the operator console (§3). */
@@ -27,5 +28,5 @@ export function RequireStaff({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!session) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
   if (!isStaff) return <Navigate to="/portal" replace />;
-  return <>{children}</>;
+  return <NameGate>{children}</NameGate>;
 }

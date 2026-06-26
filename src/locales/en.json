@@ -123,7 +123,7 @@
     "login_subtitle": "Sign in with your phone number — we'll text you a code.",
     "login_subtitle_email": "Sign in with email — we'll send a code, or use a password.",
     "phone_label": "Phone number",
-    "phone_placeholder": "+44 7895 909915",
+    "phone_placeholder": "07700 900123",
     "send_code": "Send code",
     "code_label": "Verification code",
     "code_placeholder": "6-digit code",
@@ -137,7 +137,16 @@
     "code_sent": "We sent a code to {{phone}}.",
     "code_sent_email": "We sent a code to {{email}}.",
     "email_invalid": "Enter a valid email address.",
-    "first_login_note": "On your first sign-in we create your client profile and OT number."
+    "first_login_note": "On your first sign-in we create your client profile and OT number.",
+    "phone_invalid": "Enter a valid phone number.",
+    "country_code": "Country code",
+    "name_title": "What's your name?",
+    "name_subtitle": "Tell us your name so we can process your parcels and address you properly.",
+    "name_label": "Your name",
+    "name_placeholder": "First and last name",
+    "name_continue": "Continue",
+    "name_required": "Please enter your name.",
+    "signout": "Sign out"
   },
   "portal": {
     "dashboard": "Dashboard",
