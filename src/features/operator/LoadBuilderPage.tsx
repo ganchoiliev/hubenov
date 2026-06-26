@@ -443,7 +443,7 @@ export function LoadBuilderPage() {
           description={L.loadNotFoundDesc}
           icon={<Truck className="h-7 w-7" />}
           action={
-            <Link to="/operator/loads">
+            <Link to="/op/loads">
               <Button variant="outline" className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> {L.back}
               </Button>

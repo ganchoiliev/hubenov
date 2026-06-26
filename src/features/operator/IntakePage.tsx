@@ -24,8 +24,10 @@ import { PageHeading } from '@/components/shared/common';
 import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { useClients, useCreateInvoice } from '@/lib/queries';
+import { useClients, useCreateInvoice, useCompanySettings, getClientCode } from '@/lib/queries';
 import { transliterate } from '@/lib/translit';
+import { buildLabelPdf } from '@/lib/label';
+import { getPrinter } from '@/providers/print';
 import { supabase } from '@/lib/supabase';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
 import type { Shipment, Country, Direction, ParcelType, Currency } from '@/types/domain';
@@ -251,6 +253,26 @@ export function IntakePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Deep-link from the Inbound scan: remember the external ref + prefill receiver.
+  useEffect(() => {
+    const inb = searchParams.get('inbound');
+    if (!inb) return;
+    setInboundRef(inb.toUpperCase());
+    autoPrintRef.current = searchParams.get('autoprint') === '1';
+    const fields: Array<[string, 'receiver.name' | 'receiver.phone' | 'receiver.line1' | 'receiver.city' | 'receiver.postcode']> = [
+      ['rname', 'receiver.name'],
+      ['rphone', 'receiver.phone'],
+      ['raddr', 'receiver.line1'],
+      ['rcity', 'receiver.city'],
+      ['rpost', 'receiver.postcode'],
+    ];
+    for (const [q, field] of fields) {
+      const val = searchParams.get(q);
+      if (val) setValue(field, val);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   /* ── Shipment form ─────────────────────────────────────────────────────── */
   const {
     register,
@@ -293,6 +315,9 @@ export function IntakePage() {
     if (client) setValue('sender.name', client.full_name);
   }, [client, setValue]);
 
+  const { data: settings } = useCompanySettings();
+  const [inboundRef, setInboundRef] = useState<string | null>(null);
+  const autoPrintRef = useRef(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -331,7 +356,8 @@ export function IntakePage() {
           client_id: client.id,
           created_by: operatorId,
           status: 'collected_uk',
-        })
+          inbound_ref: inboundRef,
+        } as never)
         .select('*')
         .single();
       if (error) throw error;
@@ -354,6 +380,30 @@ export function IntakePage() {
           /* shipment already created; operator can invoice manually */
         }
       }
+
+      // Inbound auto-print: drop our label straight out of the printer.
+      if (autoPrintRef.current) {
+        try {
+          const clientCode = (await getClientCode(client.id)) ?? '—';
+          const pdf = await buildLabelPdf({
+            public_code: created.public_code,
+            awb_barcode: created.awb_barcode,
+            client_code: clientCode,
+            direction: created.direction,
+            weight_kg: created.weight_kg,
+            sender: created.sender,
+            receiver: created.receiver,
+            is_gift: created.is_gift,
+            declared_value: created.declared_value,
+            currency: created.currency,
+          });
+          await getPrinter(settings?.print_method).print({ pdf, title: created.public_code });
+        } catch {
+          /* operator can reprint from the shipment */
+        }
+      }
+      autoPrintRef.current = false;
+      setInboundRef(null);
       reset();
     } catch {
       toast.error(t('common.error'));
@@ -375,6 +425,18 @@ export function IntakePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeading title={t('operator.intake_title')} />
+
+      {inboundRef && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-50 px-4 py-2.5 text-sm text-brand-700">
+          <ScanLine className="h-4 w-4 shrink-0" />
+          <span>
+            {locale === 'bg' ? 'Входяща пратка · реф.' : 'Inbound parcel · ref'}{' '}
+            <span className="font-mono font-semibold">{inboundRef}</span>
+            {' · '}
+            {locale === 'bg' ? 'етикетът ще се отпечата автоматично' : 'label auto-prints on save'}
+          </span>
+        </div>
+      )}
 
       {/* Step 1 — resolve client by OT code */}
       <Card>

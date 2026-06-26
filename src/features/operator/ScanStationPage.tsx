@@ -11,11 +11,12 @@
  * Every result also exposes manual tools (print label, customs, advance, open).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ScanLine,
+  QrCode,
   CheckCircle2,
   XCircle,
   Printer,
@@ -36,6 +37,7 @@ import { PageHeading } from '@/components/shared/common';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { resolveShipmentByCode, getClientCode, useUpdateStatus, useCompanySettings } from '@/lib/queries';
+import { parseScanPayload } from '@/lib/scanPayload';
 import { buildLabelPdf } from '@/lib/label';
 import { getPrinter } from '@/providers/print';
 import { assessCustoms } from '@/lib/customs';
@@ -43,7 +45,7 @@ import { timelineIndex, nextStatuses, statusLabel } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import type { Shipment, Currency, ParcelType } from '@/types/domain';
 
-type Mode = 'label' | 'receive' | 'lookup';
+type Mode = 'label' | 'receive' | 'lookup' | 'inbound';
 const MODE_KEY = 'hubenov.scan.mode.v1';
 const SOUND_KEY = 'hubenov.scan.sound.v1';
 
@@ -88,10 +90,15 @@ export function ScanStationPage() {
   const toast = useToast();
   const updateStatus = useUpdateStatus();
   const { data: settings } = useCompanySettings();
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [queueLen, setQueueLen] = useState(0);
+  const queueRef = useRef<string[]>([]);
+  const processingRef = useRef(false);
+  const recentRef = useRef<Map<string, number>>(new Map());
   const [last, setLast] = useState<ScanResult | null>(null);
   const [history, setHistory] = useState<ScanResult[]>([]);
   const [notFound, setNotFound] = useState<string | null>(null);
@@ -102,19 +109,21 @@ export function ScanStationPage() {
   // Persistent auto-focus so the next scan always lands here.
   useEffect(() => {
     inputRef.current?.focus();
-  }, [last, busy, mode]);
+  }, [last, processing, mode]);
 
   const L =
     locale === 'bg'
       ? {
-          modes: { label: 'Етикет', receive: 'Приемане', lookup: 'Търсене' },
+          modes: { label: 'Етикет', receive: 'Приемане', lookup: 'Търсене', inbound: 'Входящи' },
           modeHint: {
             label: 'Сканирай → печата етикет + приема в склада',
             receive: 'Сканирай → само приема в склада (без печат)',
             lookup: 'Сканирай → показва пратката (без действие)',
+            inbound: 'Сканирай чужд баркод → създай пратка + автоматичен етикет',
           },
           sound: 'Звук',
           scanned: 'Сканирани',
+          inQueue: 'в опашка',
           reset: 'Нулирай',
           printLabel: 'Етикет',
           customs: 'Митница',
@@ -131,14 +140,16 @@ export function ScanStationPage() {
           example: 'напр.',
         }
       : {
-          modes: { label: 'Label', receive: 'Receive', lookup: 'Lookup' },
+          modes: { label: 'Label', receive: 'Receive', lookup: 'Lookup', inbound: 'Inbound' },
           modeHint: {
             label: 'Scan → print label + receive into hub',
             receive: 'Scan → receive into hub only (no print)',
             lookup: 'Scan → show the parcel (no action)',
+            inbound: 'Scan an external barcode → create parcel + auto label',
           },
           sound: 'Sound',
           scanned: 'Scanned',
+          inQueue: 'queued',
           reset: 'Reset',
           printLabel: 'Label',
           customs: 'Customs',
@@ -183,13 +194,70 @@ export function ScanStationPage() {
     return getPrinter(settings?.print_method).print({ pdf, title: shipment.public_code });
   };
 
-  const handleScan = async (raw: string) => {
-    const value = raw.trim();
-    if (!value || busy) return;
-    setBusy(true);
+  // ── Scan engine ────────────────────────────────────────────────────────────
+  // A hardware scanner fires `code + Enter` faster than a print + network round
+  // trip. We never disable the input; codes go into a queue and are processed
+  // strictly one at a time, so nothing is dropped or re-ordered. Identical codes
+  // within a short window are ignored (double-trigger scanners).
+  const DEDUP_MS = 2500;
+
+  // Inbound: a parcel arriving from an external website/courier. Scan its QR or
+  // barcode → if it matches a Hubenov shipment (our QR) or a pre-registered
+  // tracking № we print our label + receive it; otherwise open intake prefilled
+  // (with any structured data found) to create it and auto-print.
+  const handleInbound = async (value: string) => {
+    const parsed = parseScanPayload(value);
+    const started = performance.now();
+    const shipment = parsed.code ? await resolveShipmentByCode(parsed.code) : null;
+    if (shipment) {
+      const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
+      const [printRes, statusOk] = await Promise.all([
+        labelFor(shipment).catch(() => null),
+        needStatus
+          ? updateStatus
+              .mutateAsync({
+                shipment,
+                to: 'at_uk_hub',
+                note_bg: 'Входяща пратка приета',
+                note_en: 'Inbound parcel received',
+                source: 'scan',
+              })
+              .then(() => true)
+              .catch(() => false)
+          : Promise.resolve(false),
+      ]);
+      const result: ScanResult = {
+        shipment: { ...shipment, status: statusOk ? 'at_uk_hub' : shipment.status },
+        ms: Math.round(performance.now() - started),
+        printed: !!printRes && printRes.ok && !printRes.queued,
+        queued: !!printRes?.queued,
+      };
+      setLast(result);
+      setHistory((h) => [result, ...h].slice(0, 8));
+      setCount((c) => c + 1);
+      if (sound) beep(true);
+      toast[result.queued ? 'info' : 'success'](result.queued ? t('operator.queued_offline') : t('operator.printed'));
+      return;
+    }
+    // Unknown → create it in intake, prefilled + auto-print on save.
+    if (sound) beep(true);
+    const params = new URLSearchParams({ inbound: parsed.raw, autoprint: '1' });
+    if (parsed.recipient?.name) params.set('rname', parsed.recipient.name);
+    if (parsed.recipient?.phone) params.set('rphone', parsed.recipient.phone);
+    if (parsed.recipient?.line1) params.set('raddr', parsed.recipient.line1);
+    if (parsed.recipient?.city) params.set('rcity', parsed.recipient.city);
+    if (parsed.recipient?.postcode) params.set('rpost', parsed.recipient.postcode);
+    navigate(`/op/intake?${params.toString()}`);
+  };
+
+  const processOne = async (value: string) => {
     setNotFound(null);
     const started = performance.now();
     try {
+      if (mode === 'inbound') {
+        await handleInbound(value);
+        return;
+      }
       const shipment = await resolveShipmentByCode(value);
       if (!shipment) {
         setNotFound(value);
@@ -203,24 +271,28 @@ export function ScanStationPage() {
       let finalStatus = shipment.status;
 
       if (mode === 'label' || mode === 'receive') {
-        if (mode === 'label') {
-          const res = await labelFor(shipment);
-          printed = res.ok && !res.queued;
-          queued = !!res.queued;
-        }
-        if (timelineIndex(shipment.status) < timelineIndex('at_uk_hub')) {
-          try {
-            await updateStatus.mutateAsync({
-              shipment,
-              to: 'at_uk_hub',
-              note_bg: mode === 'label' ? 'Сканирана и етикетирана в склада' : 'Приета в склада',
-              note_en: mode === 'label' ? 'Scanned & labelled at hub' : 'Received at hub',
-              source: 'scan',
-            });
-            finalStatus = 'at_uk_hub';
-          } catch {
-            /* offline / RLS — print still succeeded */
-          }
+        const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
+        // Print and the status write run concurrently so a slow printer never
+        // blocks receiving the parcel into the hub.
+        const printTask: Promise<{ ok: boolean; queued?: boolean } | null> =
+          mode === 'label' ? labelFor(shipment).catch(() => null) : Promise.resolve(null);
+        const statusTask: Promise<boolean> = needStatus
+          ? updateStatus
+              .mutateAsync({
+                shipment,
+                to: 'at_uk_hub',
+                note_bg: mode === 'label' ? 'Сканирана и етикетирана в склада' : 'Приета в склада',
+                note_en: mode === 'label' ? 'Scanned & labelled at hub' : 'Received at hub',
+                source: 'scan',
+              })
+              .then(() => true)
+              .catch(() => false) // offline / RLS / already moved — print still succeeded
+          : Promise.resolve(false);
+        const [printRes, statusOk] = await Promise.all([printTask, statusTask]);
+        if (statusOk) finalStatus = 'at_uk_hub';
+        if (printRes) {
+          printed = printRes.ok && !printRes.queued;
+          queued = !!printRes.queued;
         }
       }
 
@@ -239,10 +311,38 @@ export function ScanStationPage() {
     } catch {
       if (sound) beep(false);
       toast.error(t('common.error'));
-    } finally {
-      setBusy(false);
-      setCode('');
     }
+  };
+
+  const pump = async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setProcessing(true);
+    try {
+      while (queueRef.current.length > 0) {
+        const value = queueRef.current[0]!;
+        await processOne(value);
+        queueRef.current.shift();
+        setQueueLen(queueRef.current.length);
+      }
+    } finally {
+      processingRef.current = false;
+      setProcessing(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const enqueue = (raw: string) => {
+    const value = raw.trim().toUpperCase();
+    if (!value) return;
+    const now = Date.now();
+    for (const [k, ts] of recentRef.current) if (now - ts > DEDUP_MS) recentRef.current.delete(k);
+    const seen = recentRef.current.get(value);
+    if ((seen && now - seen < DEDUP_MS) || queueRef.current.includes(value)) return; // double-trigger / already queued
+    recentRef.current.set(value, now);
+    queueRef.current.push(value);
+    setQueueLen(queueRef.current.length);
+    void pump();
   };
 
   const doPrintLabel = async () => {
@@ -317,12 +417,18 @@ export function ScanStationPage() {
         <div className="inline-flex rounded-xl border border-border bg-card p-1">
           {modeBtn('label', <Tag className="h-4 w-4" />)}
           {modeBtn('receive', <PackageCheck className="h-4 w-4" />)}
+          {modeBtn('inbound', <QrCode className="h-4 w-4" />)}
           {modeBtn('lookup', <Eye className="h-4 w-4" />)}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-fg">
             {L.scanned}: <span className="font-semibold tabular-nums text-foreground">{count}</span>
           </span>
+          {queueLen > 0 && (
+            <Badge tone="warning">
+              {queueLen} {L.inQueue}
+            </Badge>
+          )}
           {count > 0 && (
             <Button
               size="sm"
@@ -349,7 +455,8 @@ export function ScanStationPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void handleScan(code);
+              enqueue(code);
+              setCode('');
             }}
           >
             <div className="flex items-center gap-3">
@@ -362,13 +469,21 @@ export function ScanStationPage() {
                 className="h-14 flex-1 border-0 bg-transparent font-mono text-xl uppercase shadow-none focus-visible:ring-0"
                 autoComplete="off"
                 spellCheck={false}
-                disabled={busy}
               />
-              {busy && <Printer className="h-6 w-6 animate-pulse text-brand" />}
+              {processing && <Printer className="h-6 w-6 animate-pulse text-brand" />}
             </div>
           </form>
         </CardBody>
       </Card>
+
+      {/* Screen-reader announcement of each scan result */}
+      <p className="sr-only" aria-live="polite">
+        {notFound
+          ? `${notFound} ${t('track.not_found')}`
+          : last
+            ? `${last.shipment.public_code} ${statusLabel(last.shipment.status, locale)}`
+            : ''}
+      </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

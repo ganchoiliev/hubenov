@@ -88,7 +88,8 @@ export async function resolveShipmentByCode(code: string): Promise<Shipment | nu
   const { data, error } = await supabase
     .from('shipments')
     .select('*')
-    .or(`awb_barcode.eq.${c},public_code.eq.${c}`)
+    .or(`awb_barcode.eq.${c},public_code.eq.${c},inbound_ref.eq.${c}`)
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as Shipment | null;
