@@ -18,7 +18,7 @@ export function LoginPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithPhone, verifyPhone, signInWithEmailCode, verifyEmailCode, session, role, isStaff } = useAuth();
+  const { signInWithPhone, verifyPhone, signInWithEmailCode, verifyEmailCode, signInWithEmail, session, role, isStaff } = useAuth();
 
   // After auth, route by role: staff → operator console, clients → portal.
   // Wait until the profile (role) resolves — otherwise the brief null-profile
@@ -39,6 +39,10 @@ export function LoginPage() {
   const [phone, setPhone] = useState('');
   const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  // Email tab defaults to passwordless code; staff accounts (e.g. operator@…)
+  // can switch to password so an undeliverable mailbox never locks them out.
+  const [emailMethod, setEmailMethod] = useState<'code' | 'password'>('code');
   const [busy, setBusy] = useState(false);
 
   const switchMode = (m: Mode) => {
@@ -100,6 +104,19 @@ export function LoginPage() {
     try {
       await verifyEmailCode(e, code);
       toast.success(t('portal.welcome', { name: '' }));
+      // redirect handled by the role-based effect once the session is set
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const emailLogin = async () => {
+    if (!email.trim() || !password) return toast.error(t('common.error'));
+    setBusy(true);
+    try {
+      await signInWithEmail(email.trim(), password);
       // redirect handled by the role-based effect once the session is set
     } catch {
       toast.error(t('common.error'));
@@ -182,7 +199,31 @@ export function LoginPage() {
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
-                  {step === 'enter' ? (
+                  {emailMethod === 'password' ? (
+                    <>
+                      <Field label={t('auth.email_label')}>
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@email.com"
+                          autoFocus
+                        />
+                      </Field>
+                      <Field label={t('auth.password_label')}>
+                        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                      </Field>
+                      <Button onClick={emailLogin} loading={busy} className="w-full">
+                        {t('auth.login_title')}
+                      </Button>
+                      <button
+                        onClick={() => setEmailMethod('code')}
+                        className="w-full text-sm text-muted-fg hover:text-brand"
+                      >
+                        {t('auth.use_code')}
+                      </button>
+                    </>
+                  ) : step === 'enter' ? (
                     <>
                       <Field label={t('auth.email_label')}>
                         <Input
@@ -196,6 +237,12 @@ export function LoginPage() {
                       <Button onClick={sendEmailCode} loading={busy} className="w-full gap-2">
                         <Mail className="h-4 w-4" /> {t('auth.send_code')}
                       </Button>
+                      <button
+                        onClick={() => setEmailMethod('password')}
+                        className="w-full text-sm text-muted-fg hover:text-brand"
+                      >
+                        {t('auth.use_password')}
+                      </button>
                     </>
                   ) : (
                     <>
