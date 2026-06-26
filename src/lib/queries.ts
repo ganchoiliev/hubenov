@@ -995,6 +995,39 @@ export function useMyIncoming(clientId: string | undefined) {
   });
 }
 
+/* ── Dashboard period summary (date-range scoped metrics) ──────────────────── */
+export interface DashboardPeriod {
+  parcels: number;
+  delivered: number;
+  invoiced: Record<string, number>;
+  paid: Record<string, number>;
+}
+export function useDashboardPeriod(fromISO: string, toISO: string) {
+  return useQuery({
+    queryKey: ['dash-period', fromISO, toISO],
+    queryFn: async (): Promise<DashboardPeriod> => {
+      const [sh, inv] = await Promise.all([
+        supabase.from('shipments').select('status').gte('created_at', fromISO).lt('created_at', toISO).limit(10000),
+        supabase.from('invoices').select('amount, currency, status').gte('created_at', fromISO).lt('created_at', toISO).limit(10000),
+      ]);
+      const ships = (sh.data ?? []) as unknown as { status: string }[];
+      const invoiced: Record<string, number> = {};
+      const paid: Record<string, number> = {};
+      for (const i of (inv.data ?? []) as unknown as { amount: number; currency: string; status: string }[]) {
+        if (i.status === 'void') continue;
+        invoiced[i.currency] = (invoiced[i.currency] ?? 0) + Number(i.amount);
+        if (i.status === 'paid') paid[i.currency] = (paid[i.currency] ?? 0) + Number(i.amount);
+      }
+      return {
+        parcels: ships.length,
+        delivered: ships.filter((s) => s.status === 'delivered').length,
+        invoiced,
+        paid,
+      };
+    },
+  });
+}
+
 /* ── Operator awareness: new requests (booked parcels) + new clients ──────── */
 export interface BookedRow {
   id: string;
@@ -1423,7 +1456,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming'], ['booked']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming'], ['booked'], ['dash-period']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),
@@ -1436,7 +1469,7 @@ export function useRealtimeSync() {
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, () => inval([['loads']]))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () =>
-        inval([['invoices'], ['op-invoices'], ['ot-lookup'], ['dashboard']]),
+        inval([['invoices'], ['op-invoices'], ['ot-lookup'], ['dashboard'], ['dash-period']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pricing_rates' }, () =>
         inval([['pricing_rates']]),

@@ -1,11 +1,12 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, MapPin, Check, Inbox, UserPlus } from 'lucide-react';
+import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, MapPin, Check, Inbox, UserPlus, CalendarRange } from 'lucide-react';
 import { Button, Card, CardBody } from '@/components/ui';
 import { Stat, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
-import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments, useTopCities, useBookedShipments, useNewClients } from '@/lib/queries';
+import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments, useTopCities, useBookedShipments, useNewClients, useDashboardPeriod } from '@/lib/queries';
 import { useAuth } from '@/lib/auth';
 import { statusLabel, timelineIndex } from '@/lib/status';
 import { formatMoney, cn } from '@/lib/utils';
@@ -41,6 +42,28 @@ export function OperatorHomePage() {
   const { data: booked } = useBookedShipments();
   const { data: newClients } = useNewClients();
 
+  // Period summary (date-range scoped).
+  const [range, setRange] = useState<'today' | '7d' | '30d' | 'custom'>('7d');
+  const [cFrom, setCFrom] = useState('');
+  const [cTo, setCTo] = useState('');
+  const [fromISO, toISO] = useMemo<[string, string]>(() => {
+    const now = new Date();
+    const end = new Date(now.getTime() + 60_000).toISOString();
+    if (range === 'today') {
+      const f = new Date();
+      f.setHours(0, 0, 0, 0);
+      return [f.toISOString(), end];
+    }
+    if (range === '30d') return [new Date(now.getTime() - 30 * 86400000).toISOString(), end];
+    if (range === 'custom') {
+      const f = cFrom ? new Date(`${cFrom}T00:00:00`).toISOString() : new Date(now.getTime() - 7 * 86400000).toISOString();
+      const t = cTo ? new Date(`${cTo}T23:59:59`).toISOString() : end;
+      return [f, t];
+    }
+    return [new Date(now.getTime() - 7 * 86400000).toISOString(), end];
+  }, [range, cFrom, cTo]);
+  const { data: period } = useDashboardPeriod(fromISO, toISO);
+
   const roleLabel = profile?.role ? (lang === 'bg' ? (ROLE_BG[profile.role] ?? profile.role) : profile.role) : '';
 
   const L =
@@ -72,6 +95,15 @@ export function OperatorHomePage() {
           unpaidInv: 'Неплатени фактури',
           daysSuffix: 'д',
           citiesTitle: 'Топ дестинации',
+          periodTitle: 'Справка за период',
+          r_today: 'Днес',
+          r_7d: '7 дни',
+          r_30d: '30 дни',
+          r_custom: 'Период',
+          p_received: 'Приети',
+          p_delivered: 'Доставени',
+          p_invoiced: 'Издадени',
+          p_revenue: 'Платени',
           newTitle: 'Нови заявки',
           bookedReq: 'Заявени пратки',
           bookedNone: 'Няма нови заявки',
@@ -106,6 +138,15 @@ export function OperatorHomePage() {
           unpaidInv: 'Unpaid invoices',
           daysSuffix: 'd',
           citiesTitle: 'Top destinations',
+          periodTitle: 'Period summary',
+          r_today: 'Today',
+          r_7d: '7 days',
+          r_30d: '30 days',
+          r_custom: 'Custom',
+          p_received: 'Received',
+          p_delivered: 'Delivered',
+          p_invoiced: 'Invoiced',
+          p_revenue: 'Paid',
           newTitle: 'New requests',
           bookedReq: 'Booked parcels',
           bookedNone: 'No new requests',
@@ -183,6 +224,53 @@ export function OperatorHomePage() {
         <Stat label={L.today} value={num(dash?.shipments.today)} />
         <Stat label={L.delivered} value={num(dash?.shipments.delivered)} />
       </div>
+
+      {/* Period summary (date-range scoped) */}
+      <Card className="mt-4">
+        <CardBody>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-semibold text-muted-fg">
+              <CalendarRange className="h-4 w-4" /> {L.periodTitle}
+            </p>
+            <div className="inline-flex rounded-lg border border-border p-0.5 text-sm">
+              {([['today', L.r_today], ['7d', L.r_7d], ['30d', L.r_30d], ['custom', L.r_custom]] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setRange(k)}
+                  className={cn(
+                    'rounded-md px-3 py-1 font-medium transition-colors',
+                    range === k ? 'bg-brand text-brand-fg' : 'text-muted-fg hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {range === 'custom' && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                type="date"
+                value={cFrom}
+                onChange={(e) => setCFrom(e.target.value)}
+                className="rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm text-foreground"
+              />
+              <input
+                type="date"
+                value={cTo}
+                onChange={(e) => setCTo(e.target.value)}
+                className="rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm text-foreground"
+              />
+            </div>
+          )}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label={L.p_received} value={period?.parcels ?? 0} />
+            <Stat label={L.p_delivered} value={period?.delivered ?? 0} />
+            <Stat label={L.p_invoiced} value={fmtRec(period?.invoiced ?? {})} />
+            <Stat label={L.p_revenue} value={fmtRec(period?.paid ?? {})} />
+          </div>
+        </CardBody>
+      </Card>
 
       {/* New requests — client-registered parcels + new client accounts (awareness) */}
       {((booked && booked.length > 0) || (newClients && newClients.length > 0)) && (
