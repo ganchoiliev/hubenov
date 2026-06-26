@@ -943,6 +943,34 @@ export function useTopCities() {
   });
 }
 
+/* ── Client: my incoming (pre-registered) parcels ─────────────────────────── */
+export interface IncomingParcel {
+  id: string;
+  public_code: string;
+  status: AnyStatus;
+  inbound_ref: string | null;
+  notes: string | null;
+  created_at: string;
+  receiver: { name?: string; phone?: string; line1?: string; city?: string; postcode?: string; econt_office_code?: string | null } | null;
+}
+export function useMyIncoming(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['my-incoming', clientId],
+    enabled: !!clientId,
+    queryFn: async (): Promise<IncomingParcel[]> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('id, public_code, status, inbound_ref, notes, created_at, receiver')
+        .eq('client_id', clientId!)
+        .not('inbound_ref', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as IncomingParcel[];
+    },
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -951,7 +979,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),

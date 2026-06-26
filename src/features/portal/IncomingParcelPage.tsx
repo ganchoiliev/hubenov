@@ -1,36 +1,38 @@
 /**
- * Client self-service: pre-register an incoming parcel (ordered from Amazon / a UK
- * shop to our Manchester hub). The client gives the courier tracking № + their BG
- * delivery details; we create a `booked` shipment with that tracking № as the
- * inbound reference, so when the box arrives the operator's Inbound scan matches it
- * and the label auto-prints. Final weight/price are set on arrival.
+ * Client self-service: register + track incoming parcels (ordered from Amazon / a
+ * UK shop to our Manchester hub). Registering creates a `booked` shipment carrying
+ * the courier tracking № as inbound_ref, so the operator's Inbound scan matches it
+ * on arrival and the label auto-prints. The list below tracks each one's status.
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Inbox, CheckCircle2, Home, Building2, ArrowRight } from 'lucide-react';
+import { Inbox, Home, Building2, RotateCcw, PackageSearch } from 'lucide-react';
 import { Button, Card, CardBody, Input, Field, Select } from '@/components/ui';
-import { PageHeading } from '@/components/shared/common';
+import { PageHeading, EmptyState } from '@/components/shared/common';
 import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { useRegisterIncoming } from '@/lib/queries';
-import { cn } from '@/lib/utils';
+import { useRegisterIncoming, useMyIncoming } from '@/lib/queries';
+import { cn, formatDate } from '@/lib/utils';
 import type { Currency } from '@/types/domain';
 
 const CURRENCIES: Currency[] = ['GBP', 'EUR', 'BGN'];
+const SHOPS = ['Amazon', 'eBay', 'ASOS', 'SHEIN', 'Temu', 'Next'];
 const EMPTY = { tracking: '', shop: '', weight: '', rname: '', rphone: '', raddr: '', rcity: '', rpost: '', office: '', declared: '', currency: 'GBP' as Currency };
 
 export function IncomingParcelPage() {
   const { i18n } = useTranslation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
+  const dateLocale = lang === 'en' ? 'en-GB' : 'bg-BG';
   const toast = useToast();
   const { profile } = useAuth();
   const register = useRegisterIncoming();
+  const { data: incoming } = useMyIncoming(profile?.id);
 
   const [form, setForm] = useState({ ...EMPTY });
   const [mode, setMode] = useState<'address' | 'office'>('address');
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -48,6 +50,7 @@ export function IncomingParcelPage() {
           weight_hint: 'Ориентировъчно — претегляме точно при пристигане.',
           est: 'Ориентировъчна цена',
           deliver: 'Доставка в България',
+          use_last: 'Както последния път',
           rname: 'Получател',
           rname_ph: 'Име на получателя',
           rphone: 'Телефон',
@@ -60,12 +63,11 @@ export function IncomingParcelPage() {
           currency: 'Валута',
           submit: 'Регистрирай пратката',
           err: 'Моля, попълнете номер, тегло, получател и адрес/офис.',
-          ok_title: 'Пратката е регистрирана',
-          ok_text: 'Щом колетът пристигне в склада ни, ще го обработим и ще ви уведомим. Можете да следите статуса в профила си.',
-          ok_ref: 'Входящ номер',
-          ok_code: 'Номер на пратката',
-          to_ship: 'Виж пратките',
-          another: 'Регистрирай друга',
+          ok: 'Пратката е регистрирана:',
+          list_title: 'Моите входящи пратки',
+          list_empty_t: 'Все още няма входящи пратки',
+          list_empty_d: 'Регистрирайте първата си пратка от формата по-горе.',
+          ref: 'Реф.',
         }
       : {
           title: 'Incoming parcel',
@@ -79,6 +81,7 @@ export function IncomingParcelPage() {
           weight_hint: 'A rough estimate — we weigh it exactly on arrival.',
           est: 'Estimated price',
           deliver: 'Delivery in Bulgaria',
+          use_last: 'Same as last time',
           rname: 'Recipient',
           rname_ph: 'Recipient name',
           rphone: 'Phone',
@@ -91,26 +94,36 @@ export function IncomingParcelPage() {
           currency: 'Currency',
           submit: 'Register parcel',
           err: 'Please fill the tracking number, weight, recipient and address/office.',
-          ok_title: 'Parcel registered',
-          ok_text: "Once it reaches our hub we'll process it and let you know. You can follow the status in your account.",
-          ok_ref: 'Incoming ref',
-          ok_code: 'Shipment code',
-          to_ship: 'View shipments',
-          another: 'Register another',
+          ok: 'Parcel registered:',
+          list_title: 'My incoming parcels',
+          list_empty_t: 'No incoming parcels yet',
+          list_empty_d: 'Register your first one in the form above.',
+          ref: 'Ref',
         };
 
   const weightNum = Number(form.weight.replace(',', '.'));
   const est = weightNum > 0 ? (weightNum * 2).toFixed(2) : null;
+  const last = incoming?.[0]?.receiver;
+
+  const useLast = () => {
+    if (!last) return;
+    setForm((f) => ({
+      ...f,
+      rname: last.name ?? '',
+      rphone: last.phone ?? '',
+      raddr: last.line1 ?? '',
+      rcity: last.city ?? '',
+      rpost: last.postcode ?? '',
+      office: last.econt_office_code ?? '',
+    }));
+    setMode(last.econt_office_code ? 'office' : 'address');
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     const ok =
-      form.tracking.trim() &&
-      weightNum > 0 &&
-      form.rname.trim() &&
-      form.rphone.trim() &&
-      (mode === 'address' ? form.rcity.trim() : form.office);
+      form.tracking.trim() && weightNum > 0 && form.rname.trim() && form.rphone.trim() && (mode === 'address' ? form.rcity.trim() : form.office);
     if (!ok) {
       toast.error(L.err);
       return;
@@ -134,40 +147,13 @@ export function IncomingParcelPage() {
         currency: form.currency,
         notes: `${lang === 'bg' ? 'Входяща пратка' : 'Incoming parcel'}${form.shop.trim() ? ` · ${form.shop.trim()}` : ''}`,
       });
-      setCreatedCode(created.public_code);
+      toast.success(`${L.ok} ${created.public_code}`);
       setForm({ ...EMPTY });
       setMode('address');
     } catch {
       toast.error(L.err);
     }
   };
-
-  if (createdCode) {
-    return (
-      <div className="mx-auto max-w-xl">
-        <Card>
-          <CardBody className="space-y-4 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-            <h1 className="font-display text-2xl font-extrabold text-foreground">{L.ok_title}</h1>
-            <p className="text-muted-fg">{L.ok_text}</p>
-            <div className="rounded-xl border border-border bg-muted/40 p-4 font-mono text-lg font-bold text-foreground">
-              {L.ok_code}: {createdCode}
-            </div>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link to="/portal/shipments">
-                <Button className="gap-2">
-                  {L.to_ship} <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Button variant="outline" onClick={() => setCreatedCode(null)}>
-                {L.another}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -184,14 +170,27 @@ export function IncomingParcelPage() {
             <Field label={L.tracking} htmlFor="trk">
               <Input id="trk" value={form.tracking} onChange={set('tracking')} placeholder={L.tracking_ph} className="font-mono" required />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={L.shop} htmlFor="shop">
-                <Input id="shop" value={form.shop} onChange={set('shop')} placeholder={L.shop_ph} />
-              </Field>
-              <Field label={L.weight} htmlFor="wt" hint={L.weight_hint}>
-                <Input id="wt" inputMode="decimal" value={form.weight} onChange={set('weight')} placeholder="0.0" required />
-              </Field>
+            <Field label={L.shop} htmlFor="shop">
+              <Input id="shop" value={form.shop} onChange={set('shop')} placeholder={L.shop_ph} />
+            </Field>
+            <div className="flex flex-wrap gap-2">
+              {SHOPS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, shop: s }))}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                    form.shop === s ? 'border-brand bg-brand text-brand-fg' : 'border-border text-muted-fg hover:bg-muted',
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
+            <Field label={L.weight} htmlFor="wt" hint={L.weight_hint}>
+              <Input id="wt" inputMode="decimal" value={form.weight} onChange={set('weight')} placeholder="0.0" required />
+            </Field>
             {est && (
               <p className="text-sm text-muted-fg">
                 {L.est}: <span className="font-semibold text-foreground">≈ £{est}</span>
@@ -202,7 +201,14 @@ export function IncomingParcelPage() {
 
         <Card>
           <CardBody className="space-y-4">
-            <h2 className="font-display text-sm font-bold text-foreground">{L.deliver}</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-display text-sm font-bold text-foreground">{L.deliver}</h2>
+              {last?.name && (
+                <button type="button" onClick={useLast} className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:underline">
+                  <RotateCcw className="h-3.5 w-3.5" /> {L.use_last}
+                </button>
+              )}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={L.rname} htmlFor="rn">
                 <Input id="rn" value={form.rname} onChange={set('rname')} placeholder={L.rname_ph} required />
@@ -250,11 +256,7 @@ export function IncomingParcelPage() {
                 onClear={() => setForm((f) => ({ ...f, office: '' }))}
               />
             )}
-          </CardBody>
-        </Card>
 
-        <Card>
-          <CardBody>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={L.declared} htmlFor="dv">
                 <Input id="dv" inputMode="decimal" value={form.declared} onChange={set('declared')} placeholder="0.00" />
@@ -276,6 +278,39 @@ export function IncomingParcelPage() {
           <Inbox className="h-4 w-4" /> {L.submit}
         </Button>
       </form>
+
+      {/* Tracker */}
+      <div className="mt-10">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-foreground">
+          <PackageSearch className="h-4.5 w-4.5 text-brand" /> {L.list_title}
+        </h2>
+        {!incoming || incoming.length === 0 ? (
+          <EmptyState title={L.list_empty_t} description={L.list_empty_d} icon={<Inbox className="h-7 w-7" />} />
+        ) : (
+          <div className="space-y-2">
+            {incoming.map((p) => (
+              <Link key={p.id} to={`/portal/shipments/${p.id}`}>
+                <Card className="transition-shadow hover:shadow-lift">
+                  <CardBody className="flex items-center justify-between gap-3 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-semibold text-foreground">{p.public_code}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-fg">
+                        {p.inbound_ref && (
+                          <>
+                            {L.ref}: <span className="font-mono">{p.inbound_ref}</span> ·{' '}
+                          </>
+                        )}
+                        {formatDate(p.created_at, dateLocale)}
+                      </p>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </CardBody>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
