@@ -347,11 +347,17 @@ export function useUpdateStatus() {
       note_en?: string;
       source?: 'scan' | 'manual';
     }) => {
-      const { error: upErr } = await supabase
+      // Optimistic concurrency: only move the parcel if it's still in the status
+      // we think it is. Prevents two operators (or operator + scanner) clobbering
+      // each other from a stale snapshot.
+      const { data: upd, error: upErr } = await supabase
         .from('shipments')
         .update({ status: args.to })
-        .eq('id', args.shipment.id);
+        .eq('id', args.shipment.id)
+        .eq('status', args.shipment.status)
+        .select('id');
       if (upErr) throw upErr;
+      if (!upd || upd.length === 0) throw new Error('stale_status');
       const { error: evErr } = await supabase.from('tracking_events').insert({
         shipment_id: args.shipment.id,
         leg: 'own',
@@ -374,6 +380,13 @@ export function useUpdateStatus() {
       void qc.invalidateQueries({ queryKey: ['shipments'] });
       void qc.invalidateQueries({ queryKey: ['op-shipments'] });
       void qc.invalidateQueries({ queryKey: ['ot-lookup'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    // On a stale-status conflict (or any failure) refresh so the UI shows reality.
+    onError: (_e, vars) => {
+      void qc.invalidateQueries({ queryKey: ['shipment', vars.shipment.id] });
+      void qc.invalidateQueries({ queryKey: ['op-shipments'] });
+      void qc.invalidateQueries({ queryKey: ['shipments'] });
     },
   });
 }

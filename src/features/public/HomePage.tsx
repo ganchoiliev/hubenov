@@ -11,6 +11,7 @@ import {
   PackageCheck,
   Store,
   Check,
+  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -151,6 +152,86 @@ export function HomePage() {
               </StaggerItem>
             ))}
           </Stagger>
+        </div>
+      </section>
+
+      {/* ── Shop UK → ship to BG (Amazon forwarding) ───────────────────── */}
+      <section className="border-b border-border bg-gradient-to-br from-brand-50 to-card dark:from-brand-50/20">
+        <div className="container py-16 md:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <motion.div {...reveal}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-card px-3 py-1 text-xs font-semibold text-brand-700">
+                <ShoppingBag className="h-3.5 w-3.5" />
+                {lang === 'bg' ? 'Купувай в UK, получавай в БГ' : 'Shop in the UK, receive in BG'}
+              </span>
+              <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+                {lang === 'bg'
+                  ? 'Поръчвай от Amazon и любимите си UK магазини'
+                  : 'Order from Amazon & your favourite UK shops'}
+              </h2>
+              <p className="mt-4 text-lg text-muted-fg">
+                {lang === 'bg'
+                  ? 'Използвай нашия адрес в Манчестър като адрес за доставка. Получаваме колета вместо теб и го изпращаме до вратата ти в България — с нашия бус всеки петък.'
+                  : 'Use our Manchester address as your delivery address. We receive the parcel for you and forward it to your door in Bulgaria — on our own van every Friday.'}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/quote">
+                  <Button size="lg" className="gap-2">
+                    {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link to="/contact">
+                  <Button size="lg" variant="outline" className="gap-2">
+                    {lang === 'bg' ? 'Попитай как' : 'Ask how it works'}
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.1 }} className="space-y-3">
+              {[
+                {
+                  icon: ShoppingBag,
+                  title: lang === 'bg' ? '1 · Поръчай до нашия адрес' : '1 · Order to our address',
+                  text:
+                    lang === 'bg'
+                      ? 'Въведи адреса ни в Манчестър при поръчка от Amazon, eBay, ASOS и др.'
+                      : 'Enter our Manchester address at checkout on Amazon, eBay, ASOS, etc.',
+                },
+                {
+                  icon: PackageCheck,
+                  title: lang === 'bg' ? '2 · Получаваме и обработваме' : '2 · We receive & process',
+                  text:
+                    lang === 'bg'
+                      ? 'Сканираме колета, добавяме го към твоя профил и подготвяме етикет.'
+                      : 'We scan the parcel, link it to your account and prepare the label.',
+                },
+                {
+                  icon: Truck,
+                  title: lang === 'bg' ? '3 · Доставяме до България' : '3 · We deliver to Bulgaria',
+                  text:
+                    lang === 'bg'
+                      ? 'С нашия бус в петък — до врата или офис на Еконт.'
+                      : 'On our Friday van — to your door or an Econt office.',
+                },
+              ].map((s) => (
+                <div key={s.title} className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                    <s.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-display text-base font-bold text-foreground">{s.title}</p>
+                    <p className="mt-0.5 text-sm text-muted-fg">{s.text}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl bg-brand px-4 py-3 text-sm font-semibold text-brand-fg">
+                <MapPin className="h-4 w-4 shrink-0" />
+                {lang === 'bg' ? 'Адрес за доставка:' : 'Ship-to address:'}
+                <span className="font-normal">{company.address}</span>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 

@@ -662,6 +662,30 @@ export function IntakePage() {
           </CardBody>
         </Card>
 
+        {/* Pre-register an inbound parcel (Amazon/courier) — its barcode will match on arrival */}
+        <Card>
+          <CardBody className="space-y-2">
+            <label htmlFor="inbound-ref" className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+              <ScanLine className="h-4 w-4 text-muted-fg" />
+              {locale === 'bg'
+                ? 'Входящ номер (Amazon/куриер) — по избор'
+                : 'Incoming tracking № (Amazon/courier) — optional'}
+            </label>
+            <Input
+              id="inbound-ref"
+              value={inboundRef ?? ''}
+              onChange={(e) => setInboundRef(e.target.value.toUpperCase() || null)}
+              placeholder={locale === 'bg' ? 'напр. TBA123… / товарителница' : 'e.g. TBA123… / waybill'}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-fg">
+              {locale === 'bg'
+                ? 'Сканирането на този баркод при пристигане ще намери пратката и ще отпечата етикета.'
+                : 'Scanning this barcode on arrival will find the parcel and auto-print its label.'}
+            </p>
+          </CardBody>
+        </Card>
+
         {/* Parcel measurements */}
         <Card>
           <CardBody className="space-y-4">

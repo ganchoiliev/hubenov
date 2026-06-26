@@ -153,6 +153,25 @@ export function LoadBuilderPage() {
     scanRef.current?.focus();
   }, [load]);
 
+  // Live updates: reflect parcels scanned onto this load from another station and
+  // leg changes made elsewhere, without a manual refresh.
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`load-builder-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+        void reloadShipments();
+        void reloadEligible();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loads', filter: `id=eq.${id}` }, () => {
+        void reloadLoad();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [id, reloadShipments, reloadEligible, reloadLoad]);
+
   /* ── Save vehicle / driver on blur ───────────────────────────────────── */
   const saveField = async (field: 'vehicle_reg' | 'driver_name', value: string) => {
     if (!id || !load) return;
@@ -235,14 +254,18 @@ export function LoadBuilderPage() {
       const { error: loadErr } = await supabase.from('loads').update(loadPatch).eq('id', id);
       if (loadErr) throw loadErr;
 
-      if (shipments.length > 0) {
+      // Don't steamroll parcels parked in a side-state (exception/returned/etc.).
+      const SKIP = ['exception', 'returned', 'cancelled', 'delivered'];
+      const movable = shipments.filter((s) => !SKIP.includes(s.status));
+      if (movable.length > 0) {
         const { error: shErr } = await supabase
           .from('shipments')
           .update({ status: to })
-          .eq('load_id', id);
+          .eq('load_id', id)
+          .not('status', 'in', `(${SKIP.join(',')})`);
         if (shErr) throw shErr;
 
-        const events = shipments.map((s) => ({
+        const events = movable.map((s) => ({
           shipment_id: s.id,
           leg: 'own' as const,
           status: to,
@@ -253,9 +276,8 @@ export function LoadBuilderPage() {
         const { error: evErr } = await supabase.from('tracking_events').insert(events);
         if (evErr) throw evErr;
 
-        // Best-effort: email every client in this load about the leg change
-        // (departed UK / arrived BG). Never throws.
-        await notifyStatusEmails(shipments, to);
+        // Best-effort: email every moved client about the leg change. Never throws.
+        await notifyStatusEmails(movable, to);
       }
 
       toast.success(okMsg);
