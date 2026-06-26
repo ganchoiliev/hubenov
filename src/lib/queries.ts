@@ -330,11 +330,21 @@ export function useRegisterIncoming() {
   });
 }
 
+/** Shipment status → SMS template (only milestones get an SMS). */
+const SMS_TEMPLATE: Partial<Record<AnyStatus, 'booked' | 'departed' | 'arrived' | 'out_for_delivery' | 'delivered' | 'exception'>> = {
+  booked: 'booked',
+  departed_uk: 'departed',
+  arrived_bg_hub: 'arrived',
+  out_for_delivery: 'out_for_delivery',
+  delivered: 'delivered',
+  exception: 'exception',
+};
+
 /**
- * Best-effort: email affected clients about a status change. Batches the client
- * lookup and sends in parallel. Returns silently on any error — notifications
+ * Best-effort: notify affected clients about a status change — email (Resend)
+ * and SMS (Vonage), in parallel. Returns silently on any error — notifications
  * must never block or fail an operations action (B.L.A.S.T. — degrade safely).
- * Non-milestone statuses are skipped inside `statusEmail` (returns null).
+ * Non-milestone statuses are skipped (statusEmail returns null; no SMS template).
  */
 export async function notifyStatusEmails(
   shipments: { public_code: string; client_id: string }[],
@@ -359,32 +369,45 @@ export async function notifyStatusEmails(
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, full_name, preferred_locale, notify_email')
+      .select('id, email, phone, full_name, preferred_locale, notify_email')
       .in('id', ids);
     type Row = {
       id: string;
       email: string | null;
+      phone: string | null;
       full_name: string | null;
       preferred_locale: string | null;
       notify_email: boolean | null;
     };
     const byId = new Map(((data ?? []) as Row[]).map((p) => [p.id, p]));
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const smsTpl = SMS_TEMPLATE[to];
     await Promise.allSettled(
       shipments.map(async (s) => {
         const c = byId.get(s.client_id);
-        if (!c?.email || c.notify_email === false) return; // no email or opted out
-        const mail = statusEmail({
-          code: s.public_code,
-          status: to,
-          clientName: c.full_name ?? '',
-          locale: c.preferred_locale === 'en' ? 'en' : 'bg',
-          trackUrl: `${origin}/track?code=${encodeURIComponent(s.public_code)}`,
-        });
-        if (!mail) return;
-        await supabase.functions.invoke('send-email', {
-          body: { to: c.email, subject: mail.subject, html: mail.html, text: mail.text },
-        });
+        if (!c || c.notify_email === false) return; // opted out of notifications
+        const lc = c.preferred_locale === 'en' ? 'en' : 'bg';
+        // Email (Resend)
+        if (c.email) {
+          const mail = statusEmail({
+            code: s.public_code,
+            status: to,
+            clientName: c.full_name ?? '',
+            locale: lc,
+            trackUrl: `${origin}/track?code=${encodeURIComponent(s.public_code)}`,
+          });
+          if (mail) {
+            await supabase.functions.invoke('send-email', {
+              body: { to: c.email, subject: mail.subject, html: mail.html, text: mail.text },
+            });
+          }
+        }
+        // SMS (Vonage) — milestone statuses only, when a phone is on file.
+        if (smsTpl && c.phone) {
+          await supabase.functions.invoke('notify', {
+            body: { channel: 'sms', to: c.phone, template: smsTpl, locale: lc, vars: { code: s.public_code } },
+          });
+        }
       }),
     );
   } catch (err) {
