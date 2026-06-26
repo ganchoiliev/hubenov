@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
-import { Section, PageHeading } from '@/components/shared/common';
+import { Section, ImageHero } from '@/components/shared/common';
 import { cn } from '@/lib/utils';
 
 type FeatureKey = 'door' | 'office' | 'cod' | 'gifts' | 'goods';
@@ -70,10 +70,14 @@ export function ServicesPage() {
         };
 
   return (
-    <Section>
-      <PageHeading title={t('services.title')} subtitle={t('services.subtitle')} />
-
-      <Stagger className="grid gap-6 lg:grid-cols-2">
+    <>
+      <ImageHero
+        image="/images/services-loading.png"
+        title={t('services.title')}
+        subtitle={t('services.subtitle')}
+      />
+      <Section className="!pt-12">
+        <Stagger className="grid gap-6 lg:grid-cols-2">
         {DIRECTIONS.map((dir) => (
           <StaggerItem key={dir.key} className="h-full">
             <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-shadow hover:shadow-lift">
@@ -124,7 +128,8 @@ export function ServicesPage() {
             </div>
           </StaggerItem>
         ))}
-      </Stagger>
-    </Section>
+        </Stagger>
+      </Section>
+    </>
   );
 }

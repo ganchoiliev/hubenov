@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Truck, MapPin, PackageCheck, DoorOpen, Store, ArrowRight, Globe2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
-import { Section, PageHeading } from '@/components/shared/common';
+import { Section, ImageHero } from '@/components/shared/common';
 
 interface CityEntry {
   bg: string;
@@ -82,10 +82,10 @@ export function CoveragePage() {
   const L = locale === 'bg' ? COPY_BG : COPY_EN;
 
   return (
-    <Section>
-      <PageHeading title={t('nav.coverage')} subtitle={L.subtitle} />
-
-      {/* Two transport pillars */}
+    <>
+      <ImageHero image="/images/hero-van.png" title={t('nav.coverage')} subtitle={L.subtitle} />
+      <Section>
+        {/* Two transport pillars */}
       <Stagger className="grid gap-5 md:grid-cols-2">
         {PILLARS.map((p) => (
           <StaggerItem key={p.titleKey}>
@@ -174,6 +174,7 @@ export function CoveragePage() {
           </Button>
         </Link>
       </div>
-    </Section>
+      </Section>
+    </>
   );
 }

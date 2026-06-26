@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
-import { Section } from '@/components/shared/common';
+import { Section, ImageHero } from '@/components/shared/common';
 import { company } from '@/lib/env';
 
 interface ValueCopy {
@@ -141,30 +141,16 @@ export function AboutPage() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute -left-32 -top-24 h-96 w-96 rounded-full bg-brand/10 blur-3xl" />
-          <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
-        </div>
-
-        <div className="container py-16 md:py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-3xl"
-          >
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              <Store className="h-3.5 w-3.5" /> {L.badge}
-            </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground md:text-5xl">
-              {L.title}
-            </h1>
-            <p className="mt-5 text-lg text-muted-fg">{L.lead}</p>
-          </motion.div>
-        </div>
-      </section>
+      <ImageHero
+        image="/images/received.png"
+        eyebrow={
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+            <Store className="h-3.5 w-3.5" /> {L.badge}
+          </span>
+        }
+        title={L.title}
+        subtitle={L.lead}
+      />
 
       {/* Story + shop card */}
       <Section className="!py-12">
