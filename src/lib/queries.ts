@@ -658,7 +658,7 @@ export function useCreateClient() {
 /* ── Operator dashboard (money + ops at-a-glance) ─────────────────────────── */
 export interface OperatorDashboard {
   shipments: { total: number; active: number; today: number; delivered: number; byStatus: Record<string, number> };
-  invoices: { paid: Record<string, number>; due: Record<string, number> };
+  invoices: { paid: Record<string, number>; due: Record<string, number>; dueCount: number };
   cod: {
     collecting: Record<string, number>; // out for collection (in transit)
     awaiting: Record<string, number>; // delivered, Econt holding our cash
@@ -699,9 +699,14 @@ export function useOperatorDashboard() {
       const inv = (invRes.data ?? []) as { amount: number; currency: string; status: string }[];
       const paid: Record<string, number> = {};
       const due: Record<string, number> = {};
+      let dueCount = 0;
       for (const i of inv) {
-        const bucket = i.status === 'paid' ? paid : due; // due = unpaid + partial
-        bucket[i.currency] = (bucket[i.currency] ?? 0) + Number(i.amount);
+        if (i.status === 'paid') {
+          paid[i.currency] = (paid[i.currency] ?? 0) + Number(i.amount);
+        } else {
+          due[i.currency] = (due[i.currency] ?? 0) + Number(i.amount); // unpaid + partial
+          dueCount += 1;
+        }
       }
 
       const cod = (codRes.data ?? []) as unknown as {
@@ -733,7 +738,7 @@ export function useOperatorDashboard() {
 
       return {
         shipments: { total: sh.length, active, today, delivered, byStatus },
-        invoices: { paid, due },
+        invoices: { paid, due, dueCount },
         cod: { collecting, awaiting, collectingCount, awaitingCount },
       };
     },
@@ -779,6 +784,84 @@ export function useCodAwaitingRemittance() {
   });
 }
 
+/* ── Weekly volume (last 8 weeks) for the dashboard chart ─────────────────── */
+export interface WeekStat {
+  label: string;
+  parcels: number;
+}
+
+export function useWeeklyStats() {
+  return useQuery({
+    queryKey: ['weekly-stats'],
+    queryFn: async (): Promise<WeekStat[]> => {
+      const WEEK = 7 * 24 * 60 * 60 * 1000;
+      const since = new Date(Date.now() - 8 * WEEK).toISOString();
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('created_at')
+        .gte('created_at', since)
+        .limit(5000);
+      if (error) throw error;
+      const now = Date.now();
+      const buckets = Array.from({ length: 8 }, () => 0);
+      for (const r of (data ?? []) as { created_at: string }[]) {
+        const wAgo = Math.floor((now - new Date(r.created_at).getTime()) / WEEK);
+        if (wAgo >= 0 && wAgo < 8) buckets[wAgo] = (buckets[wAgo] ?? 0) + 1;
+      }
+      const out: WeekStat[] = [];
+      for (let i = 7; i >= 0; i--) {
+        const d = new Date(now - i * WEEK);
+        const label = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+        out.push({ label, parcels: buckets[i] ?? 0 });
+      }
+      return out;
+    },
+  });
+}
+
+/* ── Parcels needing attention (exceptions + stuck early-stage at the hub) ──── */
+export interface AttentionRow {
+  id: string;
+  public_code: string;
+  status: string;
+  receiver_name: string;
+  days: number;
+}
+
+export function useStuckShipments() {
+  return useQuery({
+    queryKey: ['stuck'],
+    queryFn: async (): Promise<AttentionRow[]> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('id, public_code, status, receiver, created_at')
+        .in('status', ['collected_uk', 'at_uk_hub', 'exception'])
+        .order('created_at', { ascending: true })
+        .limit(50);
+      if (error) throw error;
+      const now = Date.now();
+      const rows = (data ?? []) as unknown as {
+        id: string;
+        public_code: string;
+        status: string;
+        receiver: { name?: string } | null;
+        created_at: string;
+      }[];
+      return rows
+        .map((r) => ({
+          id: r.id,
+          public_code: r.public_code,
+          status: r.status,
+          receiver_name: r.receiver?.name ?? '',
+          days: Math.floor((now - new Date(r.created_at).getTime()) / 86_400_000),
+        }))
+        // exceptions always; early-stage parcels only once older than 9 days (missed a Friday van)
+        .filter((r) => r.status === 'exception' || r.days >= 9)
+        .slice(0, 8);
+    },
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -787,7 +870,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),

@@ -15,6 +15,24 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split app-wide vendors into cacheable chunks that load in parallel.
+        // Operator-only heavy libs (pdf-lib, bwip-js, fontkit) are intentionally
+        // NOT named here, so they stay inside their lazy operator chunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-router') || id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
+            return 'react-vendor';
+          if (id.includes('framer-motion') || id.includes('/motion-dom/') || id.includes('/motion-utils/')) return 'motion';
+          if (id.includes('@supabase') || id.includes('@tanstack')) return 'data';
+          if (id.includes('i18next')) return 'i18n';
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, Check } from 'lucide-react';
 import { Button, Card, CardBody } from '@/components/ui';
 import { Stat, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
-import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted } from '@/lib/queries';
+import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments } from '@/lib/queries';
 import { useAuth } from '@/lib/auth';
 import { statusLabel, timelineIndex } from '@/lib/status';
 import { formatMoney, cn } from '@/lib/utils';
@@ -35,6 +35,8 @@ export function OperatorHomePage() {
   const { data: dash, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useOperatorDashboard();
   const { data: awaiting } = useCodAwaitingRemittance();
   const markRemit = useMarkCodRemitted();
+  const { data: weekly } = useWeeklyStats();
+  const { data: stuck } = useStuckShipments();
 
   const roleLabel = profile?.role ? (lang === 'bg' ? (ROLE_BG[profile.role] ?? profile.role) : profile.role) : '';
 
@@ -61,6 +63,11 @@ export function OperatorHomePage() {
           refresh: 'Обнови',
           loadErr: 'Грешка при зареждане на данните',
           retry: 'Опитай пак',
+          weekTitle: 'Пратки по седмици',
+          attnTitle: 'За внимание',
+          attnNone: 'Всичко е наред — няма забавени пратки',
+          unpaidInv: 'Неплатени фактури',
+          daysSuffix: 'д',
         }
       : {
           cod: 'COD to collect',
@@ -83,6 +90,11 @@ export function OperatorHomePage() {
           refresh: 'Refresh',
           loadErr: 'Could not load dashboard data',
           retry: 'Retry',
+          weekTitle: 'Parcels by week',
+          attnTitle: 'Needs attention',
+          attnNone: 'All clear — no delayed parcels',
+          unpaidInv: 'Unpaid invoices',
+          daysSuffix: 'd',
         };
 
   const fmtRec = (rec: Record<string, number>): string => {
@@ -98,6 +110,8 @@ export function OperatorHomePage() {
   const activeStatuses = Object.entries(dash?.shipments.byStatus ?? {})
     .filter(([s]) => !HIDDEN_STATUSES.has(s))
     .sort((a, b) => timelineIndex(a[0] as AnyStatus) - timelineIndex(b[0] as AnyStatus));
+
+  const weekMax = Math.max(1, ...(weekly ?? []).map((w) => w.parcels));
 
   return (
     <div>
@@ -150,6 +164,69 @@ export function OperatorHomePage() {
         <Stat label={L.active} value={num(dash?.shipments.active)} />
         <Stat label={L.today} value={num(dash?.shipments.today)} />
         <Stat label={L.delivered} value={num(dash?.shipments.delivered)} />
+      </div>
+
+      {/* Weekly volume + needs attention */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardBody>
+            <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-fg">
+              <BarChart3 className="h-4 w-4" /> {L.weekTitle}
+            </p>
+            <div className="flex h-44 items-end gap-2">
+              {(weekly ?? []).map((w) => (
+                <div key={w.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                  <span className="text-[11px] font-semibold tabular-nums text-foreground">{w.parcels || ''}</span>
+                  <div
+                    className="w-full rounded-t-md bg-brand"
+                    style={{ height: `${(w.parcels / weekMax) * 100}%`, minHeight: w.parcels > 0 ? '6px' : '2px' }}
+                  />
+                  <span className="text-[10px] text-muted-fg">{w.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardBody>
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-fg">
+              <AlertTriangle className="h-4 w-4 text-amber-500" /> {L.attnTitle}
+            </p>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <Link to="/op/invoices" className="rounded-lg border border-border px-3 py-2 transition-colors hover:bg-muted">
+                <p className="font-display text-xl font-extrabold tabular-nums text-foreground">{dash?.invoices.dueCount ?? 0}</p>
+                <p className="text-xs text-muted-fg">{L.unpaidInv}</p>
+              </Link>
+              <div className="rounded-lg border border-border px-3 py-2">
+                <p className="font-display text-xl font-extrabold tabular-nums text-foreground">{dash?.cod.awaitingCount ?? 0}</p>
+                <p className="text-xs text-muted-fg">{L.codRemit}</p>
+              </div>
+            </div>
+            {stuck && stuck.length > 0 ? (
+              <div className="space-y-1.5">
+                {stuck.map((s) => (
+                  <Link
+                    key={s.id}
+                    to={`/op/shipments/${s.id}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted"
+                  >
+                    <span className="truncate font-mono font-semibold text-foreground">{s.public_code}</span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs text-muted-fg">{statusLabel(s.status as AnyStatus, lang)}</span>
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
+                        {s.days}
+                        {L.daysSuffix}
+                      </span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-fg">{L.attnNone}</p>
+            )}
+          </CardBody>
+        </Card>
       </div>
 
       {/* COD awaiting payout — reconciliation */}
