@@ -24,6 +24,8 @@ interface AuthCtx {
   signInWithPhone: (phone: string) => Promise<void>;
   verifyPhone: (phone: string, token: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmailCode: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -72,6 +74,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signInWithEmail(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      },
+      // Passwordless: emails a 6-digit code (no Twilio needed). shouldCreateUser
+      // lets a new client self-onboard; the handle_new_user trigger links an
+      // existing walk-in profile by email/phone or creates a fresh client one.
+      async signInWithEmailCode(email) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: true },
+        });
+        if (error) throw error;
+      },
+      async verifyEmailCode(email, token) {
+        const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
         if (error) throw error;
       },
       async signOut() {

@@ -18,7 +18,7 @@ export function LoginPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithPhone, verifyPhone, signInWithEmail, session, role, isStaff } = useAuth();
+  const { signInWithPhone, verifyPhone, signInWithEmailCode, verifyEmailCode, session, role, isStaff } = useAuth();
 
   // After auth, route by role: staff → operator console, clients → portal.
   // Wait until the profile (role) resolves — otherwise the brief null-profile
@@ -39,8 +39,13 @@ export function LoginPage() {
   const [phone, setPhone] = useState('');
   const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setStep('enter');
+    setToken('');
+  };
 
   const sendCode = async () => {
     const parsed = phoneLoginSchema.safeParse({ phone });
@@ -72,10 +77,29 @@ export function LoginPage() {
     }
   };
 
-  const emailLogin = async () => {
+  const sendEmailCode = async () => {
+    const e = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return toast.error(t('auth.email_invalid'));
     setBusy(true);
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmailCode(e);
+      setStep('verify');
+      toast.info(t('auth.code_sent_email', { email: e }));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyEmail = async () => {
+    const e = email.trim();
+    const code = token.trim();
+    if (!e || code.length < 4) return toast.error(t('common.error'));
+    setBusy(true);
+    try {
+      await verifyEmailCode(e, code);
+      toast.success(t('portal.welcome', { name: '' }));
       // redirect handled by the role-based effect once the session is set
     } catch {
       toast.error(t('common.error'));
@@ -150,7 +174,7 @@ export function LoginPage() {
                   )}
                   <p className="text-xs text-muted-fg">{t('auth.first_login_note')}</p>
                   <button
-                    onClick={() => setMode('email')}
+                    onClick={() => switchMode('email')}
                     className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"
                   >
                     <Mail className="h-4 w-4" /> {t('auth.use_email')}
@@ -158,17 +182,51 @@ export function LoginPage() {
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
-                  <Field label={t('auth.email_label')}>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-                  </Field>
-                  <Field label="••••••••">
-                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                  </Field>
-                  <Button onClick={emailLogin} loading={busy} className="w-full">
-                    {t('auth.login_title')}
-                  </Button>
+                  {step === 'enter' ? (
+                    <>
+                      <Field label={t('auth.email_label')}>
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@email.com"
+                          autoFocus
+                        />
+                      </Field>
+                      <Button onClick={sendEmailCode} loading={busy} className="w-full gap-2">
+                        <Mail className="h-4 w-4" /> {t('auth.send_code')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setStep('enter')}
+                        className="flex items-center gap-1.5 text-sm text-muted-fg hover:text-foreground"
+                      >
+                        <ArrowLeft className="h-4 w-4" /> {email}
+                      </button>
+                      <Field label={t('auth.code_label')}>
+                        <Input
+                          inputMode="numeric"
+                          value={token}
+                          onChange={(e) => setToken(e.target.value)}
+                          placeholder={t('auth.code_placeholder')}
+                          className="text-center font-mono text-lg tracking-[0.5em]"
+                          maxLength={6}
+                          autoFocus
+                        />
+                      </Field>
+                      <Button onClick={verifyEmail} loading={busy} className="w-full">
+                        {t('auth.verify')}
+                      </Button>
+                      <button onClick={sendEmailCode} className="w-full text-sm text-muted-fg hover:text-brand">
+                        {t('auth.resend')}
+                      </button>
+                    </>
+                  )}
+                  <p className="text-xs text-muted-fg">{t('auth.first_login_note')}</p>
                   <button
-                    onClick={() => setMode('phone')}
+                    onClick={() => switchMode('phone')}
                     className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"
                   >
                     <Phone className="h-4 w-4" /> {t('auth.phone_label')}

@@ -130,6 +130,8 @@
     "use_email": "Sign in with email",
     "email_label": "Email",
     "code_sent": "We sent a code to {{phone}}.",
+    "code_sent_email": "We sent a code to {{email}}.",
+    "email_invalid": "Enter a valid email address.",
     "first_login_note": "On your first sign-in we create your client profile and OT number."
   },
   "portal": {
