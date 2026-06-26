@@ -12,7 +12,11 @@ const schema = z.object({
     .string()
     .default('542 Liverpool Road, Eccles, Manchester, M30 7JA'),
   // 'true' once the econt-proxy Edge Function is deployed + credentials are set.
+  // Full live last-mile (offices + labels + COD + tracking). Needs the owner's Econt account.
   VITE_ECONT_ENABLED: z.string().default('false'),
+  // 'true' to use ONLY live Econt offices (read-only nomenclature, works on demo creds);
+  // pricing/labels/COD/tracking stay mock/manual until the owner's Econt account is live.
+  VITE_ECONT_OFFICES_LIVE: z.string().default('false'),
 });
 
 const parsed = schema.safeParse(import.meta.env);

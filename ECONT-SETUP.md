@@ -22,18 +22,41 @@ npx supabase secrets set \
 For **production** later, swap to the owner's Econt **client** account and
 `ECONT_BASE_URL=https://ee.econt.com/services`.
 
-## 3. Turn it on in the app
-Add to `.env` (local) **and** Vercel → Settings → Environment Variables:
+## 3. Turn it on in the app — TWO modes
+
+The office nomenclature (read-only reference data) and the transactional methods
+(label / COD / tracking) have different account requirements, so they're on
+separate flags. Set these in `.env` (local) **and** Vercel → Settings → Environment
+Variables, then redeploy / restart `npm run dev`.
+
+### Mode A — Offices only  ✅ recommended for launch (no owner Econt account needed)
+```
+VITE_ECONT_OFFICES_LIVE=true
+VITE_ECONT_ENABLED=false
+```
+- **Real Econt offices** go live in the picker — the full national list, all cities
+  incl. Силистра, searchable in Cyrillic + Latin. Works on the **demo** credentials
+  because the office nomenclature is public reference data.
+- Pricing, labels, COD and tracking stay on the **mock / manual** path (the operator
+  records the Econt tracking № + COD by hand in the shipment panel — same as today).
+- If the proxy is briefly unreachable, the picker falls back to the built-in list, so
+  it never errors.
+
+### Mode B — Full last-mile  (needs the owner's Econt BUSINESS account)
 ```
 VITE_ECONT_ENABLED=true
 ```
-Then redeploy (push) and/or restart `npm run dev`.
-
-## What goes live
-- **Real Econt offices** — the full BG office list (all cities incl. Силистра), searchable in the New Shipment receiver step. (No more mock list.)
-- **Real tracking** — `getShipmentStatuses` feeds the unified timeline (polled; Econt has no webhooks).
-- **createLabel** — wired, but Econt requires the **sender** to be a registered Econt client. With the demo account it returns demo labels; for production we set the owner's Econt client profile as sender. Flag this when you have the real account.
+- Adds automatic **createLabel**, **requestCourier** and **real tracking** on top of
+  offices. Econt requires the **sender** to be a registered Econt client (the owner's
+  CD number) — until that exists, these run against the **demo** sandbox and return
+  fake labels / demo data. Only flip this once the owner's real account is set and
+  `ECONT_BASE_URL=https://ee.econt.com/services`.
 
 ## Notes
-- Leave `VITE_ECONT_ENABLED=false` until the proxy is deployed + secrets set, otherwise the office picker will error (it would try to call a missing function). With the flag off, the app uses the mock — everything keeps working.
+- With **both** flags `false`, the app uses the fully offline mock — everything keeps working.
+- Demo nomenclature contains junk placeholder entries (e.g. an office literally named
+  `testtest`). Those disappear when you point at the owner's **production** account.
 - Customer prices always use **your** tariff (Settings → pricing), never Econt's internal cost.
+- Hardening TODO for Mode B: the `econt-proxy` currently only checks that a request is
+  authenticated. Before going live on money operations, gate `createLabel` /
+  `requestCourier` to staff roles (mirror the `send-email` function's JWT→role check).

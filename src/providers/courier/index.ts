@@ -7,13 +7,22 @@ import { env } from '@/lib/env';
 import type { CourierProvider } from './CourierProvider';
 import { MockEcontProvider } from './MockEcontProvider';
 import { EcontProvider } from './EcontProvider';
+import { HybridEcontProvider } from './HybridEcontProvider';
 
 let instance: CourierProvider | null = null;
 
 export function getCourier(): CourierProvider {
   if (!instance) {
-    // Real Econt once the proxy is deployed + VITE_ECONT_ENABLED=true; mock otherwise.
-    instance = env.VITE_ECONT_ENABLED === 'true' ? new EcontProvider() : new MockEcontProvider();
+    if (env.VITE_ECONT_ENABLED === 'true') {
+      // Full live last-mile (offices + labels + COD + tracking). Needs owner's Econt account.
+      instance = new EcontProvider();
+    } else if (env.VITE_ECONT_OFFICES_LIVE === 'true') {
+      // Live Econt offices only (read-only nomenclature); pricing/labels/COD/tracking stay mock/manual.
+      instance = new HybridEcontProvider();
+    } else {
+      // Fully offline mock.
+      instance = new MockEcontProvider();
+    }
   }
   return instance;
 }
