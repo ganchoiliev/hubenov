@@ -142,9 +142,9 @@ export function AboutPage() {
   return (
     <>
       <ImageHero
-        image="/images/received.png"
+        image="/images/received.webp"
         eyebrow={
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
             <Store className="h-3.5 w-3.5" /> {L.badge}
           </span>
         }

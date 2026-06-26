@@ -51,10 +51,9 @@ export function HomePage() {
             image isn't present yet). */}
         <div
           className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-          style={{ backgroundImage: "url('/images/hero-van.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/92 via-slate-950/72 to-slate-950/30" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-background to-transparent" />
 
         <div className="container grid items-center gap-10 py-20 md:py-28 lg:grid-cols-12 lg:py-32">
@@ -62,17 +61,15 @@ export function HomePage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="lg:col-span-7"
+            className="rounded-3xl bg-slate-950/55 p-6 ring-1 ring-white/10 backdrop-blur-md sm:p-8 lg:col-span-7"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
               <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
             </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-white [text-shadow:0_2px_18px_rgba(2,6,23,0.55)] md:text-5xl lg:text-6xl">
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-white md:text-5xl lg:text-6xl">
               {t('home.hero_title')}
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-white/90 [text-shadow:0_1px_10px_rgba(2,6,23,0.6)]">
-              {t('home.hero_subtitle')}
-            </p>
+            <p className="mt-5 max-w-xl text-lg text-white/85">{t('home.hero_subtitle')}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/quote">
@@ -91,7 +88,7 @@ export function HomePage() {
               </Link>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-white [text-shadow:0_1px_8px_rgba(2,6,23,0.6)]">
+            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-white/85">
               {[
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
                 lang === 'bg' ? 'Приемане в Манчестър' : 'Drop-off in Manchester',

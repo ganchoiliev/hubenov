@@ -74,24 +74,20 @@ export function ImageHero({
         className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
         style={{ backgroundImage: `url('${image}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/92 via-slate-950/72 to-slate-950/35" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-28 bg-gradient-to-t from-background to-transparent" />
       <div className="container py-16 md:py-24">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-2xl"
+          className="max-w-xl rounded-3xl bg-slate-950/55 p-6 ring-1 ring-white/10 backdrop-blur-md sm:p-8"
         >
           {eyebrow && <div className="mb-4">{eyebrow}</div>}
-          <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-white [text-shadow:0_2px_18px_rgba(2,6,23,0.55)] md:text-5xl">
+          <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-white md:text-5xl">
             {title}
           </h1>
-          {subtitle && (
-            <p className="mt-4 max-w-xl text-lg text-white/90 [text-shadow:0_1px_10px_rgba(2,6,23,0.6)]">
-              {subtitle}
-            </p>
-          )}
+          {subtitle && <p className="mt-4 text-lg text-white/85">{subtitle}</p>}
           {children}
         </motion.div>
       </div>
