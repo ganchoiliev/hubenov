@@ -10,6 +10,7 @@
 import { z } from 'npm:zod@3.23.8';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { json, preflight } from '../_shared/cors.ts';
+import { sendSms } from '../_shared/infobip.ts';
 
 const schema = z.object({
   channel: z.enum(['sms', 'email']),
@@ -30,19 +31,6 @@ const TEMPLATES: Record<string, { bg: string; en: string }> = {
 
 function render(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
-}
-
-/** Best-effort national → E.164 (digits only). Defaults to the two markets we
- *  serve: BG mobiles (0 8x / 0 9x) → +359, UK (0 7x …) → +44. */
-function toMsisdn(raw: string): string {
-  const d = raw.replace(/[^\d+]/g, '');
-  if (d.startsWith('+')) return d.slice(1);
-  if (d.startsWith('00')) return d.slice(2);
-  if (d.startsWith('0')) {
-    if (d.startsWith('08') || d.startsWith('09')) return `359${d.slice(1)}`;
-    return `44${d.slice(1)}`;
-  }
-  return d;
 }
 
 Deno.serve(async (req) => {
@@ -74,33 +62,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, skipped: 'email_handled_elsewhere' });
   }
 
-  const apiKey = Deno.env.get('INFOBIP_API_KEY');
-  const baseRaw = Deno.env.get('INFOBIP_BASE_URL');
-  const from = Deno.env.get('INFOBIP_FROM') ?? 'Hubenov';
-  if (!apiKey || !baseRaw) {
-    // No provider yet → log-only so the flow still works end-to-end.
-    console.log(`[notify:sms] (no INFOBIP config) → ${to}: ${body}`);
-    return json({ ok: true, simulated: true, body });
-  }
-  const base = baseRaw.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-  const res = await fetch(`https://${base}/sms/2/text/advanced`, {
-    method: 'POST',
-    headers: { Authorization: `App ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      messages: [{ from, destinations: [{ to: toMsisdn(to) }], text: body }],
-    }),
-  });
-  const data = (await res.json().catch(() => ({}))) as {
-    messages?: { status?: { groupId?: number; name?: string; description?: string } }[];
-    requestError?: { serviceException?: { text?: string } };
-  };
-  const st = data.messages?.[0]?.status;
-  const gid = st?.groupId;
-  // Infobip groupId: 1 = PENDING (accepted), 3 = DELIVERED. Anything else = problem.
-  if (!res.ok || (gid !== 1 && gid !== 3)) {
-    const err = st?.description ?? data.requestError?.serviceException?.text ?? 'send_failed';
-    return json({ ok: false, groupId: gid, error: err }, 502);
-  }
-  return json({ ok: true });
+  const r = await sendSms(to, body);
+  if (!r.ok) return json({ ok: false, groupId: r.groupId, error: r.error }, 502);
+  return json({ ok: true, simulated: r.simulated });
 });

@@ -446,3 +446,12 @@ verify_jwt = true
 [functions.track-poll]
 enabled = true
 verify_jwt = false
+
+# Auth Send-SMS hook — Supabase Auth calls this server-to-server (no user JWT;
+# authenticated via the Standard Webhooks signature) to deliver phone OTPs via
+# Infobip. MUST be verify_jwt = false. Enable the hook in Dashboard → Auth →
+# Hooks (HTTPS → this function's URL) and set SEND_SMS_HOOK_SECRET to the value
+# it generates.
+[functions.send-sms-hook]
+enabled = true
+verify_jwt = false

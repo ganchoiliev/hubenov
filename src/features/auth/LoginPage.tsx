@@ -160,7 +160,7 @@ export function LoginPage() {
                             aria-label={t('auth.country_code')}
                             value={dial}
                             onChange={(e) => setDial(e.target.value)}
-                            className="w-24 shrink-0"
+                            className="w-32 shrink-0"
                           >
                             {DIAL_COUNTRIES.map((c) => (
                               <option key={c.code} value={c.dial}>
