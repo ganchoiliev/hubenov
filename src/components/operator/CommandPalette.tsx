@@ -2,7 +2,7 @@
  * Operator command palette (⌘K). Type to jump to any parcel, client, or invoice.
  * Debounced server search across all three; full keyboard nav.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, m as motion } from 'framer-motion';
@@ -11,7 +11,17 @@ import { Spinner } from '@/components/ui';
 import { useGlobalSearch, type SearchHit } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
-const ICON = { parcel: Package, client: User, invoice: Receipt } as const;
+const KIND = {
+  parcel: { Icon: Package, tile: 'bg-brand-50 text-brand-700' },
+  client: { Icon: User, tile: 'bg-sky-50 text-sky-600' },
+  invoice: { Icon: Receipt, tile: 'bg-amber-50 text-amber-600' },
+} as const;
+
+const Kbd = ({ children }: { children: React.ReactNode }) => (
+  <kbd className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-border bg-card px-1 font-mono text-[10px] font-medium text-muted-fg">
+    {children}
+  </kbd>
+);
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { i18n } = useTranslation();
@@ -21,24 +31,25 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const [debounced, setDebounced] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const activeRef = useRef<HTMLButtonElement | null>(null);
 
   const L =
     lang === 'bg'
       ? {
           placeholder: 'Търси пратка, клиент или фактура…',
           empty: 'Няма резултати',
-          hint: 'за начало напишете поне 2 символа',
+          hint: 'Напишете поне 2 символа',
           go: 'отвори',
           nav: 'навигация',
-          kinds: { parcel: 'Пратка', client: 'Клиент', invoice: 'Фактура' },
+          kinds: { parcel: 'Пратки', client: 'Клиенти', invoice: 'Фактури' },
         }
       : {
           placeholder: 'Search parcel, client or invoice…',
           empty: 'No results',
-          hint: 'type at least 2 characters',
+          hint: 'Type at least 2 characters',
           go: 'open',
           nav: 'navigate',
-          kinds: { parcel: 'Parcel', client: 'Client', invoice: 'Invoice' },
+          kinds: { parcel: 'Parcels', client: 'Clients', invoice: 'Invoices' },
         };
 
   useEffect(() => {
@@ -49,7 +60,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const { data: hits, isFetching } = useGlobalSearch(open ? debounced : '');
   const results = useMemo(() => hits ?? [], [hits]);
 
-  // Reset + focus on open.
   useEffect(() => {
     if (open) {
       setTerm('');
@@ -63,6 +73,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   useEffect(() => {
     setActive(0);
   }, [results.length]);
+
+  // Keep the highlighted row in view as you arrow through.
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
 
   const choose = (h: SearchHit) => {
     navigate(h.to);
@@ -86,6 +101,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   };
 
+  const ready = debounced.trim().length >= 2;
+
   return (
     <AnimatePresence>
       {open && (
@@ -96,69 +113,84 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
         >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
           <motion.div
             role="dialog"
             aria-modal="true"
-            initial={{ opacity: 0, scale: 0.98, y: -8 }}
+            initial={{ opacity: 0, scale: 0.97, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -8 }}
-            transition={{ duration: 0.14 }}
-            className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-lift"
+            exit={{ opacity: 0, scale: 0.97, y: -10 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl ring-1 ring-black/5"
           >
             <div className="flex items-center gap-3 border-b border-border px-4">
-              <Search className="h-4.5 w-4.5 shrink-0 text-muted-fg" />
+              <Search className="h-5 w-5 shrink-0 text-muted-fg" />
               <input
                 ref={inputRef}
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 onKeyDown={onKey}
                 placeholder={L.placeholder}
-                className="h-12 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-fg"
+                className="h-14 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-fg"
               />
               {isFetching && <Spinner className="h-4 w-4" />}
             </div>
 
-            <div className="max-h-[50vh] overflow-y-auto p-2">
-              {debounced.trim().length < 2 ? (
-                <p className="px-3 py-6 text-center text-sm text-muted-fg">{L.hint}</p>
+            <div className="max-h-[52vh] overflow-y-auto p-2">
+              {!ready ? (
+                <div className="flex flex-col items-center gap-2 px-3 py-10 text-center">
+                  <Search className="h-6 w-6 text-muted-fg/50" />
+                  <p className="text-sm text-muted-fg">{L.hint}</p>
+                </div>
               ) : results.length === 0 && !isFetching ? (
-                <p className="px-3 py-6 text-center text-sm text-muted-fg">{L.empty}</p>
+                <p className="px-3 py-10 text-center text-sm text-muted-fg">{L.empty}</p>
               ) : (
                 results.map((h, i) => {
-                  const Icon = ICON[h.kind];
+                  const prev = results[i - 1];
+                  const showHeader = !prev || prev.kind !== h.kind;
+                  const { Icon, tile } = KIND[h.kind];
                   return (
-                    <button
-                      key={`${h.kind}-${h.id}`}
-                      onMouseEnter={() => setActive(i)}
-                      onClick={() => choose(h)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-                        i === active ? 'bg-muted' : 'hover:bg-muted/60',
+                    <Fragment key={`${h.kind}-${h.id}`}>
+                      {showHeader && (
+                        <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-fg first:pt-1">
+                          {L.kinds[h.kind]}
+                        </p>
                       )}
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">{h.label}</span>
-                        {h.sub && <span className="block truncate text-xs text-muted-fg">{h.sub}</span>}
-                      </span>
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-fg">
-                        {L.kinds[h.kind]}
-                      </span>
-                    </button>
+                      <button
+                        ref={i === active ? activeRef : undefined}
+                        onMouseEnter={() => setActive(i)}
+                        onClick={() => choose(h)}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
+                          i === active ? 'bg-muted' : 'hover:bg-muted/50',
+                        )}
+                      >
+                        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', tile)}>
+                          <Icon className="h-4.5 w-4.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-foreground">{h.label}</span>
+                          {h.sub && <span className="block truncate text-xs text-muted-fg">{h.sub}</span>}
+                        </span>
+                        {i === active && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-fg" />}
+                      </button>
+                    </Fragment>
                   );
                 })
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-fg">
-              <span className="flex items-center gap-1">
-                <CornerDownLeft className="h-3 w-3" /> {L.go}
+            <div className="flex items-center gap-4 border-t border-border bg-muted/30 px-4 py-2.5 text-[11px] text-muted-fg">
+              <span className="flex items-center gap-1.5">
+                <Kbd>↵</Kbd> {L.go}
               </span>
-              <span>↑↓ {L.nav}</span>
-              <span>Esc</span>
+              <span className="flex items-center gap-1.5">
+                <Kbd>↑</Kbd>
+                <Kbd>↓</Kbd> {L.nav}
+              </span>
+              <span className="ml-auto flex items-center gap-1.5">
+                <Kbd>Esc</Kbd>
+              </span>
             </div>
           </motion.div>
         </motion.div>

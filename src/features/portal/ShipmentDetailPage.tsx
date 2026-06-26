@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save } from 'lucide-react';
-import { Card, CardBody, Badge, Spinner, Button, Input, Switch } from '@/components/ui';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil } from 'lucide-react';
+import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
-import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted } from '@/lib/queries';
+import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted, useUpdateParcel } from '@/lib/queries';
 import { HubenovQr } from '@/components/shared/HubenovQr';
 import { supabase } from '@/lib/supabase';
+import { calculateQuote } from '@/lib/pricing';
+import { PLACEHOLDER_RATES } from '@/lib/rates';
 import { formatMoney } from '@/lib/utils';
 import { assessCustoms } from '@/lib/customs';
 import type { PartySnapshot, Shipment, CustomsItem, Currency } from '@/types/domain';
@@ -125,10 +127,164 @@ export function ShipmentDetailPage() {
         </div>
       </div>
 
+      {inOperator && <EditParcelPanel shipment={shipment} />}
       <EcontPanel shipment={shipment} inOperator={inOperator} />
       <HubenovQr code={shipment.public_code} />
       {inOperator && <CustomsPanel shipment={shipment} />}
     </div>
+  );
+}
+
+function EditParcelPanel({ shipment }: { shipment: Shipment }) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
+  const locale = lang === 'en' ? 'en-GB' : 'bg-BG';
+  const toast = useToast();
+  const update = useUpdateParcel();
+  const [open, setOpen] = useState(false);
+  const [w, setW] = useState(String(shipment.weight_kg));
+  const [l, setL] = useState(String(shipment.length_cm));
+  const [wd, setWd] = useState(String(shipment.width_cm));
+  const [h, setH] = useState(String(shipment.height_cm));
+  const [dv, setDv] = useState(String(shipment.declared_value));
+  const [price, setPrice] = useState(shipment.price != null ? String(shipment.price) : '');
+
+  const L =
+    lang === 'bg'
+      ? {
+          title: 'Редактирай пратка',
+          edit: 'Редактирай',
+          weight: 'Тегло (кг)',
+          dims: 'Размери Д×Ш×В (см)',
+          declared: 'Обявена стойност',
+          price: 'Цена за доставка',
+          suggested: 'Препоръчана',
+          save: 'Запази',
+          cancel: 'Отказ',
+          saved: 'Пратката е обновена',
+          note: 'Промяната обновява и свързаната неплатена фактура.',
+        }
+      : {
+          title: 'Edit parcel',
+          edit: 'Edit',
+          weight: 'Weight (kg)',
+          dims: 'Dimensions L×W×H (cm)',
+          declared: 'Declared value',
+          price: 'Delivery price',
+          suggested: 'Suggested',
+          save: 'Save',
+          cancel: 'Cancel',
+          saved: 'Parcel updated',
+          note: 'This also updates the linked unpaid invoice.',
+        };
+
+  const num = (s: string) => {
+    const n = Number(s.replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const quote = useMemo(() => {
+    try {
+      return calculateQuote(
+        {
+          direction: shipment.direction,
+          weight_kg: num(w),
+          length_cm: num(l),
+          width_cm: num(wd),
+          height_cm: num(h),
+          is_gift: shipment.is_gift,
+          remote_area: false,
+          currency: shipment.currency,
+        },
+        PLACEHOLDER_RATES,
+      );
+    } catch {
+      return null;
+    }
+  }, [w, l, wd, h, shipment.direction, shipment.is_gift, shipment.currency]);
+
+  const onSave = async () => {
+    try {
+      await update.mutateAsync({
+        id: shipment.id,
+        weight_kg: num(w),
+        length_cm: num(l),
+        width_cm: num(wd),
+        height_cm: num(h),
+        declared_value: num(dv),
+        price: price.trim() === '' ? null : num(price),
+      });
+      toast.success(L.saved);
+      setOpen(false);
+    } catch {
+      toast.error(t('common.error'));
+    }
+  };
+
+  return (
+    <Card>
+      <CardBody>
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Pencil className="h-4 w-4 text-muted-fg" /> {L.title}
+          </h2>
+          {!open && (
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              {L.edit}
+            </Button>
+          )}
+        </div>
+
+        {open && (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={L.weight} htmlFor="ep-w">
+                <Input id="ep-w" inputMode="decimal" value={w} onChange={(e) => setW(e.target.value)} />
+              </Field>
+              <Field label={L.declared} htmlFor="ep-dv">
+                <Input id="ep-dv" inputMode="decimal" value={dv} onChange={(e) => setDv(e.target.value)} />
+              </Field>
+            </div>
+
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-foreground">{L.dims}</span>
+              <div className="grid grid-cols-3 gap-2">
+                <Input inputMode="decimal" value={l} onChange={(e) => setL(e.target.value)} aria-label="L" />
+                <Input inputMode="decimal" value={wd} onChange={(e) => setWd(e.target.value)} aria-label="W" />
+                <Input inputMode="decimal" value={h} onChange={(e) => setH(e.target.value)} aria-label="H" />
+              </div>
+            </div>
+
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Field label={L.price} htmlFor="ep-price">
+                  <Input id="ep-price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
+                </Field>
+              </div>
+              {quote && (
+                <button
+                  type="button"
+                  onClick={() => setPrice(String(quote.total))}
+                  className="mb-px shrink-0 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                >
+                  {L.suggested}: {formatMoney(quote.total, shipment.currency, locale)}
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-fg">{L.note}</p>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                {L.cancel}
+              </Button>
+              <Button size="sm" loading={update.isPending} onClick={() => void onSave()} className="gap-2">
+                <Save className="h-4 w-4" /> {L.save}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }
 

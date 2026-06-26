@@ -1239,6 +1239,32 @@ export function useBulkDeleteShipments() {
   });
 }
 
+/** Edit a parcel's weight/dimensions/value/price after intake; the linked
+ *  not-yet-paid invoice is re-synced to the new price in the same call. */
+export function useUpdateParcel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      id: string;
+      weight_kg: number;
+      length_cm: number;
+      width_cm: number;
+      height_cm: number;
+      declared_value: number;
+      price: number | null;
+    }) => {
+      const { id, ...patch } = args;
+      const { error } = await supabase.from('shipments').update(patch).eq('id', id);
+      if (error) throw error;
+      if (patch.price != null) {
+        await supabase.from('invoices').update({ amount: patch.price }).eq('shipment_id', id).neq('status', 'paid');
+      }
+    },
+    onSuccess: () =>
+      invalAll(qc, [['shipment'], ['op-shipments'], ['shipments'], ['invoices'], ['op-invoices'], ['dashboard'], ['weekly-stats'], ['top-cities'], ['ot-lookup']]),
+  });
+}
+
 /* ── Global search (command palette): parcels + clients + invoices ─────────── */
 export interface SearchHit {
   kind: 'parcel' | 'client' | 'invoice';
