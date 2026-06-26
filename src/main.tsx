@@ -6,10 +6,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import './index.css';
 import './lib/i18n';
+import { initSentry } from './lib/sentry';
 import { router } from './router';
 import { ThemeProvider } from './components/theme/ThemeProvider';
 import { ToastProvider } from './components/ui/toast';
 import { ConfirmProvider } from './components/ui/confirm';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider } from './lib/auth';
 
 const queryClient = new QueryClient({
@@ -21,6 +23,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+initSentry(); // error monitoring — no-op unless VITE_SENTRY_LOADER_URL is set
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Root element #root not found');
@@ -34,7 +38,9 @@ ReactDOM.createRoot(rootEl).render(
             <LazyMotion features={domAnimation} strict>
               <MotionConfig reducedMotion="user">
                 <ConfirmProvider>
-                  <RouterProvider router={router} />
+                  <ErrorBoundary>
+                    <RouterProvider router={router} />
+                  </ErrorBoundary>
                 </ConfirmProvider>
               </MotionConfig>
             </LazyMotion>

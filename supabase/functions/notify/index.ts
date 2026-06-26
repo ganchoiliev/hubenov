@@ -1,11 +1,11 @@
-// notify — transactional SMS on key status changes, via Vonage (no Twilio).
+// notify — transactional SMS on key status changes, via Infobip (no Twilio).
 // Staff-only (A.N.T.): the caller's JWT must resolve to operator/owner, so a
 // client can't use it to blast SMS. Provider keys stay server-side (§5).
 // Best-effort: callers never block on it.
 //
-// Secrets:
-//   supabase secrets set VONAGE_API_KEY=xxx VONAGE_API_SECRET=yyy \
-//     VONAGE_FROM='Hubenov'
+// Secrets (Infobip account → API key + your per-account base URL):
+//   supabase secrets set INFOBIP_API_KEY=xxxxxxxx \
+//     INFOBIP_BASE_URL=jr6dz4.api.infobip.com INFOBIP_FROM='Hubenov'
 // (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are injected automatically.)
 import { z } from 'npm:zod@3.23.8';
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -74,33 +74,33 @@ Deno.serve(async (req) => {
     return json({ ok: true, skipped: 'email_handled_elsewhere' });
   }
 
-  const apiKey = Deno.env.get('VONAGE_API_KEY');
-  const apiSecret = Deno.env.get('VONAGE_API_SECRET');
-  const from = Deno.env.get('VONAGE_FROM') ?? 'Hubenov';
-  if (!apiKey || !apiSecret) {
+  const apiKey = Deno.env.get('INFOBIP_API_KEY');
+  const baseRaw = Deno.env.get('INFOBIP_BASE_URL');
+  const from = Deno.env.get('INFOBIP_FROM') ?? 'Hubenov';
+  if (!apiKey || !baseRaw) {
     // No provider yet → log-only so the flow still works end-to-end.
-    console.log(`[notify:sms] (no VONAGE keys) → ${to}: ${body}`);
+    console.log(`[notify:sms] (no INFOBIP config) → ${to}: ${body}`);
     return json({ ok: true, simulated: true, body });
   }
+  const base = baseRaw.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  const res = await fetch('https://rest.nexmo.com/sms/json', {
+  const res = await fetch(`https://${base}/sms/2/text/advanced`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { Authorization: `App ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      api_key: apiKey,
-      api_secret: apiSecret,
-      from,
-      to: toMsisdn(to),
-      text: body,
-      type: 'unicode', // Cyrillic-safe
+      messages: [{ from, destinations: [{ to: toMsisdn(to) }], text: body }],
     }),
   });
   const data = (await res.json().catch(() => ({}))) as {
-    messages?: { status?: string; ['error-text']?: string }[];
+    messages?: { status?: { groupId?: number; name?: string; description?: string } }[];
+    requestError?: { serviceException?: { text?: string } };
   };
-  const msg = data.messages?.[0];
-  if (!res.ok || !msg || msg.status !== '0') {
-    return json({ ok: false, status: msg?.status, error: msg?.['error-text'] ?? 'send_failed' }, 502);
+  const st = data.messages?.[0]?.status;
+  const gid = st?.groupId;
+  // Infobip groupId: 1 = PENDING (accepted), 3 = DELIVERED. Anything else = problem.
+  if (!res.ok || (gid !== 1 && gid !== 3)) {
+    const err = st?.description ?? data.requestError?.serviceException?.text ?? 'send_failed';
+    return json({ ok: false, groupId: gid, error: err }, 502);
   }
   return json({ ok: true });
 });
