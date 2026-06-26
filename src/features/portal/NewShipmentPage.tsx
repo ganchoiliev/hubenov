@@ -4,14 +4,14 @@ import { useForm, type UseFormRegister, type FieldErrors } from 'react-hook-form
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Search, MapPin } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { useCreateShipment } from '@/lib/queries';
-import { getCourier, type EcontOffice } from '@/providers/courier';
+import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
 import { calculateQuote } from '@/lib/pricing';
 import { PLACEHOLDER_RATES } from '@/lib/rates';
@@ -439,53 +439,6 @@ function ReceiverStep({
   );
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-function EcontOfficePicker({ onPick, selected }: { onPick: (o: EcontOffice) => void; selected: string | null }) {
-  const { t } = useTranslation();
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState<EcontOffice[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    void getCourier()
-      .getOffices(q)
-      .then((r) => {
-        if (active) setResults(r);
-      });
-    return () => {
-      active = false;
-    };
-  }, [q]);
-
-  return (
-    <div className="rounded-xl border border-border p-4">
-      <p className="mb-2 text-sm font-medium">{t('wizard.office_picker')}</p>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('wizard.office_search')} className="pl-9" />
-      </div>
-      <div className="mt-3 max-h-44 space-y-1.5 overflow-y-auto">
-        {results.map((o) => (
-          <button
-            key={o.code}
-            type="button"
-            onClick={() => onPick(o)}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors',
-              selected === o.code ? 'bg-brand text-brand-fg' : 'hover:bg-muted',
-            )}
-          >
-            <MapPin className="h-4 w-4 shrink-0" />
-            <span className="flex-1">
-              {o.city} — {o.name}
-            </span>
-            <span className="font-mono text-xs opacity-70">{o.code}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function Review({
   values,

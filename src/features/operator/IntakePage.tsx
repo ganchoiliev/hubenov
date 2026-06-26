@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
+import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { useClients, useCreateInvoice } from '@/lib/queries';
@@ -581,8 +582,33 @@ export function IntakePage() {
           register={register}
           errors={errors}
           labels={partyLabels}
-          withOffice
+          withOffice={false}
         />
+
+        {/* Econt office (optional) — searchable by city/postcode, Cyrillic + Latin */}
+        <Card>
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-sm font-bold text-foreground">{L.econt_office}</h3>
+              {(watch('receiver.econt_office_code') ?? '') !== '' && (
+                <button
+                  type="button"
+                  onClick={() => setValue('receiver.econt_office_code', '')}
+                  className="text-xs text-muted-fg hover:text-foreground"
+                >
+                  {locale === 'bg' ? 'Изчисти' : 'Clear'}
+                </button>
+              )}
+            </div>
+            <EcontOfficePicker
+              selected={watch('receiver.econt_office_code') || null}
+              onPick={(o) => {
+                setValue('receiver.econt_office_code', o.code);
+                if (!(watch('receiver.city') ?? '').trim()) setValue('receiver.city', o.city);
+              }}
+            />
+          </CardBody>
+        </Card>
 
         {/* Parcel measurements */}
         <Card>
