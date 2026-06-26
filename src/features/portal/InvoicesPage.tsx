@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Receipt, FileDown } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Skeleton } from '@/components/ui';
 import { PageHeading, EmptyState, Stat } from '@/components/shared/common';

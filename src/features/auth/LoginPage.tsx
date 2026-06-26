@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Phone, Mail, ArrowLeft } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input } from '@/components/ui';
 import { LanguageSwitch } from '@/components/controls';

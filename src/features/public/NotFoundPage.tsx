@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Compass, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui';
 

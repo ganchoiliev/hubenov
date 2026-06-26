@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, type UseFormRegister, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m as motion } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';

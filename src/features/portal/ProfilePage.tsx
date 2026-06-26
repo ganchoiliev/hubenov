@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Copy, MapPin, Plus, User, Building2, Home } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';

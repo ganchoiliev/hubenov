@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
-import { MotionConfig } from 'framer-motion';
+import { MotionConfig, LazyMotion, domAnimation } from 'framer-motion';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import './index.css';
@@ -30,9 +30,11 @@ ReactDOM.createRoot(rootEl).render(
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <MotionConfig reducedMotion="user">
-              <RouterProvider router={router} />
-            </MotionConfig>
+            <LazyMotion features={domAnimation} strict>
+              <MotionConfig reducedMotion="user">
+                <RouterProvider router={router} />
+              </MotionConfig>
+            </LazyMotion>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m as motion } from 'framer-motion';
 import { ChevronDown, HelpCircle } from 'lucide-react';
 import { Section, PageHeading } from '@/components/shared/common';
 import { cn } from '@/lib/utils';

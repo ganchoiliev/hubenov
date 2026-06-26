@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Search, ShieldCheck, PackageX } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';

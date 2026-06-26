@@ -2,7 +2,7 @@
  * Framer Motion helpers (§9): route transitions, staggered reveals. Tasteful,
  * <200ms, and respects prefers-reduced-motion via Framer's reduced-motion API.
  */
-import { motion, type Variants } from 'framer-motion';
+import { m as motion, type Variants } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 export function PageTransition({ children }: { children: ReactNode }) {

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { PackagePlus, Copy, ArrowRight } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Skeleton } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';

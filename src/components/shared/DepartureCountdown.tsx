@@ -1,6 +1,6 @@
 /** Next-Friday departure countdown + booking cut-off (§7). */
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { Truck, Clock } from 'lucide-react';
 import { useDepartureCountdown } from '@/hooks/useCountdown';
 import { formatDate } from '@/lib/utils';

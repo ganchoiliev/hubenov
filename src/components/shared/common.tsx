@@ -1,6 +1,6 @@
 /** Small shared display helpers used across surfaces. */
 import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { PackageOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m as motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Calculator, Package2, Phone, MessageCircle } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';

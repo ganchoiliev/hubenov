@@ -3,7 +3,7 @@
  * leg (own/econt) shows underneath each event. Works from either authenticated
  * tracking_events or the public PII-safe payload.
  */
-import { motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Check, Circle, AlertTriangle } from 'lucide-react';
 import { MAIN_TIMELINE, statusLabel, timelineIndex, isSideStatus } from '@/lib/status';
