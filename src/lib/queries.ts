@@ -1215,6 +1215,68 @@ export function useDeleteLoad() {
   });
 }
 
+/* ── Global search (command palette): parcels + clients + invoices ─────────── */
+export interface SearchHit {
+  kind: 'parcel' | 'client' | 'invoice';
+  id: string;
+  label: string;
+  sub: string;
+  to: string;
+}
+export function useGlobalSearch(term: string) {
+  const t = term.trim();
+  return useQuery({
+    queryKey: ['global-search', t],
+    enabled: t.length >= 2,
+    staleTime: 10_000,
+    queryFn: async (): Promise<SearchHit[]> => {
+      // Strip chars that would break the PostgREST or() filter grammar.
+      const safe = t.replace(/[,()*]/g, ' ').trim();
+      if (!safe) return [];
+      const star = `*${safe}*`; // or()-filter wildcard is * (not %)
+      const pct = `%${safe}%`;
+      // Parcel code/AWB and receiver-name are two separate queries so a search by
+      // code never depends on the JSON receiver filter being supported.
+      const [byCode, byReceiver, cl, inv] = await Promise.all([
+        supabase
+          .from('shipments')
+          .select('id, public_code, receiver')
+          .or(`public_code.ilike.${star},awb_barcode.ilike.${star}`)
+          .order('created_at', { ascending: false })
+          .limit(6),
+        supabase
+          .from('shipments')
+          .select('id, public_code, receiver')
+          .ilike('receiver->>name', pct)
+          .order('created_at', { ascending: false })
+          .limit(6),
+        supabase
+          .from('profiles')
+          .select('id, full_name, client_code, phone, email')
+          .eq('role', 'client')
+          .or(`full_name.ilike.${star},client_code.ilike.${star},phone.ilike.${star},email.ilike.${star}`)
+          .limit(6),
+        supabase.from('invoices').select('id, number').ilike('number', pct).limit(6),
+      ]);
+      type ShipRow = { id: string; public_code: string; receiver: { name?: string } | null };
+      type CliRow = { id: string; full_name: string | null; client_code: string };
+      type InvRow = { id: string; number: string };
+      const hits: SearchHit[] = [];
+      const seen = new Set<string>();
+      for (const r of [...((byCode.data ?? []) as unknown as ShipRow[]), ...((byReceiver.data ?? []) as unknown as ShipRow[])]) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        hits.push({ kind: 'parcel', id: r.id, label: r.public_code, sub: r.receiver?.name ?? '', to: `/op/shipments/${r.id}` });
+      }
+      for (const r of (cl.data ?? []) as unknown as CliRow[])
+        hits.push({ kind: 'client', id: r.id, label: r.full_name || r.client_code, sub: r.client_code, to: `/op/lookup?code=${encodeURIComponent(r.client_code)}` });
+      for (const r of (inv.data ?? []) as unknown as InvRow[])
+        hits.push({ kind: 'invoice', id: r.id, label: r.number, sub: '', to: '/op/invoices' });
+      return hits;
+    },
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();

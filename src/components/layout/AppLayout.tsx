@@ -1,9 +1,10 @@
 import { NavLink, Outlet, Link, useNavigate, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut, Menu, X, type LucideIcon } from 'lucide-react';
+import { LogOut, Menu, X, Search, type LucideIcon } from 'lucide-react';
 import { Suspense, useState, useEffect } from 'react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
+import { CommandPalette } from '@/components/operator/CommandPalette';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useRealtimeSync, useOpUnread, useClientUnread } from '@/lib/queries';
@@ -18,10 +19,12 @@ export interface NavItem {
 }
 
 export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' | 'operator' }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   useRealtimeSync(); // live updates across the app — no manual refresh
 
   // Unread-message badges (one query fires per scope; the other stays disabled).
@@ -39,6 +42,19 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
     return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
 
+  // ⌘K / Ctrl+K opens the operator command palette.
+  useEffect(() => {
+    if (scope !== 'operator') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [scope]);
+
   const onSignOut = async () => {
     await signOut();
     navigate('/');
@@ -47,6 +63,7 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
   return (
     <div className="flex min-h-screen bg-muted/30">
       <ScrollRestoration />
+      {scope === 'operator' && <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />}
       {/* Mobile drawer backdrop */}
       {mobileOpen && (
         <div
@@ -117,9 +134,21 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-fg">
-            {scope === 'operator' ? t('nav.console') : t('nav.portal')}
-          </div>
+          {scope === 'operator' ? (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-fg transition-colors hover:bg-muted sm:max-w-xs"
+              aria-label={lang === 'en' ? 'Search' : 'Търсене'}
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">{lang === 'en' ? 'Search…' : 'Търси…'}</span>
+              <kbd className="hidden rounded bg-card px-1.5 py-0.5 text-[10px] font-medium sm:inline">⌘K</kbd>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-fg">
+              {t('nav.portal')}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <span className="hidden text-sm text-muted-fg sm:inline">{profile?.full_name}</span>
             <LanguageSwitch />
