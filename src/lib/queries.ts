@@ -275,6 +275,62 @@ export function useCreateShipment() {
 }
 
 /**
+ * Client self-service: pre-register an incoming parcel (Amazon/shop → our UK hub).
+ * Creates a `booked` shipment carrying the courier tracking № as inbound_ref, so
+ * when the box physically arrives the operator's Inbound scan matches it and the
+ * label auto-prints. Dimensions fall back to the DB defaults (re-measured on arrival).
+ */
+interface IncomingParty {
+  name: string;
+  phone: string;
+  line1: string;
+  city: string;
+  postcode: string;
+  country: string;
+  econt_office_code?: string | null;
+}
+export function useRegisterIncoming() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      client_id: string;
+      inbound_ref: string;
+      sender: IncomingParty;
+      receiver: IncomingParty;
+      weight_kg: number;
+      declared_value: number;
+      currency: Currency;
+      notes: string | null;
+    }): Promise<Shipment> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .insert({
+          client_id: input.client_id,
+          created_by: input.client_id,
+          direction: 'UK_BG',
+          parcel_type: 'parcel',
+          sender: input.sender,
+          receiver: input.receiver,
+          weight_kg: input.weight_kg,
+          declared_value: input.declared_value,
+          currency: input.currency,
+          status: 'booked',
+          inbound_ref: input.inbound_ref,
+          notes: input.notes,
+        } as never)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data as unknown as Shipment;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['shipments'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/**
  * Best-effort: email affected clients about a status change. Batches the client
  * lookup and sends in parallel. Returns silently on any error — notifications
  * must never block or fail an operations action (B.L.A.S.T. — degrade safely).
@@ -862,6 +918,31 @@ export function useStuckShipments() {
   });
 }
 
+/* ── Top destination cities (for the dashboard chart) ─────────────────────── */
+export interface CityStat {
+  city: string;
+  parcels: number;
+}
+
+export function useTopCities() {
+  return useQuery({
+    queryKey: ['top-cities'],
+    queryFn: async (): Promise<CityStat[]> => {
+      const { data, error } = await supabase.from('shipments').select('receiver').limit(5000);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const r of (data ?? []) as { receiver: { city?: string } | null }[]) {
+        const c = (r.receiver?.city ?? '').trim();
+        if (c) counts[c] = (counts[c] ?? 0) + 1;
+      }
+      return Object.entries(counts)
+        .map(([city, parcels]) => ({ city, parcels }))
+        .sort((a, b) => b.parcels - a.parcels)
+        .slice(0, 6);
+    },
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -870,7 +951,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),

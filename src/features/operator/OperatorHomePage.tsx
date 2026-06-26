@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, Check } from 'lucide-react';
+import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, MapPin, Check } from 'lucide-react';
 import { Button, Card, CardBody } from '@/components/ui';
 import { Stat, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
-import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments } from '@/lib/queries';
+import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments, useTopCities } from '@/lib/queries';
 import { useAuth } from '@/lib/auth';
 import { statusLabel, timelineIndex } from '@/lib/status';
 import { formatMoney, cn } from '@/lib/utils';
@@ -37,6 +37,7 @@ export function OperatorHomePage() {
   const markRemit = useMarkCodRemitted();
   const { data: weekly } = useWeeklyStats();
   const { data: stuck } = useStuckShipments();
+  const { data: cities } = useTopCities();
 
   const roleLabel = profile?.role ? (lang === 'bg' ? (ROLE_BG[profile.role] ?? profile.role) : profile.role) : '';
 
@@ -68,6 +69,7 @@ export function OperatorHomePage() {
           attnNone: 'Всичко е наред — няма забавени пратки',
           unpaidInv: 'Неплатени фактури',
           daysSuffix: 'д',
+          citiesTitle: 'Топ дестинации',
         }
       : {
           cod: 'COD to collect',
@@ -95,6 +97,7 @@ export function OperatorHomePage() {
           attnNone: 'All clear — no delayed parcels',
           unpaidInv: 'Unpaid invoices',
           daysSuffix: 'd',
+          citiesTitle: 'Top destinations',
         };
 
   const fmtRec = (rec: Record<string, number>): string => {
@@ -112,6 +115,7 @@ export function OperatorHomePage() {
     .sort((a, b) => timelineIndex(a[0] as AnyStatus) - timelineIndex(b[0] as AnyStatus));
 
   const weekMax = Math.max(1, ...(weekly ?? []).map((w) => w.parcels));
+  const cityMax = Math.max(1, ...(cities ?? []).map((c) => c.parcels));
 
   return (
     <div>
@@ -228,6 +232,28 @@ export function OperatorHomePage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Top destination cities */}
+      {cities && cities.length > 0 && (
+        <Card className="mt-4">
+          <CardBody>
+            <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-fg">
+              <MapPin className="h-4 w-4" /> {L.citiesTitle}
+            </p>
+            <div className="space-y-2.5">
+              {cities.map((c) => (
+                <div key={c.city} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 truncate text-sm text-foreground">{c.city}</span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${(c.parcels / cityMax) * 100}%` }} />
+                  </div>
+                  <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">{c.parcels}</span>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* COD awaiting payout — reconciliation */}
       {awaiting && awaiting.length > 0 && (

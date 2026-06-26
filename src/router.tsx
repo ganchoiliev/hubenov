@@ -14,6 +14,7 @@ import {
   Truck,
   Settings,
   Boxes,
+  Inbox,
 } from 'lucide-react';
 
 import { PublicLayout } from '@/components/layout/PublicLayout';
@@ -47,6 +48,7 @@ const LoginPage = lazyPage(() => import('@/features/auth/LoginPage'), 'LoginPage
 // Portal
 const DashboardPage = lazyPage(() => import('@/features/portal/DashboardPage'), 'DashboardPage');
 const NewShipmentPage = lazyPage(() => import('@/features/portal/NewShipmentPage'), 'NewShipmentPage');
+const IncomingParcelPage = lazyPage(() => import('@/features/portal/IncomingParcelPage'), 'IncomingParcelPage');
 const MyShipmentsPage = lazyPage(() => import('@/features/portal/MyShipmentsPage'), 'MyShipmentsPage');
 const ShipmentDetailPage = lazyPage(() => import('@/features/portal/ShipmentDetailPage'), 'ShipmentDetailPage');
 const InvoicesPage = lazyPage(() => import('@/features/portal/InvoicesPage'), 'InvoicesPage');
@@ -82,6 +84,7 @@ function Suspended({ children }: { children: ReactNode }) {
 export const PORTAL_NAV: NavItem[] = [
   { to: '/portal', labelKey: 'portal.dashboard', icon: LayoutDashboard, end: true },
   { to: '/portal/new', labelKey: 'portal.new_shipment', icon: PackagePlus },
+  { to: '/portal/incoming', labelKey: 'portal.incoming', icon: Inbox },
   { to: '/portal/shipments', labelKey: 'portal.my_shipments', icon: Package },
   { to: '/portal/invoices', labelKey: 'portal.invoices', icon: Receipt },
   { to: '/portal/messages', labelKey: 'portal.messages', icon: MessageSquare },
@@ -126,6 +129,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'new', element: <NewShipmentPage /> },
+      { path: 'incoming', element: <IncomingParcelPage /> },
       { path: 'shipments', element: <MyShipmentsPage /> },
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'invoices', element: <InvoicesPage /> },

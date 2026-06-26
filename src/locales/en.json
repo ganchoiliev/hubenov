@@ -139,6 +139,7 @@
     "active_shipments": "Active shipments",
     "no_shipments": "You don't have any shipments yet.",
     "new_shipment": "New shipment",
+    "incoming": "Incoming parcel",
     "my_shipments": "My shipments",
     "invoices": "Invoices",
     "messages": "Messages",
