@@ -1,14 +1,15 @@
 /**
  * Customs commercial-invoice / gift-declaration PDF (A4) for cross-border
- * parcels (UK ⇄ BG). Built client-side with pdf-lib. Like the label/invoice it
- * is Latin/English (Helvetica can't render Cyrillic) with names transliterated
- * via `pdfSafe`. Gift relief vs commercial is assessed by `assessCustoms`.
+ * parcels (UK ⇄ BG). Built client-side with pdf-lib + an embedded Unicode font
+ * (DejaVu Sans, see pdfFont.ts) so Cyrillic names/addresses render correctly.
+ * Section labels stay English (customs-officer friendly). Gift relief vs
+ * commercial is assessed by `assessCustoms`.
  *
  * Heavy (pdf-lib) — import dynamically:
  *   const { downloadCustomsPdf } = await import('@/lib/customsDoc')
  */
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { pdfSafe } from './translit';
+import { PDFDocument, rgb } from 'pdf-lib';
+import { embedUnicodeFonts } from './pdfFont';
 import type { CustomsItem, Currency, PartySnapshot } from '@/types/domain';
 
 export interface CustomsPdfData {
@@ -35,14 +36,13 @@ function addr(p: PartySnapshot): string[] {
   const l2 = p.econt_office_code
     ? `${p.city} — Econt office ${p.econt_office_code}`
     : `${p.postcode} ${p.city}, ${p.country}`;
-  return [pdfSafe(p.name), pdfSafe(p.phone), pdfSafe(l1), pdfSafe(l2)].filter(Boolean);
+  return [p.name, p.phone, l1, l2].filter(Boolean);
 }
 
 export async function buildCustomsPdf(d: CustomsPdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([A4.w, A4.h]);
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const { font, bold } = await embedUnicodeFonts(doc);
 
   const ink = rgb(0.06, 0.09, 0.16);
   const muted = rgb(0.42, 0.45, 0.5);
@@ -87,7 +87,7 @@ export async function buildCustomsPdf(d: CustomsPdfData): Promise<Uint8Array> {
   }
   y = yy - 6;
   if (d.eori) {
-    text(`Exporter EORI: ${pdfSafe(d.eori)}`, M, y, 9, font, muted);
+    text(`Exporter EORI: ${d.eori}`, M, y, 9, font, muted);
     y -= 14;
   }
   text(`Reason for export: ${d.isGift ? 'Gift / personal (no commercial value)' : 'Sale of goods'}`, M, y, 9, font, muted);
@@ -107,8 +107,8 @@ export async function buildCustomsPdf(d: CustomsPdfData): Promise<Uint8Array> {
   hr(y);
   y -= 18;
   for (const it of d.items) {
-    text(pdfSafe(it.description).slice(0, 52), M, y, 10);
-    text(it.hs_code ? pdfSafe(it.hs_code) : '-', xHs, y, 9, font, muted);
+    text(it.description.slice(0, 52), M, y, 10);
+    text(it.hs_code ? it.hs_code : '-', xHs, y, 9, font, muted);
     text(String(it.qty), xQty, y, 10);
     right(money(it.qty * it.unit_value, d.currency), xAmt, y, 10);
     y -= 16;

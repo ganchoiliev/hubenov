@@ -4,11 +4,11 @@
  * ZPL — §8). Runs in the browser so scan→print works in Wave 1 without the
  * Edge Function; the `label-render` function mirrors this spec server-side.
  */
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 // Use the explicit browser subpath — bwip-js's root export map has no default
 // `types` condition, so a bare `bwip-js` import fails under bundler resolution.
 import bwipjs from 'bwip-js/browser';
-import { pdfSafe } from './translit';
+import { embedUnicodeFonts } from './pdfFont';
 import type { PartySnapshot, Direction } from '@/types/domain';
 
 export interface LabelData {
@@ -51,8 +51,7 @@ export async function renderBarcodePng(text: string): Promise<Uint8Array> {
 export async function buildLabelPdf(data: LabelData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([W, H]);
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const { font, bold } = await embedUnicodeFonts(doc);
 
   const ink = rgb(0.06, 0.13, 0.09);
   const line = (y: number) =>
@@ -125,16 +124,16 @@ function block(
   let y = startY;
   page.drawText(title, { x, y, size: 8, font: bold, color: rgb(0.4, 0.45, 0.42) });
   y -= 14;
-  page.drawText(pdfSafe(p.name), { x, y, size: 11, font: bold, color: ink });
+  page.drawText(p.name, { x, y, size: 11, font: bold, color: ink });
   y -= 13;
-  page.drawText(pdfSafe(p.phone), { x, y, size: 9, font, color: ink });
+  page.drawText(p.phone, { x, y, size: 9, font, color: ink });
   y -= 13;
   const addr = [p.line1, p.line2].filter(Boolean).join(', ');
-  page.drawText(pdfSafe(addr).slice(0, 48), { x, y, size: 9, font, color: ink });
+  page.drawText(addr.slice(0, 48), { x, y, size: 9, font, color: ink });
   y -= 12;
   const cityLine = p.econt_office_code
-    ? `${pdfSafe(p.city)} — Econt office ${p.econt_office_code}`
-    : `${pdfSafe(p.postcode)} ${pdfSafe(p.city)}, ${p.country}`;
+    ? `${p.city} — Econt office ${p.econt_office_code}`
+    : `${p.postcode} ${p.city}, ${p.country}`;
   page.drawText(cityLine.slice(0, 48), { x, y, size: 9, font, color: ink });
   y -= 14;
   return y;

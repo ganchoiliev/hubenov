@@ -189,6 +189,7 @@ export function OpInvoicesPage() {
         clientEmail: inv.client?.email ?? null,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
         shipmentCode,
+        locale: inv.client?.preferred_locale === 'en' ? 'en' : 'bg',
       });
     } catch {
       toast.error(t('common.error'));

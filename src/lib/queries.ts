@@ -542,6 +542,7 @@ export function useSendInvoiceEmail() {
         clientEmail: args.toEmail,
         company: { name: s?.company_name, eori: s?.eori, returnAddress: s?.return_address },
         shipmentCode,
+        locale: args.locale,
       });
 
       const mail = invoiceEmail({
