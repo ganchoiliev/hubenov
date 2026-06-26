@@ -180,7 +180,7 @@ export function ScanStationPage() {
       declared_value: shipment.declared_value,
       currency: shipment.currency,
     });
-    return getPrinter().print({ pdf, title: shipment.public_code });
+    return getPrinter(settings?.print_method).print({ pdf, title: shipment.public_code });
   };
 
   const handleScan = async (raw: string) => {

@@ -6,14 +6,17 @@ import { BrowserPdfAdapter } from './BrowserPdfAdapter';
 import { QzTrayAdapter } from './QzTrayAdapter';
 import type { PrintAdapter } from './PrintAdapter';
 
-let instance: PrintAdapter | null = null;
+let browserInstance: PrintAdapter | null = null;
+let qzInstance: PrintAdapter | null = null;
 
-export function getPrinter(): PrintAdapter {
-  if (!instance) {
-    // Prefer QZ when available; fall back to the browser adapter.
-    instance = new BrowserPdfAdapter();
+/** Pick the adapter by the operator's configured print method (company settings). */
+export function getPrinter(method: 'browser' | 'qz' = 'browser'): PrintAdapter {
+  if (method === 'qz') {
+    qzInstance ??= new QzTrayAdapter();
+    return qzInstance;
   }
-  return instance;
+  browserInstance ??= new BrowserPdfAdapter();
+  return browserInstance;
 }
 
 export { QzTrayAdapter, BrowserPdfAdapter };

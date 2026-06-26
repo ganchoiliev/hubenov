@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Save, SlidersHorizontal, KeyRound } from 'lucide-react';
+import { AlertTriangle, Save, SlidersHorizontal, KeyRound, Printer, Download } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader, Input, Select, Spinner, Skeleton, Badge, Switch } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -131,6 +131,7 @@ export function SettingsPage() {
       <PageHeading title={t('operator.settings')} subtitle={t('operator.pricing_editor')} />
 
       <CompanySettingsCard lang={locale} />
+      <PrintStationCard lang={locale} />
       <ChangePasswordCard lang={locale} />
 
       {isLoading ? (
@@ -388,6 +389,117 @@ function CompanySettingsCard({ lang }: { lang: 'bg' | 'en' }) {
             </div>
           </>
         )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hubenov.delivery';
+
+  const bat =
+    `@echo off\r\n` +
+    `REM Доставки Хубенов — станция за печат\r\n` +
+    `set CHROME="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"\r\n` +
+    `if not exist %CHROME% set CHROME="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"\r\n` +
+    `start "" %CHROME% --kiosk-printing --user-data-dir="%LOCALAPPDATA%\\HubenovStation" "${origin}/op/scan"\r\n`;
+
+  const command =
+    `#!/bin/bash\n` +
+    `open -na "Google Chrome" --args --kiosk-printing --user-data-dir="$HOME/Library/Application Support/HubenovStation" "${origin}/op/scan"\n`;
+
+  const download = (filename: string, text: string) => {
+    const blob = new Blob([text], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const T =
+    lang === 'bg'
+      ? {
+          title: 'Станция за печат',
+          intro: 'Автоматичен печат без диалог — всеки сканиран етикет излиза директно на принтера по подразбиране.',
+          win: 'Свали стартер (Windows)',
+          mac: 'Mac версия',
+          steps: 'Стъпки (Windows):',
+          s: [
+            'Задай принтера за етикети като „по подразбиране" (Settings → Bluetooth & devices → Printers).',
+            'Натисни „Свали стартер (Windows)" и запази файла (ако браузърът предупреди — „Keep").',
+            'Сложи файла на работния плот (Desktop).',
+            'Двойно щракване. При първо стартиране: „More info" → „Run anyway".',
+            'Влез веднъж и сканирай — етикетите се печатат автоматично.',
+          ],
+          qzTitle: 'Алтернатива: QZ Tray (тих печат)',
+          qzNote: 'Без kiosk Chrome — инсталирай QZ Tray и избери „QZ" като метод за печат във „Фирмени настройки".',
+          qzLink: 'Изтегли QZ Tray',
+        }
+      : {
+          title: 'Print station',
+          intro: 'Silent printing — every scanned label prints straight to the default printer, no dialog.',
+          win: 'Download launcher (Windows)',
+          mac: 'Mac version',
+          steps: 'Steps (Windows):',
+          s: [
+            'Set the label printer as default (Settings → Bluetooth & devices → Printers).',
+            'Click "Download launcher (Windows)" and keep the file (if warned — "Keep").',
+            'Put the file on the Desktop.',
+            'Double-click it. First run: "More info" → "Run anyway".',
+            'Log in once and scan — labels print automatically.',
+          ],
+          qzTitle: 'Alternative: QZ Tray (silent)',
+          qzNote: 'No kiosk Chrome — install QZ Tray and set Print method = QZ in Company settings above.',
+          qzLink: 'Download QZ Tray',
+        };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+          <Printer className="h-4 w-4 text-brand" /> {T.title}
+        </h2>
+      </CardHeader>
+      <CardBody className="space-y-4 pt-4">
+        <p className="text-sm text-muted-fg">{T.intro}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button className="gap-2" onClick={() => download('Hubenov-Print-Station.bat', bat)}>
+            <Download className="h-4 w-4" /> {T.win}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => download('Доставки-Хубенов-Печат.command', command)}
+          >
+            <Download className="h-4 w-4" /> {T.mac}
+          </Button>
+        </div>
+        <div>
+          <p className="mb-1.5 text-sm font-semibold text-foreground">{T.steps}</p>
+          <ol className="space-y-1.5 text-sm text-muted-fg">
+            {T.s.map((step, i) => (
+              <li key={i}>
+                {i + 1}. {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="rounded-xl border border-border bg-muted/40 p-3">
+          <p className="text-sm font-semibold text-foreground">{T.qzTitle}</p>
+          <p className="mt-1 text-xs text-muted-fg">{T.qzNote}</p>
+          <a
+            href="https://qz.io/download/"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-block text-xs text-brand"
+          >
+            {T.qzLink} ↗
+          </a>
+        </div>
       </CardBody>
     </Card>
   );
