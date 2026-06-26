@@ -37,7 +37,7 @@ export type AddressKind = 'sender' | 'receiver';
 export type TrackingLeg = 'own' | 'econt';
 export type TrackingSource = 'scan' | 'manual' | 'econt_poll';
 export type LoadStatus = 'open' | 'departed' | 'arrived' | 'closed';
-export type InvoiceStatus = 'unpaid' | 'paid' | 'partial';
+export type InvoiceStatus = 'unpaid' | 'paid' | 'partial' | 'void';
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'card_office' | 'cod';
 
 export interface Profile {

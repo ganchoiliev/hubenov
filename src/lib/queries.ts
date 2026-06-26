@@ -780,6 +780,7 @@ export function useOperatorDashboard() {
       const due: Record<string, number> = {};
       let dueCount = 0;
       for (const i of inv) {
+        if (i.status === 'void') continue; // cancelled — excluded from all totals
         if (i.status === 'paid') {
           paid[i.currency] = (paid[i.currency] ?? 0) + Number(i.amount);
         } else {
@@ -1211,6 +1212,18 @@ export function useDeleteInvoice() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('invoices').delete().eq('id', id);
       if (error) throw asDeleteError(error);
+    },
+    onSuccess: () => invalAll(qc, [['invoices'], ['op-invoices'], ['dashboard'], ['ot-lookup']]),
+  });
+}
+
+/** Void an issued invoice — keeps the row + number, excluded from totals. */
+export function useVoidInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('invoices').update({ status: 'void' } as never).eq('id', id);
+      if (error) throw error;
     },
     onSuccess: () => invalAll(qc, [['invoices'], ['op-invoices'], ['dashboard'], ['ot-lookup']]),
   });

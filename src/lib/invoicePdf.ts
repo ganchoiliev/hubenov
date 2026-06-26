@@ -65,8 +65,8 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
 
   const brand = lang === 'bg' ? 'Доставки Хубенов' : 'Hubenov Deliveries';
   const statusLabel = {
-    bg: { unpaid: 'Неплатена', paid: 'Платена', partial: 'Частично платена' },
-    en: { unpaid: 'Unpaid', paid: 'Paid', partial: 'Partially paid' },
+    bg: { unpaid: 'Неплатена', paid: 'Платена', partial: 'Частично платена', void: 'Анулирана' },
+    en: { unpaid: 'Unpaid', paid: 'Paid', partial: 'Partially paid', void: 'Void' },
   }[lang][d.status];
 
   const t =

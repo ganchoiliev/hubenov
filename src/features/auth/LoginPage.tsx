@@ -143,7 +143,9 @@ export function LoginPage() {
           <Card>
             <CardBody className="p-8">
               <h1 className="font-display text-2xl font-extrabold text-foreground">{t('auth.login_title')}</h1>
-              <p className="mt-1.5 text-sm text-muted-fg">{t('auth.login_subtitle')}</p>
+              <p className="mt-1.5 text-sm text-muted-fg">
+                {t(mode === 'email' ? 'auth.login_subtitle_email' : 'auth.login_subtitle')}
+              </p>
 
               {mode === 'phone' ? (
                 <div className="mt-6 space-y-4">

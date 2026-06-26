@@ -11,10 +11,11 @@ import { supabase } from '@/lib/supabase';
 import { formatMoney, formatDate } from '@/lib/utils';
 import type { Invoice, InvoiceStatus, Currency, PartySnapshot } from '@/types/domain';
 
-const TONE_BY_STATUS: Record<InvoiceStatus, 'success' | 'warning' | 'danger'> = {
+const TONE_BY_STATUS: Record<InvoiceStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
   paid: 'success',
   partial: 'warning',
   unpaid: 'danger',
+  void: 'neutral',
 };
 
 export function InvoicesPage() {
@@ -36,7 +37,7 @@ export function InvoicesPage() {
   // Outstanding = sum of everything not fully paid. Mixed currencies are summed
   // per-currency so we never add GBP to EUR; show the dominant currency total.
   const outstandingByCurrency = list.reduce<Record<string, number>>((acc, inv) => {
-    if (inv.status !== 'paid') {
+    if (inv.status !== 'paid' && inv.status !== 'void') {
       acc[inv.currency] = (acc[inv.currency] ?? 0) + inv.amount;
     }
     return acc;

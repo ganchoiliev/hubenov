@@ -23,8 +23,8 @@ export function invoiceEmail(o: InvoiceEmailOpts): { subject: string; html: stri
   const amt = money(o.amount, o.currency, loc);
   const brand = o.locale === 'bg' ? 'Доставки Хубенов' : 'Hubenov Deliveries';
   const statusLabel = {
-    bg: { unpaid: 'Неплатена', paid: 'Платена', partial: 'Частично платена' },
-    en: { unpaid: 'Unpaid', paid: 'Paid', partial: 'Partially paid' },
+    bg: { unpaid: 'Неплатена', paid: 'Платена', partial: 'Частично платена', void: 'Анулирана' },
+    en: { unpaid: 'Unpaid', paid: 'Paid', partial: 'Partially paid', void: 'Void' },
   }[o.locale][o.status];
 
   const t =

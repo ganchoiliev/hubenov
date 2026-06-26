@@ -120,6 +120,7 @@
   "auth": {
     "login_title": "Sign in",
     "login_subtitle": "Sign in with your phone number — we'll text you a code.",
+    "login_subtitle_email": "Sign in with email — we'll send a code, or use a password.",
     "phone_label": "Phone number",
     "phone_placeholder": "+44 7895 909915",
     "send_code": "Send code",
@@ -154,6 +155,7 @@
     "invoice_paid": "Paid",
     "invoice_unpaid": "Unpaid",
     "invoice_partial": "Partially paid",
+    "invoice_void": "Void",
     "download_pdf": "Download PDF"
   },
   "wizard": {

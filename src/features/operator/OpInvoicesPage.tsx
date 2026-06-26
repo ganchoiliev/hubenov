@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { Receipt, Send, Pencil, Plus, Download, Search, Trash2 } from 'lucide-react';
+import { Receipt, Send, Pencil, Plus, Download, Search, Trash2, Ban } from 'lucide-react';
 import {
   Button,
   Card,
@@ -24,6 +24,7 @@ import {
   useClients,
   useCompanySettings,
   useDeleteInvoice,
+  useVoidInvoice,
   type ClientRow,
 } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
@@ -39,13 +40,14 @@ type InvoiceRow = Invoice & {
   client?: { full_name: string | null; email: string | null; preferred_locale: string | null } | null;
 };
 
-const STATUSES: InvoiceStatus[] = ['unpaid', 'partial', 'paid'];
+const STATUSES: InvoiceStatus[] = ['unpaid', 'partial', 'paid', 'void'];
 const CURRENCIES: Currency[] = ['GBP', 'EUR', 'BGN'];
 
-const INVOICE_TONE: Record<InvoiceStatus, 'success' | 'warning' | 'danger'> = {
+const INVOICE_TONE: Record<InvoiceStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
   paid: 'success',
   partial: 'warning',
   unpaid: 'danger',
+  void: 'neutral',
 };
 
 export function OpInvoicesPage() {
@@ -83,6 +85,11 @@ export function OpInvoicesPage() {
           cancel: 'Cancel',
           deleted: 'Invoice deleted',
           delErr: 'Could not delete',
+          voidLabel: 'Void',
+          voidTitle: 'Void invoice',
+          voidBody: 'Mark this invoice as void? It keeps its number but is excluded from your totals — the accounting-safe way to cancel an issued invoice.',
+          voidConfirm: 'Void',
+          voided: 'Invoice voided',
         }
       : {
           payment_recorded: 'Плащането е записано',
@@ -111,12 +118,18 @@ export function OpInvoicesPage() {
           cancel: 'Отказ',
           deleted: 'Фактурата е изтрита',
           delErr: 'Неуспешно изтриване',
+          voidLabel: 'Анулирай',
+          voidTitle: 'Анулиране на фактура',
+          voidBody: 'Да се анулира фактурата? Запазва номера си, но се изключва от сумите — счетоводно правилният начин да откажете издадена фактура.',
+          voidConfirm: 'Анулирай',
+          voided: 'Фактурата е анулирана',
         };
 
   const toast = useToast();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const del = useDeleteInvoice();
+  const voidInv = useVoidInvoice();
   const sendEmail = useSendInvoiceEmail();
   const { data: settings } = useCompanySettings();
   const [creating, setCreating] = useState(false);
@@ -197,6 +210,17 @@ export function OpInvoicesPage() {
     try {
       await del.mutateAsync(inv.id);
       toast.success(L.deleted);
+    } catch {
+      toast.error(L.delErr);
+    }
+  }
+
+  async function voidInvoice(inv: InvoiceRow) {
+    const ok = await confirm({ title: L.voidTitle, body: L.voidBody, confirmLabel: L.voidConfirm, cancelLabel: L.cancel, danger: true });
+    if (!ok) return;
+    try {
+      await voidInv.mutateAsync(inv.id);
+      toast.success(L.voided);
     } catch {
       toast.error(L.delErr);
     }
@@ -335,6 +359,11 @@ export function OpInvoicesPage() {
                       >
                         <Pencil className="h-4 w-4" /> {L.edit}
                       </Button>
+                      {(inv.status === 'unpaid' || inv.status === 'partial') && (
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void voidInvoice(inv)}>
+                          <Ban className="h-4 w-4" /> {L.voidLabel}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"

@@ -120,6 +120,7 @@
   "auth": {
     "login_title": "Вход в профила",
     "login_subtitle": "Влезте с телефонния си номер — ще получите код по SMS.",
+    "login_subtitle_email": "Влезте с имейл — ще получите код или използвайте парола.",
     "phone_label": "Телефонен номер",
     "phone_placeholder": "+44 7895 909915",
     "send_code": "Изпрати код",
@@ -154,6 +155,7 @@
     "invoice_paid": "Платена",
     "invoice_unpaid": "Неплатена",
     "invoice_partial": "Частично платена",
+    "invoice_void": "Анулирана",
     "download_pdf": "Изтегли PDF"
   },
   "wizard": {
