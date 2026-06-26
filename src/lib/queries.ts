@@ -600,6 +600,65 @@ export function useCreateClient() {
   });
 }
 
+/* ── Operator dashboard (money + ops at-a-glance) ─────────────────────────── */
+export interface OperatorDashboard {
+  shipments: { total: number; active: number; today: number; delivered: number; byStatus: Record<string, number> };
+  invoices: { paid: Record<string, number>; due: Record<string, number> };
+  cod: { outstanding: number; count: number };
+}
+
+export function useOperatorDashboard() {
+  return useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async (): Promise<OperatorDashboard> => {
+      const [shRes, invRes, codRes] = await Promise.all([
+        supabase.from('shipments').select('status, created_at').limit(5000),
+        supabase.from('invoices').select('amount, currency, status').limit(5000),
+        supabase.from('courier_shipments').select('cod_amount, shipments!shipment_id(status)').not('cod_amount', 'is', null).limit(5000),
+      ]);
+
+      const sh = (shRes.data ?? []) as { status: string; created_at: string }[];
+      const startToday = new Date();
+      startToday.setHours(0, 0, 0, 0);
+      const terminal = new Set(['delivered', 'cancelled', 'returned']);
+      const byStatus: Record<string, number> = {};
+      let active = 0;
+      let today = 0;
+      let delivered = 0;
+      for (const s of sh) {
+        byStatus[s.status] = (byStatus[s.status] ?? 0) + 1;
+        if (!terminal.has(s.status)) active += 1;
+        if (s.status === 'delivered') delivered += 1;
+        if (new Date(s.created_at) >= startToday) today += 1;
+      }
+
+      const inv = (invRes.data ?? []) as { amount: number; currency: string; status: string }[];
+      const paid: Record<string, number> = {};
+      const due: Record<string, number> = {};
+      for (const i of inv) {
+        const bucket = i.status === 'paid' ? paid : due; // due = unpaid + partial
+        bucket[i.currency] = (bucket[i.currency] ?? 0) + Number(i.amount);
+      }
+
+      const cod = (codRes.data ?? []) as unknown as { cod_amount: number; shipments: { status: string } | null }[];
+      let outstanding = 0;
+      let count = 0;
+      for (const c of cod) {
+        if (c.shipments?.status && c.shipments.status !== 'delivered') {
+          outstanding += Number(c.cod_amount);
+          count += 1;
+        }
+      }
+
+      return {
+        shipments: { total: sh.length, active, today, delivered, byStatus },
+        invoices: { paid, due },
+        cod: { outstanding, count },
+      };
+    },
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -608,14 +667,14 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
         inval([['tracking'], ['shipment']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, () => inval([['loads']]))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () =>
-        inval([['invoices'], ['op-invoices'], ['ot-lookup']]),
+        inval([['invoices'], ['op-invoices'], ['ot-lookup'], ['dashboard']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pricing_rates' }, () =>
         inval([['pricing_rates']]),
