@@ -65,17 +65,17 @@ export function HomePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
 
-  // Hero video: enhance on desktop only (and not for reduced-motion) so mobile
-  // keeps the lightweight still image. The image is the poster/fallback either way.
+  // Hero video: a lighter 126 KB file on mobile, the full one on desktop. The
+  // still image is the poster either way, and reduced-motion users keep the still.
   const prefersReduced = useReducedMotion();
-  const [showVideo, setShowVideo] = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   useEffect(() => {
     if (prefersReduced) {
-      setShowVideo(false);
+      setVideoSrc(null);
       return;
     }
     const mq = window.matchMedia('(min-width: 768px)');
-    const apply = () => setShowVideo(mq.matches);
+    const apply = () => setVideoSrc(mq.matches ? '/video/hero.mp4' : '/video/hero-mobile.mp4');
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
@@ -91,8 +91,9 @@ export function HomePage() {
           className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
           style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
-        {showVideo && (
+        {videoSrc && (
           <video
+            key={videoSrc}
             className="absolute inset-0 -z-20 h-full w-full object-cover"
             autoPlay
             muted
@@ -102,7 +103,7 @@ export function HomePage() {
             poster="/images/hero-van.webp"
             aria-hidden="true"
           >
-            <source src="/video/hero.mp4" type="video/mp4" />
+            <source src={videoSrc} type="video/mp4" />
           </video>
         )}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
