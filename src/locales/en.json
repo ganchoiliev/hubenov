@@ -99,7 +99,12 @@
     "result_eta": "Estimated delivery",
     "chargeable": "Chargeable weight",
     "disclaimer": "This is an estimate. The final amount is confirmed when the parcel is accepted.",
-    "book_now": "Book onto the next van"
+    "book_now": "Book onto the next van",
+    "book_title": "Book this parcel",
+    "book_whatsapp": "Book on WhatsApp",
+    "book_call": "Call us",
+    "book_dropoff": "or just drop the parcel at the shop on Friday.",
+    "book_online": "book online with an account"
   },
   "track": {
     "title": "Track a parcel",
@@ -237,6 +242,7 @@
   "contact": {
     "title": "Get in touch",
     "subtitle": "We're here for any question about your parcel.",
+    "whatsapp": "Message us on WhatsApp",
     "visit": "Visit the shop",
     "call": "Call us"
   },

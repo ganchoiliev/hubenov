@@ -11,6 +11,8 @@ const schema = z.object({
   VITE_COMPANY_ADDRESS: z
     .string()
     .default('542 Liverpool Road, Eccles, Manchester, M30 7JA'),
+  // WhatsApp/Viber number (international or UK-local). Falls back to the phone.
+  VITE_COMPANY_WHATSAPP: z.string().default(''),
   // 'true' once the econt-proxy Edge Function is deployed + credentials are set.
   // Full live last-mile (offices + labels + COD + tracking). Needs the owner's Econt account.
   VITE_ECONT_ENABLED: z.string().default('false'),
@@ -30,6 +32,7 @@ export const env = parsed.success ? parsed.data : schema.parse({});
 
 export const company = {
   phone: env.VITE_COMPANY_PHONE,
+  whatsapp: env.VITE_COMPANY_WHATSAPP || env.VITE_COMPANY_PHONE,
   address: env.VITE_COMPANY_ADDRESS,
   email: 'info@hubenov.delivery', // TODO(owner): confirm contact mailbox is set up
   domain: 'hubenov.delivery',

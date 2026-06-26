@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Phone, Send, PackageCheck, Store } from 'lucide-react';
+import { MapPin, Phone, Send, PackageCheck, Store, MessageCircle, Mail } from 'lucide-react';
 import { Button, Card, CardBody, Input, Textarea, Field } from '@/components/ui';
 import { Section, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { company } from '@/lib/env';
+import { supabase } from '@/lib/supabase';
+import { whatsappUrl, viberUrl, telUrl, mailtoUrl } from '@/lib/contact';
+import { WhatsAppIcon } from '@/components/brand/ContactIcons';
 
 interface ContactForm {
   name: string;
   phone: string;
+  email: string;
   message: string;
 }
 
-const EMPTY: ContactForm = { name: '', phone: '', message: '' };
+const EMPTY: ContactForm = { name: '', phone: '', email: '', message: '' };
 
 export function ContactPage() {
   const { t, i18n } = useTranslation();
@@ -34,6 +38,10 @@ export function ContactPage() {
           message_ph: 'Как можем да помогнем?',
           submit: 'Изпрати',
           thanks: 'Благодарим! Ще се свържем с вас скоро.',
+          reach_title: 'Пишете ни директно',
+          call_btn: 'Обади се',
+          email_label: 'Имейл (по избор)',
+          email_ph: 'вашият@имейл.bg',
         }
       : {
           dropoff: 'Drop your parcels at the shop — Mini Market Bulgaria / Hubenovi Bulgarian Bakery.',
@@ -47,19 +55,35 @@ export function ContactPage() {
           message_ph: 'How can we help?',
           submit: 'Send',
           thanks: 'Thank you! We will be in touch soon.',
+          reach_title: 'Message us directly',
+          call_btn: 'Call',
+          email_label: 'Email (optional)',
+          email_ph: 'your@email.com',
         };
 
   const [form, setForm] = useState<ContactForm>(EMPTY);
+  const [hp, setHp] = useState(''); // honeypot — bots fill it, humans never see it
   const [submitting, setSubmitting] = useState(false);
 
   const set = (key: keyof ContactForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // No backend — surface an optimistic confirmation only (§9).
+      const { data, error } = await supabase.functions.invoke('contact', {
+        body: {
+          name: form.name,
+          phone: form.phone,
+          email: form.email || undefined,
+          message: form.message,
+          website: hp,
+        },
+      });
+      if (error || (data as { ok?: boolean } | null)?.ok === false) {
+        throw error ?? new Error('contact_failed');
+      }
       toast.success(L.thanks);
       setForm(EMPTY);
     } catch {
@@ -78,6 +102,37 @@ export function ContactPage() {
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {/* Left — details */}
         <Stagger className="space-y-5">
+          <StaggerItem>
+            <Card>
+              <CardBody className="space-y-3">
+                <h2 className="font-display text-lg font-extrabold text-foreground">{L.reach_title}</h2>
+                <a href={whatsappUrl()} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1faa55]">
+                    <WhatsAppIcon className="h-4 w-4" /> WhatsApp
+                  </Button>
+                </a>
+                <div className="grid grid-cols-2 gap-2">
+                  <a href={viberUrl()} className="block">
+                    <Button variant="outline" className="w-full gap-2">
+                      <MessageCircle className="h-4 w-4" /> Viber
+                    </Button>
+                  </a>
+                  <a href={telUrl()} className="block">
+                    <Button variant="outline" className="w-full gap-2">
+                      <Phone className="h-4 w-4" /> {L.call_btn}
+                    </Button>
+                  </a>
+                </div>
+                <a
+                  href={mailtoUrl('Запитване')}
+                  className="inline-flex items-center gap-2 text-sm text-brand-700 hover:underline"
+                >
+                  <Mail className="h-4 w-4" /> {company.email}
+                </a>
+              </CardBody>
+            </Card>
+          </StaggerItem>
+
           <StaggerItem>
             <Card>
               <CardBody>
@@ -131,6 +186,17 @@ export function ContactPage() {
             <p className="mt-1 text-sm text-muted-fg">{L.form_hint}</p>
 
             <form onSubmit={onSubmit} className="mt-5 space-y-4">
+              {/* honeypot — hidden from humans, trips bots */}
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={hp}
+                onChange={(e) => setHp(e.target.value)}
+                className="hidden"
+                aria-hidden="true"
+              />
               <Field label={L.name} htmlFor="contact-name">
                 <Input
                   id="contact-name"
@@ -151,6 +217,17 @@ export function ContactPage() {
                   placeholder={L.phone_ph}
                   autoComplete="tel"
                   required
+                />
+              </Field>
+
+              <Field label={L.email_label} htmlFor="contact-email">
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={form.email}
+                  onChange={set('email')}
+                  placeholder={L.email_ph}
+                  autoComplete="email"
                 />
               </Field>
 

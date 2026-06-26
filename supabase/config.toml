@@ -413,6 +413,11 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 enabled = true
 verify_jwt = false
 
+# Public contact form — anon-callable, no JWT.
+[functions.contact]
+enabled = true
+verify_jwt = false
+
 # Staff-only — require a valid JWT (RLS still applies inside).
 [functions.label-render]
 enabled = true

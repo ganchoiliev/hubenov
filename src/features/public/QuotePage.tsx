@@ -4,18 +4,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Calculator, ArrowRight, Package2 } from 'lucide-react';
+import { Calculator, Package2, Phone, MessageCircle } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { Section, PageHeading } from '@/components/shared/common';
 import { quoteInputSchema, type QuoteInput } from '@/schemas';
 import { getCourier } from '@/providers/courier';
 import { formatMoney } from '@/lib/utils';
+import { whatsappUrl, viberUrl, telUrl } from '@/lib/contact';
+import { WhatsAppIcon } from '@/components/brand/ContactIcons';
 import type { Quote } from '@/types/domain';
 
 export function QuotePage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en-GB' : 'bg-BG';
+  const lang: 'bg' | 'en' = locale === 'en-GB' ? 'en' : 'bg';
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [lastInput, setLastInput] = useState<QuoteInput | null>(null);
   const [pending, setPending] = useState(false);
 
   const {
@@ -43,10 +47,13 @@ export function QuotePage() {
       // Wave 1: MockEcontProvider. Wave 2: server-authoritative `pricing` fn.
       const q = await getCourier().calculate(data);
       setQuote(q);
+      setLastInput(data);
     } finally {
       setPending(false);
     }
   };
+
+  const bookingMsg = quote && lastInput ? buildBookingMessage(lastInput, quote, lang) : '';
 
   return (
     <Section>
@@ -122,11 +129,32 @@ export function QuotePage() {
                       value={locale === 'en-GB' ? quote.eta_text_en : quote.eta_text_bg}
                     />
                     <p className="pt-2 text-xs text-muted-fg">{t('quote.disclaimer')}</p>
-                    <Link to="/login" className="block pt-1">
-                      <Button className="w-full gap-2">
-                        {t('quote.book_now')} <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <div className="space-y-2 pt-1">
+                      <p className="text-sm font-semibold text-foreground">{t('quote.book_title')}</p>
+                      <a href={whatsappUrl(bookingMsg)} target="_blank" rel="noopener noreferrer" className="block">
+                        <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1faa55]">
+                          <WhatsAppIcon className="h-4 w-4" /> {t('quote.book_whatsapp')}
+                        </Button>
+                      </a>
+                      <div className="grid grid-cols-2 gap-2">
+                        <a href={viberUrl(bookingMsg)} className="block">
+                          <Button variant="outline" className="w-full gap-2">
+                            <MessageCircle className="h-4 w-4" /> Viber
+                          </Button>
+                        </a>
+                        <a href={telUrl()} className="block">
+                          <Button variant="outline" className="w-full gap-2">
+                            <Phone className="h-4 w-4" /> {t('quote.book_call')}
+                          </Button>
+                        </a>
+                      </div>
+                      <p className="pt-1 text-center text-xs text-muted-fg">
+                        {t('quote.book_dropoff')}{' '}
+                        <Link to="/login" className="font-medium text-brand-700 hover:underline">
+                          {t('quote.book_online')}
+                        </Link>
+                      </p>
+                    </div>
                   </CardBody>
                 </Card>
               </motion.div>
@@ -155,4 +183,41 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="font-semibold text-foreground">{value}</span>
     </div>
   );
+}
+
+/** Build a prefilled booking message (WhatsApp/Viber) from the quote inputs. */
+function buildBookingMessage(input: QuoteInput, quote: Quote, lang: 'bg' | 'en'): string {
+  const moneyLocale = lang === 'en' ? 'en-GB' : 'bg-BG';
+  const price = formatMoney(quote.total, quote.currency, moneyLocale);
+  const dir =
+    input.direction === 'UK_BG'
+      ? lang === 'bg'
+        ? 'Великобритания → България'
+        : 'UK → Bulgaria'
+      : lang === 'bg'
+        ? 'България → Великобритания'
+        : 'Bulgaria → UK';
+  const kind = input.is_gift
+    ? lang === 'bg'
+      ? 'подарък/лична'
+      : 'gift/personal'
+    : lang === 'bg'
+      ? 'стока'
+      : 'goods';
+  const dims = `${input.length_cm}×${input.width_cm}×${input.height_cm}`;
+  return lang === 'bg'
+    ? `Здравейте! Искам да изпратя пратка:
+• Посока: ${dir}
+• Тегло: ${input.weight_kg} кг
+• Размери: ${dims} см
+• Тип: ${kind}
+• Ориентировъчна цена: ${price}
+Моля, потвърдете и ми кажете кога да я донеса.`
+    : `Hello! I'd like to send a parcel:
+• Route: ${dir}
+• Weight: ${input.weight_kg} kg
+• Size: ${dims} cm
+• Type: ${kind}
+• Estimated price: ${price}
+Please confirm and let me know when to drop it off.`;
 }

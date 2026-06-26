@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Phone, MapPin, Menu, X } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { Logo } from '@/components/brand/Logo';
+import { ScrollToTop } from '@/components/ScrollToTop';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Button, Spinner } from '@/components/ui';
 import { company } from '@/lib/env';
 import { cn } from '@/lib/utils';
+import { whatsappUrl } from '@/lib/contact';
+import { WhatsAppIcon } from '@/components/brand/ContactIcons';
 
 const NAV = [
   { to: '/', key: 'nav.home', end: true },
@@ -25,6 +28,7 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <ScrollToTop />
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between gap-4">
           <Link to="/" className="shrink-0">
@@ -145,6 +149,17 @@ export function PublicLayout() {
           © {new Date().getFullYear()} {t('brand.name')}. {t('footer.rights')}
         </div>
       </footer>
+
+      {/* Floating WhatsApp — one-tap contact for the non-techy audience */}
+      <a
+        href={whatsappUrl()}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t('contact.whatsapp')}
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lift transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+      >
+        <WhatsAppIcon className="h-7 w-7" />
+      </a>
     </div>
   );
 }
