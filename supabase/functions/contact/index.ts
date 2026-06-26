@@ -5,7 +5,33 @@
 // Secrets (shared with send-email):
 //   RESEND_API_KEY, RESEND_FROM, and optionally CONTACT_TO (owner inbox).
 import { z } from 'npm:zod@3.23.8';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { json, preflight } from '../_shared/cors.ts';
+
+const RATE_MAX = 5; // submissions per IP …
+const RATE_WINDOW_MIN = 10; // … per this many minutes
+
+/** Returns true if this IP is over the limit (best-effort; fails open). */
+async function rateLimited(ip: string): Promise<boolean> {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) return false;
+  try {
+    const admin = createClient(url, key, { auth: { persistSession: false } });
+    const since = new Date(Date.now() - RATE_WINDOW_MIN * 60_000).toISOString();
+    const { count } = await admin
+      .from('rate_limits')
+      .select('id', { count: 'exact', head: true })
+      .eq('bucket', 'contact')
+      .eq('ip', ip)
+      .gte('at', since);
+    if ((count ?? 0) >= RATE_MAX) return true;
+    await admin.from('rate_limits').insert({ bucket: 'contact', ip });
+    return false;
+  } catch {
+    return false; // never block a genuine enquiry on an infra hiccup
+  }
+}
 
 const schema = z.object({
   name: z.string().min(1).max(120),
@@ -30,6 +56,10 @@ Deno.serve(async (req) => {
 
   // Honeypot tripped → pretend success, drop silently.
   if (website) return json({ ok: true });
+
+  // Per-IP rate limit (anti-spam / Resend-quota protection).
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || 'unknown';
+  if (await rateLimited(ip)) return json({ error: 'rate_limited' }, 429);
 
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const from = Deno.env.get('RESEND_FROM') ?? 'Доставки Хубенов <noreply@hubenov.delivery>';
