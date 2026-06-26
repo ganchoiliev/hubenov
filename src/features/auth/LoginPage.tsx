@@ -177,7 +177,7 @@ export function LoginPage() {
                           onChange={(e) => setToken(e.target.value)}
                           placeholder={t('auth.code_placeholder')}
                           className="text-center font-mono text-lg tracking-[0.5em]"
-                          maxLength={6}
+                          maxLength={10}
                           autoFocus
                         />
                       </Field>
@@ -259,7 +259,7 @@ export function LoginPage() {
                           onChange={(e) => setToken(e.target.value)}
                           placeholder={t('auth.code_placeholder')}
                           className="text-center font-mono text-lg tracking-[0.5em]"
-                          maxLength={6}
+                          maxLength={10}
                           autoFocus
                         />
                       </Field>
