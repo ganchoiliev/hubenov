@@ -34,6 +34,15 @@ void i18n
     },
   });
 
+// Keep <html lang> in sync with the active locale (screen-reader pronunciation + SEO).
+const applyHtmlLang = (lng?: string) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = (lng ?? i18n.resolvedLanguage) === 'en' ? 'en' : 'bg';
+  }
+};
+applyHtmlLang();
+i18n.on('languageChanged', applyHtmlLang);
+
 // Localised Zod validation messages (BG-first) so forms never show the English
 // "required" on a Bulgarian site. Field-specific messages still take priority;
 // this only covers the generic ones (required / too small / invalid).

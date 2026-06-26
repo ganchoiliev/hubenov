@@ -1,7 +1,7 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Phone, MapPin, Menu, X } from 'lucide-react';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { Logo } from '@/components/brand/Logo';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
@@ -23,8 +23,35 @@ const NAV = [
 ];
 
 export function PublicLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { pathname } = useLocation();
+  const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const [open, setOpen] = useState(false);
+
+  // Per-page <title> + canonical (SPA — set on each navigation; lang re-runs on switch).
+  useEffect(() => {
+    const brand = t('brand.name');
+    const titles: Record<string, string> = {
+      '/services': t('nav.services'),
+      '/quote': t('nav.quote'),
+      '/track': t('nav.track'),
+      '/coverage': t('nav.coverage'),
+      '/about': t('nav.about'),
+      '/faq': t('nav.faq'),
+      '/contact': t('nav.contact'),
+    };
+    const page = titles[pathname];
+    document.title = page
+      ? `${page} · ${brand}`
+      : `${brand} — ${lang === 'en' ? 'Parcels UK ⇄ Bulgaria' : 'Колети Великобритания ⇄ България'}`;
+    let link = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'canonical';
+      document.head.appendChild(link);
+    }
+    link.href = `https://hubenov.delivery${pathname}`;
+  }, [pathname, lang, t]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -145,8 +172,15 @@ export function PublicLayout() {
             </nav>
           </div>
         </div>
-        <div className="border-t border-border py-5 text-center text-xs text-muted-fg">
-          © {new Date().getFullYear()} {t('brand.name')}. {t('footer.rights')}
+        <div className="space-y-1 border-t border-border py-5 text-center text-xs text-muted-fg">
+          <p>
+            {lang === 'en'
+              ? 'Last-mile delivery partner in Bulgaria: Econt'
+              : 'Партньор за последна миля в България: Еконт'}
+          </p>
+          <p>
+            © {new Date().getFullYear()} {t('brand.name')}. {t('footer.rights')}
+          </p>
         </div>
       </footer>
 

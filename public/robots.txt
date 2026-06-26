@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /op
+Disallow: /portal
+Disallow: /login
+
+Sitemap: https://hubenov.delivery/sitemap.xml

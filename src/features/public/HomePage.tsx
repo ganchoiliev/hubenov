@@ -260,12 +260,14 @@ export function HomePage() {
               </p>
             </div>
           </div>
-          <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 to-muted">
-            <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-brand-700">
-              <Store className="h-16 w-16" />
-              <span className="font-display text-lg font-bold">Mini Market Bulgaria</span>
-              <span className="text-sm text-muted-fg">Българска пекарна Хубенови</span>
-            </div>
+          <div className="aspect-[4/3] overflow-hidden rounded-2xl">
+            <img
+              src="/images/services-loading.webp"
+              alt={lang === 'bg' ? 'Товарене на буса в Манчестър' : 'Loading the van in Manchester'}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
           </div>
         </motion.div>
       </Section>

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import './index.css';
@@ -29,7 +30,9 @@ ReactDOM.createRoot(rootEl).render(
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <RouterProvider router={router} />
+            <MotionConfig reducedMotion="user">
+              <RouterProvider router={router} />
+            </MotionConfig>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>

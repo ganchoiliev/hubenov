@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f5132" />
 
@@ -22,14 +24,36 @@
     />
     <meta property="og:locale" content="bg_BG" />
     <meta property="og:locale:alternate" content="en_GB" />
+    <meta property="og:url" content="https://hubenov.delivery/" />
+    <meta property="og:image" content="https://hubenov.delivery/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Доставки Хубенов — Манчестър → България" />
 
-    <!-- Cyrillic-friendly display font (§9) -->
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Доставки Хубенов — Колети Великобритания ⇄ България" />
+    <meta name="twitter:description" content="Собствен транспорт UK→BG, курс всеки петък. Проследяване и моментална оферта." />
+    <meta name="twitter:image" content="https://hubenov.delivery/og-image.jpg" />
+
+    <!-- Preload the LCP hero so it paints fast on mobile -->
+    <link rel="preload" as="image" href="/images/hero-van.webp" />
+
+    <!-- Cyrillic-friendly display font (§9) — loaded without blocking render -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
