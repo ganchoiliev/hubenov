@@ -72,7 +72,7 @@ export function ServicesPage() {
   return (
     <>
       <ImageHero
-        image="/images/services-loading.webp"
+        image="/images/services-real.webp"
         title={t('services.title')}
         subtitle={t('services.subtitle')}
       />

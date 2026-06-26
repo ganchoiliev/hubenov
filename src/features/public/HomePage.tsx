@@ -12,6 +12,7 @@ import {
   Store,
   Check,
   ShoppingBag,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -33,6 +34,25 @@ const STEPS = [
   { n: 4, titleKey: 'home.how_4_title', textKey: 'home.how_4_text' },
 ];
 
+// Real customer reviews (from Facebook). Names as given by the customers.
+const TESTIMONIALS = [
+  {
+    name: 'Мирослав Ангелов',
+    bg: 'Силно препоръчвам. Много бърза доставка — за по-малко от 10 дни багажът беше получен.',
+    en: 'Highly recommend. Very fast delivery — the parcel arrived in under 10 days.',
+  },
+  {
+    name: 'Диана Янева',
+    bg: 'Препоръчвам! Светкавична доставка — изпратена и получена на адреса в София за дни. Благодаря!',
+    en: 'Recommend! Lightning-fast — sent and delivered to the door in Sofia within days. Thank you!',
+  },
+  {
+    name: 'Яна Иванова',
+    bg: 'Супер бързина в доставянето и без никакви повреди!',
+    en: 'Super fast delivery and nothing damaged!',
+  },
+] as const;
+
 const reveal = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -52,7 +72,7 @@ export function HomePage() {
             image isn't present yet). */}
         <div
           className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-          style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          style={{ backgroundImage: "url('/images/hero-real.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-background to-transparent" />
@@ -91,6 +111,7 @@ export function HomePage() {
 
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-white/85">
               {[
+                lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
                 lang === 'bg' ? 'Приемане в Манчестър' : 'Drop-off in Manchester',
                 lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
@@ -127,6 +148,39 @@ export function HomePage() {
                 </div>
                 <h3 className="mt-4 font-display text-base font-bold text-foreground">{t(v.titleKey)}</h3>
                 <p className="mt-1.5 text-sm text-muted-fg">{t(v.textKey)}</p>
+              </div>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </Section>
+
+      {/* ── Our operation (real photos) ─────────────────────────────────── */}
+      <Section className="!pt-0 !pb-12">
+        <motion.div {...reveal} className="mb-6 text-center">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+            {lang === 'bg' ? 'Нашата работа' : 'Our operation'}
+          </h2>
+          <p className="mt-2 text-muted-fg">
+            {lang === 'bg'
+              ? 'Истински курсове, истински обем — всеки петък от Манчестър за България.'
+              : 'Real runs, real volume — every Friday from Manchester to Bulgaria.'}
+          </p>
+        </motion.div>
+        <Stagger className="grid gap-4 sm:grid-cols-3">
+          {[
+            { src: '/images/storefront.webp', alt: lang === 'bg' ? 'Товарене в Манчестър' : 'Loading in Manchester' },
+            { src: '/images/hub-interior.webp', alt: lang === 'bg' ? 'Нашата складова база' : 'Our hub' },
+            { src: '/images/pallets.webp', alt: lang === 'bg' ? 'Палети, готови за България' : 'Pallets ready for Bulgaria' },
+          ].map((p) => (
+            <StaggerItem key={p.src}>
+              <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-border shadow-soft">
+                <img
+                  src={p.src}
+                  alt={p.alt}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                />
               </div>
             </StaggerItem>
           ))}
@@ -235,6 +289,33 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* ── Testimonials ────────────────────────────────────────────────── */}
+      <section className="border-y border-border bg-muted/40">
+        <div className="container py-16 md:py-20">
+          <motion.h2
+            {...reveal}
+            className="text-center font-display text-3xl font-extrabold tracking-tight text-foreground"
+          >
+            {lang === 'bg' ? 'Какво казват клиентите' : 'What customers say'}
+          </motion.h2>
+          <Stagger className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-3">
+            {TESTIMONIALS.map((q) => (
+              <StaggerItem key={q.name}>
+                <figure className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-soft">
+                  <div className="flex gap-0.5 text-amber-400">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                  <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-foreground">“{q[lang]}”</blockquote>
+                  <figcaption className="mt-4 text-sm font-semibold text-muted-fg">— {q.name}</figcaption>
+                </figure>
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </div>
+      </section>
+
       {/* ── Drop-off ───────────────────────────────────────────────────── */}
       <Section>
         <motion.div
@@ -262,8 +343,8 @@ export function HomePage() {
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-2xl">
             <img
-              src="/images/services-loading.webp"
-              alt={lang === 'bg' ? 'Товарене на буса в Манчестър' : 'Loading the van in Manchester'}
+              src="/images/storefront.webp"
+              alt={lang === 'bg' ? 'Приемен пункт за товарене в Манчестър' : 'Our customer loading point in Manchester'}
               loading="lazy"
               decoding="async"
               className="h-full w-full object-cover"

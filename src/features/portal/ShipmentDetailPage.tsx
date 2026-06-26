@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
 import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted } from '@/lib/queries';
+import { HubenovQr } from '@/components/shared/HubenovQr';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/utils';
 import { assessCustoms } from '@/lib/customs';
@@ -125,6 +126,7 @@ export function ShipmentDetailPage() {
       </div>
 
       <EcontPanel shipment={shipment} inOperator={inOperator} />
+      <HubenovQr code={shipment.public_code} />
       {inOperator && <CustomsPanel shipment={shipment} />}
     </div>
   );
