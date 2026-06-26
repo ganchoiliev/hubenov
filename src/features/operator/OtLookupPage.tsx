@@ -417,7 +417,15 @@ function InvoicesPanel({
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs text-muted-fg">{T.link}</span>
-                <Select value={shipmentId} onChange={(e) => setShipmentId(e.target.value)}>
+                <Select
+                  value={shipmentId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setShipmentId(id);
+                    const sh = shipments.find((x) => x.id === id);
+                    if (sh?.price != null) setAmount(String(sh.price));
+                  }}
+                >
                   <option value="">{T.none}</option>
                   {shipments.map((s) => (
                     <option key={s.id} value={s.id}>

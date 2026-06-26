@@ -72,7 +72,10 @@ export function IntakePage() {
           length_cm: 'Дължина (см)',
           width_cm: 'Ширина (см)',
           height_cm: 'Височина (см)',
+          price: 'Цена за доставка',
+          price_hint: 'Сумата, която таксувате клиента — отива във фактурата.',
           declared_value: 'Декларирана стойност',
+          declared_hint: 'Стойност на стоката за митница/застраховка — не е цената за доставка.',
           currency: 'Валута',
           line1: 'Адрес',
           econt_office: 'Офис на Еконт (по избор)',
@@ -111,7 +114,10 @@ export function IntakePage() {
           length_cm: 'Length (cm)',
           width_cm: 'Width (cm)',
           height_cm: 'Height (cm)',
+          price: 'Delivery price',
+          price_hint: 'What you charge the customer — goes to the invoice.',
           declared_value: 'Declared value',
+          declared_hint: 'Value of the goods for customs/insurance — not the delivery price.',
           currency: 'Currency',
           line1: 'Address',
           econt_office: 'Econt office (optional)',
@@ -315,6 +321,7 @@ export function IntakePage() {
           width_cm: data.width_cm,
           height_cm: data.height_cm,
           declared_value: data.declared_value,
+          price: data.price ?? null,
           currency: data.currency,
           notes: data.notes ?? null,
           client_id: client.id,
@@ -576,9 +583,13 @@ export function IntakePage() {
                 <Input id="height_cm" type="number" step="0.1" min="0" {...register('height_cm', num)} />
               </Field>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label={L.price} hint={L.price_hint} error={errors.price?.message} htmlFor="price">
+                <Input id="price" type="number" step="0.01" min="0" {...register('price', num)} />
+              </Field>
               <Field
                 label={L.declared_value}
+                hint={L.declared_hint}
                 error={errors.declared_value?.message}
                 htmlFor="declared_value"
               >

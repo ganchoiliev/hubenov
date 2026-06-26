@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
-import { useShipment, useTrackingEvents, useCompanySettings } from '@/lib/queries';
+import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/utils';
 import { assessCustoms } from '@/lib/customs';
@@ -123,8 +124,118 @@ export function ShipmentDetailPage() {
         </div>
       </div>
 
+      <EcontPanel shipment={shipment} inOperator={inOperator} />
       {inOperator && <CustomsPanel shipment={shipment} />}
     </div>
+  );
+}
+
+function EcontPanel({ shipment, inOperator }: { shipment: Shipment; inOperator: boolean }) {
+  const { i18n } = useTranslation();
+  const lang: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
+  const locale = lang === 'en' ? 'en-GB' : 'bg-BG';
+  const toast = useToast();
+  const { data: courier } = useCourierShipment(shipment.id);
+  const save = useSaveCourierRef();
+  const [ref, setRef] = useState('');
+  const [cod, setCod] = useState('');
+
+  useEffect(() => {
+    setRef(courier?.carrier_ref ?? '');
+    setCod(courier?.cod_amount != null ? String(courier.cod_amount) : '');
+  }, [courier?.carrier_ref, courier?.cod_amount]);
+
+  if (!inOperator && !courier?.carrier_ref) return null;
+
+  const TRACK_URL = 'https://www.econt.com/en/services/track-shipment';
+  const L =
+    lang === 'bg'
+      ? {
+          title: 'Еконт (последна миля)',
+          sub: 'Въведи номера от Еконт и сумата за наложен платеж при предаване.',
+          ref: 'Номер на товарителница (Еконт)',
+          cod: 'Наложен платеж',
+          track: 'Проследи в Еконт',
+          save: 'Запази',
+          saved: 'Запазено',
+          err: 'Грешка',
+        }
+      : {
+          title: 'Econt (last mile)',
+          sub: 'Enter the Econt tracking number and COD amount at handoff.',
+          ref: 'Econt tracking number',
+          cod: 'Cash on delivery',
+          track: 'Track on Econt',
+          save: 'Save',
+          saved: 'Saved',
+          err: 'Error',
+        };
+
+  const onSave = async () => {
+    try {
+      await save.mutateAsync({
+        shipment_id: shipment.id,
+        carrier_ref: ref.trim() || null,
+        cod_amount: cod.trim() ? Number(cod.replace(',', '.')) : null,
+      });
+      toast.success(L.saved);
+    } catch {
+      toast.error(L.err);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardBody className="space-y-4">
+        <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+          <Truck className="h-4 w-4 text-brand" /> {L.title}
+        </h2>
+
+        {inOperator ? (
+          <>
+            <p className="text-sm text-muted-fg">{L.sub}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{L.ref}</span>
+                <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="1051..." className="font-mono" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{L.cod}</span>
+                <Input inputMode="decimal" value={cod} onChange={(e) => setCod(e.target.value)} placeholder="0.00" />
+              </label>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              {courier?.carrier_ref ? (
+                <a href={TRACK_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-brand">
+                  {L.track} <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <span />
+              )}
+              <Button size="sm" loading={save.isPending} onClick={() => void onSave()} className="gap-2">
+                <Save className="h-4 w-4" /> {L.save}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-fg">{L.ref}</span>
+              <span className="font-mono font-semibold text-foreground">{courier?.carrier_ref}</span>
+            </div>
+            {courier?.cod_amount != null && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-fg">{L.cod}</span>
+                <span className="font-semibold text-foreground">{formatMoney(courier.cod_amount, shipment.currency, locale)}</span>
+              </div>
+            )}
+            <a href={TRACK_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 pt-1 text-sm text-brand">
+              {L.track} <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }
 

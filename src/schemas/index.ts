@@ -45,6 +45,12 @@ export const shipmentInputSchema = z.object({
   width_cm: z.number().positive().max(300),
   height_cm: z.number().positive().max(300),
   declared_value: z.number().nonnegative(),
+  // What we charge the customer (delivery fee) — flows to the invoice. Distinct
+  // from declared_value (goods value for customs). Optional at intake.
+  price: z.preprocess(
+    (v) => (v === '' || v === null || (typeof v === 'number' && Number.isNaN(v)) ? undefined : v),
+    z.number().nonnegative().optional(),
+  ),
   currency: currencySchema.default('GBP'),
   is_gift: z.boolean().default(false),
   notes: z.string().max(2000).optional().nullable(),

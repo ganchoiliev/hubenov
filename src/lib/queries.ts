@@ -127,6 +127,53 @@ export function useOtLookup(code: string | null) {
   });
 }
 
+/* ── Courier (Econt) last-mile linkage — manual capture while API is off ───── */
+export interface CourierShipment {
+  id: string;
+  shipment_id: string;
+  carrier: string;
+  carrier_ref: string | null;
+  cod_amount: number | null;
+}
+
+export function useCourierShipment(shipmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['courier', shipmentId],
+    enabled: !!shipmentId,
+    queryFn: async (): Promise<CourierShipment | null> => {
+      const { data, error } = await supabase
+        .from('courier_shipments')
+        .select('id, shipment_id, carrier, carrier_ref, cod_amount')
+        .eq('shipment_id', shipmentId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as CourierShipment | null;
+    },
+  });
+}
+
+export function useSaveCourierRef() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { shipment_id: string; carrier_ref: string | null; cod_amount: number | null }) => {
+      // Upsert by shipment_id (unique idx, 0012). `as never`: generated types.
+      const { error } = await supabase
+        .from('courier_shipments')
+        .upsert(
+          {
+            shipment_id: args.shipment_id,
+            carrier: 'econt',
+            carrier_ref: args.carrier_ref,
+            cod_amount: args.cod_amount,
+          } as never,
+          { onConflict: 'shipment_id' },
+        );
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => void qc.invalidateQueries({ queryKey: ['courier', vars.shipment_id] }),
+  });
+}
+
 /* ── Loads ───────────────────────────────────────────────────────────────── */
 export function useLoads() {
   return useQuery({
