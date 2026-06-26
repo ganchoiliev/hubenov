@@ -87,8 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       async verifyEmailCode(email, token) {
-        const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-        if (error) throw error;
+        // Existing users get an email-OTP ('email'); brand-new signups get a
+        // signup-OTP. Try the common case, fall back so both verify cleanly.
+        const first = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+        if (!first.error) return;
+        const second = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+        if (second.error) throw first.error;
       },
       async signOut() {
         await supabase.auth.signOut();
