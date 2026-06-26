@@ -1,9 +1,8 @@
-import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, Link, useLocation, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Phone, MapPin, Menu, X } from 'lucide-react';
 import { Suspense, useState, useEffect } from 'react';
 import { Logo } from '@/components/brand/Logo';
-import { ScrollToTop } from '@/components/ScrollToTop';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Button, Spinner } from '@/components/ui';
 import { company } from '@/lib/env';
@@ -55,7 +54,7 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ScrollToTop />
+      <ScrollRestoration />
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between gap-4">
           <Link to="/" className="shrink-0">

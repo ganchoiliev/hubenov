@@ -72,7 +72,7 @@ export function HomePage() {
             image isn't present yet). */}
         <div
           className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-          style={{ backgroundImage: "url('/images/hero-real.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-background to-transparent" />
@@ -148,39 +148,6 @@ export function HomePage() {
                 </div>
                 <h3 className="mt-4 font-display text-base font-bold text-foreground">{t(v.titleKey)}</h3>
                 <p className="mt-1.5 text-sm text-muted-fg">{t(v.textKey)}</p>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </Section>
-
-      {/* ── Our operation (real photos) ─────────────────────────────────── */}
-      <Section className="!pt-0 !pb-12">
-        <motion.div {...reveal} className="mb-6 text-center">
-          <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
-            {lang === 'bg' ? 'Нашата работа' : 'Our operation'}
-          </h2>
-          <p className="mt-2 text-muted-fg">
-            {lang === 'bg'
-              ? 'Истински курсове, истински обем — всеки петък от Манчестър за България.'
-              : 'Real runs, real volume — every Friday from Manchester to Bulgaria.'}
-          </p>
-        </motion.div>
-        <Stagger className="grid gap-4 sm:grid-cols-3">
-          {[
-            { src: '/images/storefront.webp', alt: lang === 'bg' ? 'Товарене в Манчестър' : 'Loading in Manchester' },
-            { src: '/images/hub-interior.webp', alt: lang === 'bg' ? 'Нашата складова база' : 'Our hub' },
-            { src: '/images/pallets.webp', alt: lang === 'bg' ? 'Палети, готови за България' : 'Pallets ready for Bulgaria' },
-          ].map((p) => (
-            <StaggerItem key={p.src}>
-              <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-border shadow-soft">
-                <img
-                  src={p.src}
-                  alt={p.alt}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
-                />
               </div>
             </StaggerItem>
           ))}
@@ -343,8 +310,8 @@ export function HomePage() {
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-2xl">
             <img
-              src="/images/storefront.webp"
-              alt={lang === 'bg' ? 'Приемен пункт за товарене в Манчестър' : 'Our customer loading point in Manchester'}
+              src="/images/van-loading.webp"
+              alt={lang === 'bg' ? 'Товарене на буса с колети' : 'Loading parcels into the van'}
               loading="lazy"
               decoding="async"
               className="h-full w-full object-cover"

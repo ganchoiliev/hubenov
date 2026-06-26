@@ -142,7 +142,7 @@ export function AboutPage() {
   return (
     <>
       <ImageHero
-        image="/images/hub-interior.webp"
+        image="/images/received.webp"
         eyebrow={
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
             <Store className="h-3.5 w-3.5" /> {L.badge}
@@ -182,12 +182,18 @@ export function AboutPage() {
             className="lg:col-span-2"
           >
             <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-              <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-gradient-to-br from-brand-50 to-muted text-brand-700">
-                <Store className="h-14 w-14" />
-                <span className="font-display text-lg font-bold">{L.shop_name}</span>
-                <span className="text-sm text-muted-fg">{L.shop_sub}</span>
-              </div>
+              <img
+                src="/images/van-loading.webp"
+                alt={locale === 'bg' ? 'Товарене на буса с колети' : 'Loading parcels into the van'}
+                loading="lazy"
+                decoding="async"
+                className="aspect-[4/3] w-full object-cover"
+              />
               <div className="space-y-4 p-6">
+                <div>
+                  <p className="font-display text-lg font-bold text-foreground">{L.shop_name}</p>
+                  <p className="text-sm text-muted-fg">{L.shop_sub}</p>
+                </div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
                   {L.shop_eyebrow}
                 </p>
@@ -248,6 +254,41 @@ export function AboutPage() {
                 </StaggerItem>
               );
             })}
+          </Stagger>
+        </div>
+      </section>
+
+      {/* Our operation — real photos */}
+      <section className="border-t border-border bg-muted/40">
+        <div className="container py-16 md:py-20">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+              {locale === 'bg' ? 'Нашата работа' : 'Our operation'}
+            </h2>
+            <p className="mt-3 text-muted-fg">
+              {locale === 'bg'
+                ? 'Истински курсове, истински обем — всеки петък от Манчестър за България.'
+                : 'Real runs, real volume — every Friday from Manchester to Bulgaria.'}
+            </p>
+          </div>
+          <Stagger className="mt-10 grid gap-4 sm:grid-cols-3">
+            {[
+              { src: '/images/storefront.webp', alt: locale === 'bg' ? 'Товарене в Манчестър' : 'Loading in Manchester' },
+              { src: '/images/hub-interior.webp', alt: locale === 'bg' ? 'Нашата складова база' : 'Our hub' },
+              { src: '/images/pallets.webp', alt: locale === 'bg' ? 'Палети, готови за България' : 'Pallets ready for Bulgaria' },
+            ].map((p) => (
+              <StaggerItem key={p.src}>
+                <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-border shadow-soft">
+                  <img
+                    src={p.src}
+                    alt={p.alt}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                  />
+                </div>
+              </StaggerItem>
+            ))}
           </Stagger>
         </div>
       </section>

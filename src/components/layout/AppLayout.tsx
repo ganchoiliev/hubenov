@@ -1,9 +1,8 @@
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LogOut, type LucideIcon } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { Logo } from '@/components/brand/Logo';
-import { ScrollToTop } from '@/components/ScrollToTop';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -31,7 +30,7 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <ScrollToTop />
+      <ScrollRestoration />
       {/* Sidebar */}
       <aside
         className={cn(

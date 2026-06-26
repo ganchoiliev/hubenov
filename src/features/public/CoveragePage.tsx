@@ -83,7 +83,7 @@ export function CoveragePage() {
 
   return (
     <>
-      <ImageHero image="/images/coverage-real.webp" title={t('nav.coverage')} subtitle={L.subtitle} />
+      <ImageHero image="/images/hero-van.webp" title={t('nav.coverage')} subtitle={L.subtitle} />
       <Section>
         {/* Two transport pillars */}
       <Stagger className="grid gap-5 md:grid-cols-2">
