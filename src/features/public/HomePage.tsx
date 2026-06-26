@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Truck,
   ShieldCheck,
@@ -64,6 +65,22 @@ export function HomePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
 
+  // Hero video: enhance on desktop only (and not for reduced-motion) so mobile
+  // keeps the lightweight still image. The image is the poster/fallback either way.
+  const prefersReduced = useReducedMotion();
+  const [showVideo, setShowVideo] = useState(false);
+  useEffect(() => {
+    if (prefersReduced) {
+      setShowVideo(false);
+      return;
+    }
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => setShowVideo(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [prefersReduced]);
+
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
@@ -74,6 +91,20 @@ export function HomePage() {
           className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
           style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
         />
+        {showVideo && (
+          <video
+            className="absolute inset-0 -z-20 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster="/images/hero-van.webp"
+            aria-hidden="true"
+          >
+            <source src="/video/hero.mp4" type="video/mp4" />
+          </video>
+        )}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-background to-transparent" />
 
