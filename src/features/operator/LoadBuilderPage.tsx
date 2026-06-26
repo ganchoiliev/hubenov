@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Tags,
   FileText,
+  Plus,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -47,6 +48,8 @@ export function LoadBuilderPage() {
           loaded: 'Натоварена',
           notFound: 'Пратката не е намерена',
           added: 'Добавена в курса',
+          available: 'Налични пратки за този курс',
+          add: 'Добави',
           saved: 'Запазено',
           departed: 'Курсът тръгна',
           arrived: 'Курсът пристигна',
@@ -70,6 +73,8 @@ export function LoadBuilderPage() {
           loaded: 'Loaded',
           notFound: 'Shipment not found',
           added: 'Added to load',
+          available: 'Parcels ready for this load',
+          add: 'Add',
           saved: 'Saved',
           departed: 'Load departed',
           arrived: 'Load arrived',
@@ -91,6 +96,7 @@ export function LoadBuilderPage() {
   const [scan, setScan] = useState('');
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [eligible, setEligible] = useState<Shipment[]>([]);
   const scanRef = useRef<HTMLInputElement>(null);
 
   const reloadLoad = useCallback(async () => {
@@ -120,10 +126,28 @@ export function LoadBuilderPage() {
     }
   }, [id, toast, t]);
 
+  // Parcels at the hub, this direction, not yet on a load — offered for one-click add.
+  const reloadEligible = useCallback(async () => {
+    if (!load) return;
+    const { data } = await supabase
+      .from('shipments')
+      .select('*')
+      .is('load_id', null)
+      .eq('direction', load.direction)
+      .in('status', ['collected_uk', 'at_uk_hub'])
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setEligible((data ?? []) as unknown as Shipment[]);
+  }, [load]);
+
   useEffect(() => {
     void reloadLoad();
     void reloadShipments();
   }, [reloadLoad, reloadShipments]);
+
+  useEffect(() => {
+    void reloadEligible();
+  }, [reloadEligible]);
 
   useEffect(() => {
     scanRef.current?.focus();
@@ -148,7 +172,26 @@ export function LoadBuilderPage() {
     }
   };
 
-  /* ── Scan a shipment onto the load ───────────────────────────────────── */
+  /* ── Add a shipment to the load (shared by scan + click-to-add) ──────── */
+  const addShipment = async (shipment: Shipment, source: 'scan' | 'manual') => {
+    if (!id) return;
+    const { error: upErr } = await supabase
+      .from('shipments')
+      .update({ load_id: id, status: 'on_load' as AnyStatus })
+      .eq('id', shipment.id);
+    if (upErr) throw upErr;
+    await supabase.from('tracking_events').insert({
+      shipment_id: shipment.id,
+      leg: 'own',
+      status: 'on_load',
+      note_bg: 'Натоварена',
+      note_en: 'Loaded',
+      source,
+    });
+    toast.success(`${shipment.public_code} · ${L.added}`);
+    await Promise.all([reloadShipments(), reloadEligible()]);
+  };
+
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = scan.trim();
@@ -160,28 +203,21 @@ export function LoadBuilderPage() {
         toast.error(L.notFound);
         return;
       }
-      const { error: upErr } = await supabase
-        .from('shipments')
-        .update({ load_id: id, status: 'on_load' as AnyStatus })
-        .eq('id', shipment.id);
-      if (upErr) throw upErr;
-      const { error: evErr } = await supabase.from('tracking_events').insert({
-        shipment_id: shipment.id,
-        leg: 'own',
-        status: 'on_load',
-        note_bg: 'Натоварена',
-        note_en: 'Loaded',
-        source: 'scan',
-      });
-      if (evErr) throw evErr;
-      toast.success(`${shipment.public_code} · ${L.added}`);
+      await addShipment(shipment, 'scan');
       setScan('');
-      await reloadShipments();
     } catch {
       toast.error(t('common.error'));
     } finally {
       setScanning(false);
       scanRef.current?.focus();
+    }
+  };
+
+  const addByClick = async (shipment: Shipment) => {
+    try {
+      await addShipment(shipment, 'manual');
+    } catch {
+      toast.error(t('common.error'));
     }
   };
 
@@ -544,6 +580,37 @@ export function LoadBuilderPage() {
           </form>
         </CardBody>
       </Card>
+
+      {/* Available parcels — one-click add (at the hub, this direction, not yet loaded) */}
+      {eligible.length > 0 && (
+        <Card className="mb-5">
+          <CardBody>
+            <p className="mb-3 text-sm font-semibold text-muted-fg">
+              {L.available} ({eligible.length})
+            </p>
+            <div className="space-y-2">
+              {eligible.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => void addByClick(s)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                >
+                  <div className="min-w-0">
+                    <span className="font-mono text-sm font-semibold text-foreground">{s.public_code}</span>
+                    <span className="ml-2 text-xs text-muted-fg">
+                      {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
+                    </span>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                    <Plus className="h-4 w-4" /> {L.add}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="mb-6 grid grid-cols-2 gap-4">
