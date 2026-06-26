@@ -971,6 +971,191 @@ export function useMyIncoming(clientId: string | undefined) {
   });
 }
 
+/* ── Operator awareness: new requests (booked parcels) + new clients ──────── */
+export interface BookedRow {
+  id: string;
+  public_code: string;
+  receiver_name: string;
+  receiver_city: string;
+  created_at: string;
+  inbound_ref: string | null;
+}
+export function useBookedShipments() {
+  return useQuery({
+    queryKey: ['booked'],
+    queryFn: async (): Promise<BookedRow[]> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('id, public_code, receiver, created_at, inbound_ref')
+        .eq('status', 'booked')
+        .order('created_at', { ascending: false })
+        .limit(15);
+      if (error) throw error;
+      return ((data ?? []) as unknown as { id: string; public_code: string; receiver: { name?: string; city?: string } | null; created_at: string; inbound_ref: string | null }[]).map(
+        (r) => ({ id: r.id, public_code: r.public_code, receiver_name: r.receiver?.name ?? '', receiver_city: r.receiver?.city ?? '', created_at: r.created_at, inbound_ref: r.inbound_ref }),
+      );
+    },
+  });
+}
+
+export interface NewClientRow {
+  id: string;
+  full_name: string;
+  client_code: string;
+  created_at: string;
+}
+export function useNewClients() {
+  return useQuery({
+    queryKey: ['new-clients'],
+    queryFn: async (): Promise<NewClientRow[]> => {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, client_code, created_at')
+        .eq('role', 'client')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(15);
+      if (error) throw error;
+      return (data ?? []) as NewClientRow[];
+    },
+  });
+}
+
+/* ── Messaging: operator inbox + unread badges ─────────────────────────────── */
+export interface OpConversation {
+  id: string;
+  client_id: string;
+  updated_at: string;
+  client_name: string;
+  client_code: string | null;
+  last_body: string | null;
+  last_sender_id: string | null;
+  last_at: string | null;
+  unread: boolean;
+}
+interface RawConv {
+  id: string;
+  client_id: string;
+  updated_at: string;
+  operator_last_read_at: string | null;
+  client: { full_name?: string | null; client_code?: string | null } | { full_name?: string | null; client_code?: string | null }[] | null;
+  messages: { body: string; sender_id: string; created_at: string }[] | null;
+}
+
+/** Operator inbox: every client conversation + its newest message + unread flag. */
+export function useOpConversations() {
+  return useQuery({
+    queryKey: ['op-conversations'],
+    queryFn: async (): Promise<OpConversation[]> => {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('id, client_id, updated_at, operator_last_read_at, client:profiles(full_name, client_code), messages(body, sender_id, created_at)')
+        .order('updated_at', { ascending: false })
+        .order('created_at', { referencedTable: 'messages', ascending: false })
+        .limit(1, { referencedTable: 'messages' })
+        .limit(100);
+      if (error) throw error;
+      return ((data ?? []) as unknown as RawConv[]).map((r) => {
+        const client = Array.isArray(r.client) ? r.client[0] : r.client;
+        const last = r.messages?.[0] ?? null;
+        const unread =
+          !!last && last.sender_id === r.client_id && (!r.operator_last_read_at || last.created_at > r.operator_last_read_at);
+        return {
+          id: r.id,
+          client_id: r.client_id,
+          updated_at: r.updated_at,
+          client_name: client?.full_name ?? '',
+          client_code: client?.client_code ?? null,
+          last_body: last?.body ?? null,
+          last_sender_id: last?.sender_id ?? null,
+          last_at: last?.created_at ?? null,
+          unread,
+        };
+      });
+    },
+  });
+}
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+}
+export function useConversationMessages(conversationId: string | null) {
+  return useQuery({
+    queryKey: ['conversation-messages', conversationId],
+    enabled: !!conversationId,
+    queryFn: async (): Promise<ChatMessage[]> => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, body, created_at')
+        .eq('conversation_id', conversationId as string)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as ChatMessage[];
+    },
+  });
+}
+
+/** Insert a message, then fire a best-effort cross-side email alert. */
+export function useSendMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { conversationId: string; senderId: string; body: string }) => {
+      const { error } = await supabase
+        .from('messages')
+        .insert({ conversation_id: args.conversationId, sender_id: args.senderId, body: args.body });
+      if (error) throw error;
+      // The chat is already persisted; the email is a nice-to-have. Never throw.
+      try {
+        await supabase.functions.invoke('message-notify', { body: { conversation_id: args.conversationId } });
+      } catch {
+        /* notification is non-critical */
+      }
+    },
+    onSuccess: (_d, args) => {
+      void qc.invalidateQueries({ queryKey: ['conversation-messages', args.conversationId] });
+      void qc.invalidateQueries({ queryKey: ['op-conversations'] });
+      void qc.invalidateQueries({ queryKey: ['op-unread'] });
+      void qc.invalidateQueries({ queryKey: ['client-unread'] });
+    },
+  });
+}
+
+export function useMarkConversationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { conversationId: string; side: 'operator' | 'client' }) => {
+      const now = new Date().toISOString();
+      const patch = args.side === 'operator' ? { operator_last_read_at: now } : { client_last_read_at: now };
+      const { error } = await supabase.from('conversations').update(patch).eq('id', args.conversationId);
+      if (error) throw error;
+      return args.side;
+    },
+    onSuccess: (side) => {
+      void qc.invalidateQueries({ queryKey: side === 'operator' ? ['op-unread'] : ['client-unread'] });
+      void qc.invalidateQueries({ queryKey: ['op-conversations'] });
+    },
+  });
+}
+
+/** RPC returning an int. Cast around the placeholder DB types (no Functions entry). */
+async function rpcInt(fn: string): Promise<number> {
+  const rpc = supabase.rpc as unknown as (name: string) => Promise<{ data: number | null; error: { message: string } | null }>;
+  const { data, error } = await rpc(fn);
+  if (error) throw error;
+  return data ?? 0;
+}
+export function useOpUnread(enabled: boolean) {
+  return useQuery({ queryKey: ['op-unread'], enabled, queryFn: () => rpcInt('op_unread_count') });
+}
+export function useClientUnread(enabled: boolean) {
+  return useQuery({ queryKey: ['client-unread'], enabled, queryFn: () => rpcInt('client_unread_count') });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -979,10 +1164,13 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming'], ['booked']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () =>
+        inval([['new-clients'], ['clients']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tracking_events' }, () =>
         inval([['tracking'], ['shipment']]),
@@ -996,6 +1184,12 @@ export function useRealtimeSync() {
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () =>
         inval([['company_settings']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
+        inval([['op-conversations'], ['op-unread'], ['client-unread'], ['conversation-messages']]),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () =>
+        inval([['op-conversations'], ['op-unread'], ['client-unread']]),
       )
       .subscribe();
     return () => {

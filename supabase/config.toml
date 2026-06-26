@@ -435,6 +435,11 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+# Chat alerts — authenticated; direction derived from the caller's identity.
+[functions.message-notify]
+enabled = true
+verify_jwt = true
+
 # Scheduled poller (Wave 2). Set the cron in the dashboard or via pg_cron:
 #   select cron.schedule('track-poll','*/30 * * * *',
 #     $$ select net.http_post(url:='<project>/functions/v1/track-poll') $$);

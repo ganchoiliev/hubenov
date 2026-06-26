@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, MapPin, Check } from 'lucide-react';
+import { ScanLine, UserSearch, PackagePlus, Truck, ArrowRight, RefreshCw, AlertCircle, AlertTriangle, BarChart3, MapPin, Check, Inbox, UserPlus } from 'lucide-react';
 import { Button, Card, CardBody } from '@/components/ui';
 import { Stat, PageHeading } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
-import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments, useTopCities } from '@/lib/queries';
+import { useOperatorDashboard, useCodAwaitingRemittance, useMarkCodRemitted, useWeeklyStats, useStuckShipments, useTopCities, useBookedShipments, useNewClients } from '@/lib/queries';
 import { useAuth } from '@/lib/auth';
 import { statusLabel, timelineIndex } from '@/lib/status';
 import { formatMoney, cn } from '@/lib/utils';
@@ -38,6 +38,8 @@ export function OperatorHomePage() {
   const { data: weekly } = useWeeklyStats();
   const { data: stuck } = useStuckShipments();
   const { data: cities } = useTopCities();
+  const { data: booked } = useBookedShipments();
+  const { data: newClients } = useNewClients();
 
   const roleLabel = profile?.role ? (lang === 'bg' ? (ROLE_BG[profile.role] ?? profile.role) : profile.role) : '';
 
@@ -70,6 +72,12 @@ export function OperatorHomePage() {
           unpaidInv: 'Неплатени фактури',
           daysSuffix: 'д',
           citiesTitle: 'Топ дестинации',
+          newTitle: 'Нови заявки',
+          bookedReq: 'Заявени пратки',
+          bookedNone: 'Няма нови заявки',
+          newClientsLbl: 'Нови клиенти (7 дни)',
+          newClientsNone: 'Няма нови клиенти',
+          incomingTag: 'Входяща',
         }
       : {
           cod: 'COD to collect',
@@ -98,6 +106,12 @@ export function OperatorHomePage() {
           unpaidInv: 'Unpaid invoices',
           daysSuffix: 'd',
           citiesTitle: 'Top destinations',
+          newTitle: 'New requests',
+          bookedReq: 'Booked parcels',
+          bookedNone: 'No new requests',
+          newClientsLbl: 'New clients (7d)',
+          newClientsNone: 'No new clients',
+          incomingTag: 'Incoming',
         };
 
   const fmtRec = (rec: Record<string, number>): string => {
@@ -169,6 +183,86 @@ export function OperatorHomePage() {
         <Stat label={L.today} value={num(dash?.shipments.today)} />
         <Stat label={L.delivered} value={num(dash?.shipments.delivered)} />
       </div>
+
+      {/* New requests — client-registered parcels + new client accounts (awareness) */}
+      {((booked && booked.length > 0) || (newClients && newClients.length > 0)) && (
+        <Card className="mt-4 border-brand/30 bg-brand-50/30">
+          <CardBody>
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Inbox className="h-4 w-4 text-brand-700" /> {L.newTitle}
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Booked parcels awaiting intake */}
+              <div>
+                <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-fg">
+                  <span>{L.bookedReq}</span>
+                  <span className="rounded-full bg-card px-2 py-0.5 tabular-nums">{booked?.length ?? 0}</span>
+                </p>
+                {booked && booked.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {booked.slice(0, 5).map((b) => (
+                      <Link
+                        key={b.id}
+                        to={`/op/shipments/${b.id}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
+                      >
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="font-mono font-semibold text-foreground">{b.public_code}</span>
+                          <span className="truncate text-muted-fg">{[b.receiver_name, b.receiver_city].filter(Boolean).join(' · ')}</span>
+                        </span>
+                        {b.inbound_ref ? (
+                          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{L.incomingTag}</span>
+                        ) : (
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-fg" />
+                        )}
+                      </Link>
+                    ))}
+                    {booked.length > 5 && (
+                      <Link to="/op/shipments" className="block px-1 pt-1 text-xs font-medium text-brand-700 hover:underline">
+                        +{booked.length - 5} →
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-fg">{L.bookedNone}</p>
+                )}
+              </div>
+
+              {/* New client accounts */}
+              <div>
+                <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-fg">
+                  <span>{L.newClientsLbl}</span>
+                  <span className="rounded-full bg-card px-2 py-0.5 tabular-nums">{newClients?.length ?? 0}</span>
+                </p>
+                {newClients && newClients.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {newClients.slice(0, 5).map((c) => (
+                      <Link
+                        key={c.id}
+                        to="/op/clients"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <UserPlus className="h-3.5 w-3.5 shrink-0 text-brand-700" />
+                          <span className="truncate text-foreground">{c.full_name || c.client_code}</span>
+                        </span>
+                        <span className="shrink-0 font-mono text-xs text-muted-fg">{c.client_code}</span>
+                      </Link>
+                    ))}
+                    {newClients.length > 5 && (
+                      <Link to="/op/clients" className="block px-1 pt-1 text-xs font-medium text-brand-700 hover:underline">
+                        +{newClients.length - 5} →
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-fg">{L.newClientsNone}</p>
+                )}
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Weekly volume + needs attention */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">

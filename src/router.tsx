@@ -65,6 +65,7 @@ const LoadsPage = lazyPage(() => import('@/features/operator/LoadsPage'), 'Loads
 const LoadBuilderPage = lazyPage(() => import('@/features/operator/LoadBuilderPage'), 'LoadBuilderPage');
 const OpShipmentsPage = lazyPage(() => import('@/features/operator/OpShipmentsPage'), 'OpShipmentsPage');
 const OpInvoicesPage = lazyPage(() => import('@/features/operator/OpInvoicesPage'), 'OpInvoicesPage');
+const OpMessagesPage = lazyPage(() => import('@/features/operator/OpMessagesPage'), 'OpMessagesPage');
 const SettingsPage = lazyPage(() => import('@/features/operator/SettingsPage'), 'SettingsPage');
 
 function Suspended({ children }: { children: ReactNode }) {
@@ -87,7 +88,7 @@ export const PORTAL_NAV: NavItem[] = [
   { to: '/portal/incoming', labelKey: 'portal.incoming', icon: Inbox },
   { to: '/portal/shipments', labelKey: 'portal.my_shipments', icon: Package },
   { to: '/portal/invoices', labelKey: 'portal.invoices', icon: Receipt },
-  { to: '/portal/messages', labelKey: 'portal.messages', icon: MessageSquare },
+  { to: '/portal/messages', labelKey: 'portal.messages', icon: MessageSquare, badge: 'messages' },
   { to: '/portal/profile', labelKey: 'portal.profile', icon: User },
 ];
 
@@ -100,6 +101,7 @@ export const OPERATOR_NAV: NavItem[] = [
   { to: '/op/loads', labelKey: 'operator.loads', icon: Truck },
   { to: '/op/shipments', labelKey: 'operator.shipments', icon: Boxes },
   { to: '/op/invoices', labelKey: 'operator.invoices', icon: Receipt },
+  { to: '/op/messages', labelKey: 'operator.messages', icon: MessageSquare, badge: 'messages' },
   { to: '/op/settings', labelKey: 'operator.settings', icon: Settings },
 ];
 
@@ -155,6 +157,7 @@ export const router = createBrowserRouter([
       { path: 'shipments', element: <OpShipmentsPage /> },
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'invoices', element: <OpInvoicesPage /> },
+      { path: 'messages', element: <OpMessagesPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

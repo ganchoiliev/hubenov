@@ -203,6 +203,7 @@
     "customers": "Customers",
     "shipments": "Shipments",
     "invoices": "Invoices",
+    "messages": "Messages",
     "record_payment": "Record payment",
     "payment_method": "Payment method",
     "amount_received": "Amount received",

@@ -6,6 +6,7 @@ import { Button, Card, CardBody, Textarea, Spinner } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
+import { useMarkConversationRead } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { cn, formatDate } from '@/lib/utils';
 
@@ -29,6 +30,7 @@ export function MessagesPage() {
   const { i18n } = useTranslation();
   const toast = useToast();
   const { profile } = useAuth();
+  const markRead = useMarkConversationRead();
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const dateLocale = locale === 'en' ? 'en-GB' : 'bg-BG';
 
@@ -145,6 +147,12 @@ export function MessagesPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
 
+  // Viewing the thread == caught up → clear the portal unread badge.
+  useEffect(() => {
+    if (conversation?.id) markRead.mutate({ conversationId: conversation.id, side: 'client' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation?.id, messages.length]);
+
   const send = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     const body = draft.trim();
@@ -157,6 +165,12 @@ export function MessagesPage() {
         body,
       });
       if (error) throw error;
+      // Best-effort: email the office so the message isn't missed. Never block.
+      try {
+        await supabase.functions.invoke('message-notify', { body: { conversation_id: conversation.id } });
+      } catch {
+        /* notification is non-critical */
+      }
       setDraft('');
       await loadMessages(conversation.id);
     } catch {

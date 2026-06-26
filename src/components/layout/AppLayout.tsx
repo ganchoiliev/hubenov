@@ -6,7 +6,7 @@ import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { useRealtimeSync } from '@/lib/queries';
+import { useRealtimeSync, useOpUnread, useClientUnread } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export interface NavItem {
@@ -14,6 +14,7 @@ export interface NavItem {
   labelKey: string;
   icon: LucideIcon;
   end?: boolean;
+  badge?: 'messages';
 }
 
 export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' | 'operator' }) {
@@ -22,6 +23,11 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   useRealtimeSync(); // live updates across the app — no manual refresh
+
+  // Unread-message badges (one query fires per scope; the other stays disabled).
+  const { data: opUnread } = useOpUnread(scope === 'operator');
+  const { data: clientUnread } = useClientUnread(scope === 'portal');
+  const unread = scope === 'operator' ? opUnread ?? 0 : clientUnread ?? 0;
 
   // Close the mobile drawer on Escape.
   useEffect(() => {
@@ -79,7 +85,12 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
               }
             >
               <it.icon className="h-4.5 w-4.5" />
-              {t(it.labelKey)}
+              <span className="flex-1">{t(it.labelKey)}</span>
+              {it.badge === 'messages' && unread > 0 && (
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
