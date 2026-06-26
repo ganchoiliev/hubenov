@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Truck, Plus, Calendar, User, Hash, X } from 'lucide-react';
+import { Truck, Plus, Calendar, User, Hash, X, Package } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Select, Field, Skeleton } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
@@ -48,6 +48,7 @@ export function LoadsPage() {
           create: 'Create load',
           departs: 'Departs',
           cutoff: 'Booking cutoff',
+          parcels: 'parcels',
           created: 'Load created',
           empty: 'No loads scheduled yet.',
           emptyDesc: 'Create a load to start grouping shipments for the next departure.',
@@ -64,6 +65,7 @@ export function LoadsPage() {
           create: 'Създай курс',
           departs: 'Тръгва',
           cutoff: 'Краен срок за заявки',
+          parcels: 'пратки',
           created: 'Курсът е създаден',
           empty: 'Все още няма планирани курсове.',
           emptyDesc: 'Създайте курс, за да групирате пратки за следващото тръгване.',
@@ -79,6 +81,22 @@ export function LoadsPage() {
   const qc = useQueryClient();
   const { data: loads, isLoading } = useLoads();
 
+  // Per-load parcel count + total weight, aggregated client-side.
+  const { data: loadStats } = useQuery({
+    queryKey: ['load-stats'],
+    queryFn: async (): Promise<Record<string, { count: number; kg: number }>> => {
+      const { data } = await supabase.from('shipments').select('load_id, weight_kg').not('load_id', 'is', null);
+      const map: Record<string, { count: number; kg: number }> = {};
+      for (const r of (data ?? []) as { load_id: string; weight_kg: number }[]) {
+        const m = map[r.load_id] ?? { count: 0, kg: 0 };
+        m.count += 1;
+        m.kg += Number(r.weight_kg);
+        map[r.load_id] = m;
+      }
+      return map;
+    },
+  });
+
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<Direction>('UK_BG');
   const [saving, setSaving] = useState(false);
@@ -90,8 +108,15 @@ export function LoadsPage() {
     try {
       const departure = nextFriday1400();
       const cutoff = new Date(departure.getTime() - 24 * 60 * 60 * 1000);
+      // Unique, readable code: LD-YYYYMMDD-UK (+ -2, -3… if several that day) —
+      // avoids the duplicate-key error when a load already exists for that date.
+      const base = `LD-${ymd(departure)}-${direction === 'UK_BG' ? 'UK' : 'BG'}`;
+      const { data: existing } = await supabase.from('loads').select('code').like('code', `${base}%`);
+      const taken = new Set((existing ?? []).map((r) => (r as { code: string }).code));
+      let code = base;
+      for (let n = 2; taken.has(code); n++) code = `${base}-${n}`;
       const { error } = await supabase.from('loads').insert({
-        code: `LD-${ymd(departure)}`,
+        code,
         direction,
         status: 'open',
         scheduled_departure: departure.toISOString(),
@@ -197,6 +222,11 @@ export function LoadsPage() {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
+                        <Package className="h-3.5 w-3.5 text-muted-fg" />
+                        {loadStats?.[load.id]?.count ?? 0} {L.parcels} ·{' '}
+                        {(loadStats?.[load.id]?.kg ?? 0).toFixed(1)} {t('common.kg')}
                       </p>
                       {(load.vehicle_reg || load.driver_name) && (
                         <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-fg">
