@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2 } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm';
-import { useUpdateStatus, useDeleteShipment } from '@/lib/queries';
+import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { STATUS_META, nextStatuses, statusLabel } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
@@ -33,6 +33,19 @@ const COPY = {
     cancel: 'Отказ',
     deleted: 'Пратката е изтрита',
     delErr: 'Неуспешно изтриване',
+    selected: 'избрани',
+    selectAll: 'Избери всички',
+    addToLoad: 'Добави в курс…',
+    setStatus: 'Промени статус…',
+    printLabels: 'Етикети',
+    deleteSel: 'Изтрий',
+    clear: 'Изчисти',
+    assigned: 'Добавени в курса: {n}',
+    statusBody: 'Промяна на статус на {n} пратки на „{s}"?',
+    statusApplied: 'Обновени: {n}',
+    bulkDelTitle: 'Изтриване на пратки',
+    bulkDelBody: 'Ще се изтрият {n} пратки безвъзвратно. Действието не може да се отмени.',
+    deletedN: 'Изтрити: {n}',
   },
   en: {
     subtitle: 'Manage all shipments',
@@ -51,6 +64,19 @@ const COPY = {
     cancel: 'Cancel',
     deleted: 'Parcel deleted',
     delErr: 'Could not delete',
+    selected: 'selected',
+    selectAll: 'Select all',
+    addToLoad: 'Add to load…',
+    setStatus: 'Set status…',
+    printLabels: 'Labels',
+    deleteSel: 'Delete',
+    clear: 'Clear',
+    assigned: 'Added to load: {n}',
+    statusBody: 'Set status of {n} parcel(s) to “{s}”?',
+    statusApplied: 'Updated: {n}',
+    bulkDelTitle: 'Delete parcels',
+    bulkDelBody: '{n} parcel(s) will be permanently deleted. This cannot be undone.',
+    deletedN: 'Deleted: {n}',
   },
 } as const;
 
@@ -156,6 +182,23 @@ export function OpShipmentsPage() {
     }
   };
 
+  // ── Bulk selection (van prep) ──────────────────────────────────────────────
+  const loads = useLoads();
+  const bulkAssign = useBulkAssignLoad();
+  const bulkDelete = useBulkDeleteShipments();
+  const bulkStatus = useUpdateStatus();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [printing, setPrinting] = useState(false);
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const clearSel = () => setSelected(new Set());
+
   const { data, isLoading } = useQuery({
     queryKey: ['op-shipments'],
     queryFn: async (): Promise<Shipment[]> => {
@@ -182,6 +225,88 @@ export function OpShipmentsPage() {
       );
     });
   }, [data, query, statusFilter]);
+
+  const allSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (filtered.every((s) => prev.has(s.id))) filtered.forEach((s) => next.delete(s.id));
+      else filtered.forEach((s) => next.add(s.id));
+      return next;
+    });
+  const selectedShipments = () => (data ?? []).filter((s) => selected.has(s.id));
+
+  const doAssign = async (loadId: string) => {
+    const ids = [...selected];
+    if (!ids.length || !loadId) return;
+    try {
+      await bulkAssign.mutateAsync({ ids, loadId });
+      toast.success(L.assigned.replace('{n}', String(ids.length)));
+      clearSel();
+    } catch {
+      toast.error(t('common.error'));
+    }
+  };
+
+  const doStatus = async (to: AnyStatus) => {
+    const ships = selectedShipments();
+    if (!ships.length) return;
+    const ok = await confirm({
+      title: L.setStatus,
+      body: L.statusBody.replace('{n}', String(ships.length)).replace('{s}', statusLabel(to, locale)),
+      confirmLabel: L.apply,
+      cancelLabel: L.cancel,
+    });
+    if (!ok) return;
+    let okCount = 0;
+    for (const s of ships) {
+      try {
+        await bulkStatus.mutateAsync({ shipment: s, to, source: 'manual' });
+        okCount++;
+      } catch {
+        /* skip parcels whose state changed underneath us */
+      }
+    }
+    toast.success(L.statusApplied.replace('{n}', String(okCount)));
+    clearSel();
+  };
+
+  const doPrint = async () => {
+    const ships = selectedShipments();
+    if (!ships.length) return;
+    setPrinting(true);
+    try {
+      const ids = [...new Set(ships.map((s) => s.client_id))];
+      const { data: profs } = await supabase.from('profiles').select('id, client_code').in('id', ids);
+      const map = Object.fromEntries(((profs ?? []) as { id: string; client_code: string }[]).map((p) => [p.id, p.client_code]));
+      const { buildLabelsPack, downloadBytes } = await import('@/lib/dispatchPack');
+      downloadBytes(await buildLabelsPack(ships, map), `labels-${ships.length}.pdf`);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const doDelete = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    const ok = await confirm({
+      title: L.bulkDelTitle,
+      body: L.bulkDelBody.replace('{n}', String(ids.length)),
+      confirmLabel: L.delConfirm,
+      cancelLabel: L.cancel,
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await bulkDelete.mutateAsync(ids);
+      toast.success(L.deletedN.replace('{n}', String(ids.length)));
+      clearSel();
+    } catch {
+      toast.error(L.delErr);
+    }
+  };
 
   return (
     <div>
@@ -230,14 +355,30 @@ export function OpShipmentsPage() {
         />
       ) : (
         <>
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-fg">
-            {filtered.length} {L.count}
-          </p>
+          <div className="mb-3 flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="h-4 w-4 rounded border-border accent-brand"
+              aria-label={L.selectAll}
+            />
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-fg">
+              {filtered.length} {L.count}
+            </span>
+          </div>
           <Stagger className="space-y-2">
             {filtered.map((s) => (
               <StaggerItem key={s.id}>
-                <Card className="transition-shadow hover:shadow-lift">
+                <Card className={`transition-shadow hover:shadow-lift ${selected.has(s.id) ? 'ring-2 ring-brand/40' : ''}`}>
                   <CardBody className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:gap-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggle(s.id)}
+                      className="h-4 w-4 shrink-0 self-start rounded border-border accent-brand lg:self-auto"
+                      aria-label={`select ${s.public_code}`}
+                    />
                     {/* Identity */}
                     <div className="flex items-center gap-2 lg:w-48 lg:shrink-0">
                       <span className="font-mono text-sm font-semibold text-foreground">
@@ -290,6 +431,68 @@ export function OpShipmentsPage() {
             ))}
           </Stagger>
         </>
+      )}
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-3 shadow-lift lg:left-[calc(16rem+1rem)]">
+          <span className="px-1 text-sm font-semibold text-foreground">
+            {selected.size} {L.selected}
+          </span>
+          <Select
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) void doAssign(v);
+            }}
+            className="h-9 w-40 text-xs"
+            aria-label={L.addToLoad}
+            disabled={bulkAssign.isPending}
+          >
+            <option value="">{L.addToLoad}</option>
+            {(loads.data ?? [])
+              .filter((l) => l.status !== 'closed')
+              .map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.code}
+                </option>
+              ))}
+          </Select>
+          <Select
+            value=""
+            onChange={(e) => {
+              const v = e.target.value as AnyStatus | '';
+              if (v) void doStatus(v);
+            }}
+            className="h-9 w-40 text-xs"
+            aria-label={L.setStatus}
+          >
+            <option value="">{L.setStatus}</option>
+            {ALL_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {statusLabel(s, locale)}
+              </option>
+            ))}
+          </Select>
+          <Button size="sm" variant="outline" loading={printing} onClick={() => void doPrint()} className="gap-1.5">
+            <Printer className="h-4 w-4" /> {L.printLabels}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void doDelete()}
+            className="gap-1.5 text-danger hover:bg-danger/10"
+          >
+            <Trash2 className="h-4 w-4" /> {L.deleteSel}
+          </Button>
+          <button
+            onClick={clearSel}
+            className="ml-auto rounded-lg p-1.5 text-muted-fg transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={L.clear}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
     </div>
   );

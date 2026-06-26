@@ -1215,6 +1215,30 @@ export function useDeleteLoad() {
   });
 }
 
+/* ── Bulk shipment ops (van prep) ──────────────────────────────────────────── */
+export function useBulkAssignLoad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { ids: string[]; loadId: string }) => {
+      const { error } = await supabase.from('shipments').update({ load_id: args.loadId }).in('id', args.ids);
+      if (error) throw error;
+    },
+    onSuccess: () => invalAll(qc, [['op-shipments'], ['shipments'], ['loads'], ['load-stats'], ['dashboard'], ['booked']]),
+  });
+}
+
+export function useBulkDeleteShipments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('shipments').delete().in('id', ids);
+      if (error) throw asDeleteError(error);
+    },
+    onSuccess: () =>
+      invalAll(qc, [['op-shipments'], ['shipments'], ['shipment'], ['dashboard'], ['load-stats'], ['weekly-stats'], ['stuck'], ['top-cities'], ['booked'], ['ot-lookup'], ['my-incoming'], ['invoices'], ['op-invoices']]),
+  });
+}
+
 /* ── Global search (command palette): parcels + clients + invoices ─────────── */
 export interface SearchHit {
   kind: 'parcel' | 'client' | 'invoice';
