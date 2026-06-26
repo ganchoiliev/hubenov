@@ -1156,6 +1156,65 @@ export function useClientUnread(enabled: boolean) {
   return useQuery({ queryKey: ['client-unread'], enabled, queryFn: () => rpcInt('client_unread_count') });
 }
 
+/* ── Destructive ops (hard delete; 0016 trigger snapshots each into audit_log) */
+function asDeleteError(e: unknown): Error {
+  const err = e as { code?: string; message?: string } | null;
+  // 23503 = FK violation → the row still has linked records (e.g. a client with
+  // parcels/invoices). Surface a sentinel the UI maps to a clear message.
+  if (err?.code === '23503' || /foreign key|violates foreign/i.test(err?.message ?? '')) {
+    return new Error('linked_records');
+  }
+  return e instanceof Error ? e : new Error('delete_failed');
+}
+function invalAll(qc: ReturnType<typeof useQueryClient>, keys: string[][]) {
+  keys.forEach((k) => void qc.invalidateQueries({ queryKey: k }));
+}
+
+export function useDeleteShipment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('shipments').delete().eq('id', id);
+      if (error) throw asDeleteError(error);
+    },
+    onSuccess: () =>
+      invalAll(qc, [['shipments'], ['op-shipments'], ['shipment'], ['dashboard'], ['load-stats'], ['weekly-stats'], ['stuck'], ['top-cities'], ['booked'], ['ot-lookup'], ['my-incoming'], ['invoices'], ['op-invoices']]),
+  });
+}
+
+export function useDeleteInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      if (error) throw asDeleteError(error);
+    },
+    onSuccess: () => invalAll(qc, [['invoices'], ['op-invoices'], ['dashboard'], ['ot-lookup']]),
+  });
+}
+
+export function useDeleteClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw asDeleteError(error);
+    },
+    onSuccess: () => invalAll(qc, [['clients'], ['new-clients'], ['dashboard']]),
+  });
+}
+
+export function useDeleteLoad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('loads').delete().eq('id', id);
+      if (error) throw asDeleteError(error);
+    },
+    onSuccess: () => invalAll(qc, [['loads'], ['load-stats'], ['shipments'], ['op-shipments'], ['dashboard']]),
+  });
+}
+
 /* ── Global realtime sync — invalidate caches on any DB change (live UI) ───── */
 export function useRealtimeSync() {
   const qc = useQueryClient();

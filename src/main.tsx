@@ -9,6 +9,7 @@ import './lib/i18n';
 import { router } from './router';
 import { ThemeProvider } from './components/theme/ThemeProvider';
 import { ToastProvider } from './components/ui/toast';
+import { ConfirmProvider } from './components/ui/confirm';
 import { AuthProvider } from './lib/auth';
 
 const queryClient = new QueryClient({
@@ -32,7 +33,9 @@ ReactDOM.createRoot(rootEl).render(
           <ToastProvider>
             <LazyMotion features={domAnimation} strict>
               <MotionConfig reducedMotion="user">
-                <RouterProvider router={router} />
+                <ConfirmProvider>
+                  <RouterProvider router={router} />
+                </ConfirmProvider>
               </MotionConfig>
             </LazyMotion>
           </ToastProvider>

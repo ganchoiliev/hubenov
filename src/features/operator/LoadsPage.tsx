@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { m as motion } from 'framer-motion';
-import { Truck, Plus, Calendar, User, Hash, X, Package } from 'lucide-react';
+import { Truck, Plus, Calendar, User, Hash, X, Package, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Select, Field, Skeleton } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
-import { useLoads } from '@/lib/queries';
+import { useConfirm } from '@/components/ui/confirm';
+import { useLoads, useDeleteLoad } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import type { Direction, LoadStatus } from '@/types/domain';
@@ -52,6 +53,14 @@ export function LoadsPage() {
           created: 'Load created',
           empty: 'No loads scheduled yet.',
           emptyDesc: 'Create a load to start grouping shipments for the next departure.',
+          delTitle: 'Delete load',
+          delBody0: 'This load will be permanently deleted. This cannot be undone.',
+          delBodyN: 'This load has {n} parcel(s) — they will be unassigned (returned to the pool), not deleted. This cannot be undone.',
+          delConfirm: 'Delete',
+          cancel: 'Cancel',
+          deleted: 'Load deleted',
+          delErr: 'Could not delete',
+          del: 'Delete load',
           status: {
             open: 'Open',
             departed: 'Departed',
@@ -69,6 +78,14 @@ export function LoadsPage() {
           created: 'Курсът е създаден',
           empty: 'Все още няма планирани курсове.',
           emptyDesc: 'Създайте курс, за да групирате пратки за следващото тръгване.',
+          delTitle: 'Изтриване на курс',
+          delBody0: 'Курсът ще бъде изтрит безвъзвратно.',
+          delBodyN: 'Курсът има {n} пратка(и) — те ще се върнат в общия списък, не се изтриват. Действието е необратимо.',
+          delConfirm: 'Изтрий',
+          cancel: 'Отказ',
+          deleted: 'Курсът е изтрит',
+          delErr: 'Неуспешно изтриване',
+          del: 'Изтрий курс',
           status: {
             open: 'Отворен',
             departed: 'Тръгнал',
@@ -79,6 +96,8 @@ export function LoadsPage() {
 
   const toast = useToast();
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const del = useDeleteLoad();
   const { data: loads, isLoading } = useLoads();
 
   // Per-load parcel count + total weight, aggregated client-side.
@@ -102,6 +121,21 @@ export function LoadsPage() {
   const [saving, setSaving] = useState(false);
 
   const dirLabel = (d: Direction) => (d === 'UK_BG' ? 'UK→BG' : 'BG→UK');
+
+  const onDelete = async (e: React.MouseEvent, loadId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const n = loadStats?.[loadId]?.count ?? 0;
+    const body = n > 0 ? L.delBodyN.replace('{n}', String(n)) : L.delBody0;
+    const ok = await confirm({ title: L.delTitle, body, confirmLabel: L.delConfirm, cancelLabel: L.cancel, danger: true });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(loadId);
+      toast.success(L.deleted);
+    } catch {
+      toast.error(L.delErr);
+    }
+  };
 
   const createLoad = async () => {
     setSaving(true);
@@ -245,6 +279,15 @@ export function LoadsPage() {
                         </p>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => onDelete(e, load.id)}
+                      title={L.del}
+                      aria-label={L.del}
+                      className="shrink-0 rounded-lg p-2 text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </CardBody>
                 </Card>
               </Link>

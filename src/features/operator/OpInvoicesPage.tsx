@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { Receipt, Send, Pencil, Plus, Download, Search } from 'lucide-react';
+import { Receipt, Send, Pencil, Plus, Download, Search, Trash2 } from 'lucide-react';
 import {
   Button,
   Card,
@@ -16,12 +16,14 @@ import {
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm';
 import {
   useSendInvoiceEmail,
   useCreateInvoice,
   useCreateClient,
   useClients,
   useCompanySettings,
+  useDeleteInvoice,
   type ClientRow,
 } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
@@ -72,6 +74,13 @@ export function OpInvoicesPage() {
           no_invoices_desc: 'Invoices issued to clients will appear here.',
           invalid_amount: 'Enter a valid amount.',
           new_invoice: 'New invoice',
+          del: 'Delete',
+          delTitle: 'Delete invoice',
+          delBody: 'Deleting an issued invoice leaves a gap in your numbering, which can be a tax/audit problem. This cannot be undone.',
+          delConfirm: 'Delete',
+          cancel: 'Cancel',
+          deleted: 'Invoice deleted',
+          delErr: 'Could not delete',
         }
       : {
           payment_recorded: 'Плащането е записано',
@@ -92,10 +101,19 @@ export function OpInvoicesPage() {
           no_invoices_desc: 'Издадените към клиенти фактури ще се показват тук.',
           invalid_amount: 'Въведете валидна сума.',
           new_invoice: 'Нова фактура',
+          del: 'Изтрий',
+          delTitle: 'Изтриване на фактура',
+          delBody: 'Изтриването на издадена фактура оставя дупка в номерацията — възможен данъчен/одит проблем. Действието е необратимо.',
+          delConfirm: 'Изтрий',
+          cancel: 'Отказ',
+          deleted: 'Фактурата е изтрита',
+          delErr: 'Неуспешно изтриване',
         };
 
   const toast = useToast();
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const del = useDeleteInvoice();
   const sendEmail = useSendInvoiceEmail();
   const { data: settings } = useCompanySettings();
   const [creating, setCreating] = useState(false);
@@ -167,6 +185,17 @@ export function OpInvoicesPage() {
       toast.error(t('common.error'));
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function delInvoice(inv: InvoiceRow) {
+    const ok = await confirm({ title: L.delTitle, body: L.delBody, confirmLabel: L.delConfirm, cancelLabel: L.cancel, danger: true });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(inv.id);
+      toast.success(L.deleted);
+    } catch {
+      toast.error(L.delErr);
     }
   }
 
@@ -268,6 +297,14 @@ export function OpInvoicesPage() {
                         onClick={() => (editId === inv.id ? setEditId(null) : openEdit(inv))}
                       >
                         <Pencil className="h-4 w-4" /> {L.edit}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-danger hover:bg-danger/10"
+                        onClick={() => void delInvoice(inv)}
+                      >
+                        <Trash2 className="h-4 w-4" /> {L.del}
                       </Button>
                     </div>
                   </div>

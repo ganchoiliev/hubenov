@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
-import { useUpdateStatus } from '@/lib/queries';
+import { useConfirm } from '@/components/ui/confirm';
+import { useUpdateStatus, useDeleteShipment } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { STATUS_META, nextStatuses, statusLabel } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
@@ -25,6 +26,13 @@ const COPY = {
     no_next: 'Няма промяна',
     updated: 'Статусът е обновен',
     count: 'пратки',
+    del: 'Изтрий пратка',
+    delTitle: 'Изтриване на пратка',
+    delBody: 'Пратка {code} и историята ѝ ще бъдат изтрити безвъзвратно. Свързана фактура остава (без връзка). Действието е необратимо.',
+    delConfirm: 'Изтрий',
+    cancel: 'Отказ',
+    deleted: 'Пратката е изтрита',
+    delErr: 'Неуспешно изтриване',
   },
   en: {
     subtitle: 'Manage all shipments',
@@ -36,6 +44,13 @@ const COPY = {
     no_next: 'No change',
     updated: 'Status updated',
     count: 'shipments',
+    del: 'Delete parcel',
+    delTitle: 'Delete parcel',
+    delBody: 'Parcel {code} and its tracking history will be permanently deleted. Any linked invoice stays (unlinked). This cannot be undone.',
+    delConfirm: 'Delete',
+    cancel: 'Cancel',
+    deleted: 'Parcel deleted',
+    delErr: 'Could not delete',
   },
 } as const;
 
@@ -118,8 +133,28 @@ export function OpShipmentsPage() {
   const locale: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const L = COPY[locale];
 
+  const toast = useToast();
+  const confirm = useConfirm();
+  const del = useDeleteShipment();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AnyStatus | 'all'>('all');
+
+  const onDelete = async (s: Shipment) => {
+    const ok = await confirm({
+      title: L.delTitle,
+      body: L.delBody.replace('{code}', s.public_code),
+      confirmLabel: L.delConfirm,
+      cancelLabel: L.cancel,
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(s.id);
+      toast.success(L.deleted);
+    } catch {
+      toast.error(L.delErr);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['op-shipments'],
@@ -238,6 +273,17 @@ export function OpShipmentsPage() {
                         errorLabel={t('common.error')}
                       />
                     </div>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={() => void onDelete(s)}
+                      title={L.del}
+                      aria-label={L.del}
+                      className="shrink-0 self-start rounded-lg p-2 text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger lg:self-auto"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </CardBody>
                 </Card>
               </StaggerItem>
