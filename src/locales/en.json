@@ -209,6 +209,7 @@
     "shipments": "Shipments",
     "invoices": "Invoices",
     "messages": "Messages",
+    "audit": "Activity log",
     "record_payment": "Record payment",
     "payment_method": "Payment method",
     "amount_received": "Amount received",

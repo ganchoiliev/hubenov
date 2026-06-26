@@ -27,6 +27,7 @@ import {
   type ClientRow,
 } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
+import { buildCsv, downloadCsv } from '@/lib/csv';
 import { cn, formatMoney, formatDate } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
 import type { Database } from '@/types/database.types';
@@ -74,6 +75,7 @@ export function OpInvoicesPage() {
           no_invoices_desc: 'Invoices issued to clients will appear here.',
           invalid_amount: 'Enter a valid amount.',
           new_invoice: 'New invoice',
+          exportCsv: 'Export CSV',
           del: 'Delete',
           delTitle: 'Delete invoice',
           delBody: 'Deleting an issued invoice leaves a gap in your numbering, which can be a tax/audit problem. This cannot be undone.',
@@ -101,6 +103,7 @@ export function OpInvoicesPage() {
           no_invoices_desc: 'Издадените към клиенти фактури ще се показват тук.',
           invalid_amount: 'Въведете валидна сума.',
           new_invoice: 'Нова фактура',
+          exportCsv: 'Експорт CSV',
           del: 'Изтрий',
           delTitle: 'Изтриване на фактура',
           delBody: 'Изтриването на издадена фактура оставя дупка в номерацията — възможен данъчен/одит проблем. Действието е необратимо.',
@@ -240,13 +243,35 @@ export function OpInvoicesPage() {
     }
   }
 
+  const onExportCsv = () => {
+    const csv = buildCsv(invoices ?? [], [
+      { label: 'Number', get: (i) => i.number },
+      { label: 'Client', get: (i) => i.client?.full_name ?? '' },
+      { label: 'Amount', get: (i) => i.amount },
+      { label: 'Currency', get: (i) => i.currency },
+      { label: 'Status', get: (i) => i.status },
+      { label: 'Date', get: (i) => i.created_at.slice(0, 10) },
+    ]);
+    downloadCsv(`invoices-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeading title={t('operator.invoices')} />
-        <Button className="gap-2" onClick={() => setCreating((v) => !v)}>
-          <Plus className="h-4 w-4" /> {L.new_invoice}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={onExportCsv}
+            disabled={!invoices || invoices.length === 0}
+          >
+            <Download className="h-4 w-4" /> {L.exportCsv}
+          </Button>
+          <Button className="gap-2" onClick={() => setCreating((v) => !v)}>
+            <Plus className="h-4 w-4" /> {L.new_invoice}
+          </Button>
+        </div>
       </div>
 
       {creating && (

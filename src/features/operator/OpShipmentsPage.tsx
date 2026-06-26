@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
@@ -9,6 +10,7 @@ import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm';
 import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
+import { buildCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
 import { STATUS_META, nextStatuses, statusLabel } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
@@ -34,6 +36,7 @@ const COPY = {
     deleted: 'Пратката е изтрита',
     delErr: 'Неуспешно изтриване',
     selected: 'избрани',
+    exportCsv: 'Експорт CSV',
     selectAll: 'Избери всички',
     addToLoad: 'Добави в курс…',
     setStatus: 'Промени статус…',
@@ -65,6 +68,7 @@ const COPY = {
     deleted: 'Parcel deleted',
     delErr: 'Could not delete',
     selected: 'selected',
+    exportCsv: 'Export CSV',
     selectAll: 'Select all',
     addToLoad: 'Add to load…',
     setStatus: 'Set status…',
@@ -308,6 +312,21 @@ export function OpShipmentsPage() {
     }
   };
 
+  const onExport = () => {
+    const csv = buildCsv(filtered, [
+      { label: 'Code', get: (s) => s.public_code },
+      { label: 'Direction', get: (s) => s.direction },
+      { label: 'Status', get: (s) => s.status },
+      { label: 'Receiver', get: (s) => s.receiver.name },
+      { label: 'City', get: (s) => s.receiver.city },
+      { label: 'Weight kg', get: (s) => s.weight_kg },
+      { label: 'Price', get: (s) => s.price ?? '' },
+      { label: 'Currency', get: (s) => s.currency },
+      { label: 'Created', get: (s) => s.created_at.slice(0, 10) },
+    ]);
+    downloadCsv(`shipments-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   return (
     <div>
       <PageHeading title={t('operator.shipments')} subtitle={L.subtitle} />
@@ -340,6 +359,9 @@ export function OpShipmentsPage() {
             ))}
           </Select>
         </div>
+        <Button variant="outline" onClick={onExport} disabled={filtered.length === 0} className="gap-2 sm:shrink-0">
+          <Download className="h-4 w-4" /> {L.exportCsv}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -379,30 +401,34 @@ export function OpShipmentsPage() {
                       className="h-4 w-4 shrink-0 self-start rounded border-border accent-brand lg:self-auto"
                       aria-label={`select ${s.public_code}`}
                     />
-                    {/* Identity */}
-                    <div className="flex items-center gap-2 lg:w-48 lg:shrink-0">
-                      <span className="font-mono text-sm font-semibold text-foreground">
-                        {s.public_code}
-                      </span>
-                      <Badge tone="neutral">{s.direction === 'UK_BG' ? 'UK→BG' : 'BG→UK'}</Badge>
-                    </div>
+                    {/* Info area → open the parcel detail (track + edit there) */}
+                    <Link
+                      to={`/op/shipments/${s.id}`}
+                      className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4"
+                    >
+                      {/* Identity */}
+                      <div className="flex items-center gap-2 lg:w-48 lg:shrink-0">
+                        <span className="font-mono text-sm font-semibold text-foreground">{s.public_code}</span>
+                        <Badge tone="neutral">{s.direction === 'UK_BG' ? 'UK→BG' : 'BG→UK'}</Badge>
+                      </div>
 
-                    {/* Receiver + weight */}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-foreground">
-                        {s.receiver.name}
-                        <span className="text-muted-fg"> · {s.receiver.city}</span>
-                      </p>
-                      <p className="text-xs text-muted-fg">
-                        {s.weight_kg} {t('common.kg')}
-                      </p>
-                    </div>
+                      {/* Receiver + weight */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-foreground">
+                          {s.receiver.name}
+                          <span className="text-muted-fg"> · {s.receiver.city}</span>
+                        </p>
+                        <p className="text-xs text-muted-fg">
+                          {s.weight_kg} {t('common.kg')}
+                        </p>
+                      </div>
 
-                    {/* Current status */}
-                    <div className="flex items-center gap-2 lg:w-44 lg:shrink-0">
-                      <StatusBadge status={s.status} />
-                      <ArrowRight className="hidden h-3.5 w-3.5 text-muted-fg lg:block" />
-                    </div>
+                      {/* Current status */}
+                      <div className="flex items-center gap-2 lg:w-44 lg:shrink-0">
+                        <StatusBadge status={s.status} />
+                        <ArrowRight className="hidden h-3.5 w-3.5 text-muted-fg lg:block" />
+                      </div>
+                    </Link>
 
                     {/* Manual status control */}
                     <div className="lg:shrink-0">

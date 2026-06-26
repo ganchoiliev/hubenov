@@ -209,6 +209,7 @@
     "shipments": "Пратки",
     "invoices": "Фактури",
     "messages": "Съобщения",
+    "audit": "Дневник",
     "record_payment": "Запиши плащане",
     "payment_method": "Начин на плащане",
     "amount_received": "Получена сума",

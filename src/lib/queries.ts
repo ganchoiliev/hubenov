@@ -1265,6 +1265,58 @@ export function useUpdateParcel() {
   });
 }
 
+/* ── Audit log (who deleted/changed what) ──────────────────────────────────── */
+export interface AuditRow {
+  id: string;
+  at: string;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  actor_name: string | null;
+  summary: string;
+}
+export function useAuditLog() {
+  return useQuery({
+    queryKey: ['audit-log'],
+    queryFn: async (): Promise<AuditRow[]> => {
+      const { data, error } = await supabase
+        .from('audit_log')
+        .select('id, at, action, entity, entity_id, meta, actor:profiles(full_name)')
+        .order('at', { ascending: false })
+        .limit(150);
+      if (error) throw error;
+      type Raw = {
+        id: string;
+        at: string;
+        action: string;
+        entity: string;
+        entity_id: string | null;
+        meta: Record<string, unknown> | null;
+        actor: { full_name?: string | null } | { full_name?: string | null }[] | null;
+      };
+      return ((data ?? []) as unknown as Raw[]).map((r) => {
+        const actor = Array.isArray(r.actor) ? r.actor[0] : r.actor;
+        const m = r.meta ?? {};
+        const summary =
+          (m.public_code as string) ||
+          (m.number as string) ||
+          (m.full_name as string) ||
+          (m.code as string) ||
+          (r.entity_id ? r.entity_id.slice(0, 8) : '');
+        return {
+          id: r.id,
+          at: r.at,
+          action: r.action,
+          entity: r.entity,
+          entity_id: r.entity_id,
+          actor_name: actor?.full_name ?? null,
+          summary,
+        };
+      });
+    },
+  });
+}
+
 /* ── Global search (command palette): parcels + clients + invoices ─────────── */
 export interface SearchHit {
   kind: 'parcel' | 'client' | 'invoice';

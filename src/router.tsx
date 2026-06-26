@@ -15,6 +15,7 @@ import {
   Settings,
   Boxes,
   Inbox,
+  History,
 } from 'lucide-react';
 
 import { PublicLayout } from '@/components/layout/PublicLayout';
@@ -66,6 +67,7 @@ const LoadBuilderPage = lazyPage(() => import('@/features/operator/LoadBuilderPa
 const OpShipmentsPage = lazyPage(() => import('@/features/operator/OpShipmentsPage'), 'OpShipmentsPage');
 const OpInvoicesPage = lazyPage(() => import('@/features/operator/OpInvoicesPage'), 'OpInvoicesPage');
 const OpMessagesPage = lazyPage(() => import('@/features/operator/OpMessagesPage'), 'OpMessagesPage');
+const AuditLogPage = lazyPage(() => import('@/features/operator/AuditLogPage'), 'AuditLogPage');
 const SettingsPage = lazyPage(() => import('@/features/operator/SettingsPage'), 'SettingsPage');
 
 function Suspended({ children }: { children: ReactNode }) {
@@ -102,6 +104,7 @@ export const OPERATOR_NAV: NavItem[] = [
   { to: '/op/shipments', labelKey: 'operator.shipments', icon: Boxes },
   { to: '/op/invoices', labelKey: 'operator.invoices', icon: Receipt },
   { to: '/op/messages', labelKey: 'operator.messages', icon: MessageSquare, badge: 'messages' },
+  { to: '/op/audit', labelKey: 'operator.audit', icon: History },
   { to: '/op/settings', labelKey: 'operator.settings', icon: Settings },
 ];
 
@@ -158,6 +161,7 @@ export const router = createBrowserRouter([
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'invoices', element: <OpInvoicesPage /> },
       { path: 'messages', element: <OpMessagesPage /> },
+      { path: 'audit', element: <AuditLogPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
