@@ -168,6 +168,9 @@ export function PublicLayout() {
                   {t(n.key)}
                 </Link>
               ))}
+              <Link to="/rules" className="text-muted-fg hover:text-brand">
+                {t('nav.rules')}
+              </Link>
             </nav>
           </div>
         </div>

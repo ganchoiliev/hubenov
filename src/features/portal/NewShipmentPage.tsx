@@ -1,5 +1,5 @@
 import { useEffect, useState, Fragment } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm, type UseFormRegister, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,7 @@ export function NewShipmentPage() {
   const createShipment = useCreateShipment();
   const [step, setStep] = useState(0);
   const [deliveryMode, setDeliveryMode] = useState<'address' | 'office'>('address');
+  const [agreed, setAgreed] = useState(false);
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const stepDescriptions =
     lang === 'bg'
@@ -273,7 +274,28 @@ export function NewShipmentPage() {
                   </div>
                 )}
 
-                {step === 4 && <Review values={values} quote={quote} locale={locale} t={t} lang={lang} />}
+                {step === 4 && (
+                  <>
+                    <Review values={values} quote={quote} locale={locale} t={t} lang={lang} />
+                    <label className="mt-5 flex items-start gap-2.5 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => setAgreed(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-brand"
+                      />
+                      <span className="text-muted-fg">
+                        {lang === 'bg'
+                          ? 'Потвърждавам, че пратката не съдържа забранени артикули и съм запознат с '
+                          : 'I confirm the parcel contains no prohibited items and I have read the '}
+                        <Link to="/rules" target="_blank" className="font-medium text-brand-700 hover:underline">
+                          {lang === 'bg' ? 'правилата за пратки' : 'shipping rules'}
+                        </Link>
+                        .
+                      </span>
+                    </label>
+                  </>
+                )}
               </motion.div>
             </AnimatePresence>
           </CardBody>
@@ -288,7 +310,7 @@ export function NewShipmentPage() {
               {t('common.next')} <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button type="submit" loading={createShipment.isPending}>
+            <Button type="submit" loading={createShipment.isPending} disabled={!agreed}>
               {t('wizard.submit')}
             </Button>
           )}

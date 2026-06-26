@@ -41,6 +41,7 @@ const CoveragePage = lazyPage(() => import('@/features/public/CoveragePage'), 'C
 const AboutPage = lazyPage(() => import('@/features/public/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('@/features/public/ContactPage'), 'ContactPage');
 const FaqPage = lazyPage(() => import('@/features/public/FaqPage'), 'FaqPage');
+const RulesPage = lazyPage(() => import('@/features/public/RulesPage'), 'RulesPage');
 const NotFoundPage = lazyPage(() => import('@/features/public/NotFoundPage'), 'NotFoundPage');
 
 // Auth
@@ -120,6 +121,7 @@ export const router = createBrowserRouter([
       { path: '/about', element: <AboutPage /> },
       { path: '/contact', element: <ContactPage /> },
       { path: '/faq', element: <FaqPage /> },
+      { path: '/rules', element: <RulesPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
