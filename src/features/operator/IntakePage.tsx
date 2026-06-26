@@ -23,7 +23,7 @@ import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/
 import { PageHeading } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { useClients } from '@/lib/queries';
+import { useClients, useCreateInvoice } from '@/lib/queries';
 import { transliterate } from '@/lib/translit';
 import { supabase } from '@/lib/supabase';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
@@ -73,7 +73,8 @@ export function IntakePage() {
           width_cm: 'Ширина (см)',
           height_cm: 'Височина (см)',
           price: 'Цена за доставка',
-          price_hint: 'Сумата, която таксувате клиента — отива във фактурата.',
+          price_hint: 'Сумата, която таксувате клиента — създава фактура автоматично.',
+          invoice_created: 'Фактура е създадена:',
           declared_value: 'Декларирана стойност',
           declared_hint: 'Стойност на стоката за митница/застраховка — не е цената за доставка.',
           currency: 'Валута',
@@ -115,7 +116,8 @@ export function IntakePage() {
           width_cm: 'Width (cm)',
           height_cm: 'Height (cm)',
           price: 'Delivery price',
-          price_hint: 'What you charge the customer — goes to the invoice.',
+          price_hint: 'What you charge the customer — creates an invoice automatically.',
+          invoice_created: 'Invoice created:',
           declared_value: 'Declared value',
           declared_hint: 'Value of the goods for customs/insurance — not the delivery price.',
           currency: 'Currency',
@@ -150,6 +152,7 @@ export function IntakePage() {
 
   // Search clients by name/phone — no OT number needed.
   const { data: allClients } = useClients();
+  const createInvoice = useCreateInvoice();
   const [clientSearch, setClientSearch] = useState('');
   const clientMatches = useMemo(() => {
     const q = clientSearch.trim().toLowerCase();
@@ -334,6 +337,22 @@ export function IntakePage() {
       const created = row as unknown as Shipment;
       setCreatedCode(created.public_code);
       toast.success(t('wizard.created'));
+
+      // Auto-create the invoice from the delivery price (charge → invoice).
+      // Best-effort: a failure here must not undo the created shipment.
+      if (data.price && data.price > 0) {
+        try {
+          const inv = await createInvoice.mutateAsync({
+            client_id: client.id,
+            amount: data.price,
+            currency: data.currency,
+            shipment_id: created.id,
+          });
+          toast.success(`${L.invoice_created} ${inv.number}`);
+        } catch {
+          /* shipment already created; operator can invoice manually */
+        }
+      }
       reset();
     } catch {
       toast.error(t('common.error'));

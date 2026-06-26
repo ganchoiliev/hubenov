@@ -12,12 +12,14 @@ import {
   Printer,
   Package,
   ArrowLeft,
+  Tags,
+  FileText,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState, Stat } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
-import { resolveShipmentByCode, notifyStatusEmails } from '@/lib/queries';
+import { resolveShipmentByCode, notifyStatusEmails, useCompanySettings } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
 import { pdfSafe } from '@/lib/translit';
@@ -27,6 +29,8 @@ export function LoadBuilderPage() {
   const { id } = useParams();
   const { t, i18n } = useTranslation();
   const toast = useToast();
+  const { data: settings } = useCompanySettings();
+  const [packing, setPacking] = useState<null | 'labels' | 'customs'>(null);
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const dateLocale = locale === 'en' ? 'en-GB' : 'bg-BG';
 
@@ -47,6 +51,8 @@ export function LoadBuilderPage() {
           departed: 'Курсът тръгна',
           arrived: 'Курсът пристигна',
           manifestReady: 'Манифестът е готов',
+          printLabels: 'Етикети (всички)',
+          printCustoms: 'Митница (всички)',
           manifest: 'МАНИФЕСТ НА КУРС',
           colNo: '№',
           colCode: 'Код',
@@ -68,6 +74,8 @@ export function LoadBuilderPage() {
           departed: 'Load departed',
           arrived: 'Load arrived',
           manifestReady: 'Manifest ready',
+          printLabels: 'Labels (all)',
+          printCustoms: 'Customs (all)',
           manifest: 'LOAD MANIFEST',
           colNo: 'No.',
           colCode: 'Code',
@@ -345,6 +353,43 @@ export function LoadBuilderPage() {
     }
   };
 
+  // Dispatch pack — merge every parcel's label / customs doc into one PDF.
+  const printLabels = async () => {
+    if (shipments.length === 0) return;
+    setPacking('labels');
+    try {
+      const ids = [...new Set(shipments.map((s) => s.client_id))];
+      const { data } = await supabase.from('profiles').select('id, client_code').in('id', ids);
+      const map = Object.fromEntries(
+        ((data ?? []) as { id: string; client_code: string }[]).map((p) => [p.id, p.client_code]),
+      );
+      const { buildLabelsPack, downloadBytes } = await import('@/lib/dispatchPack');
+      downloadBytes(await buildLabelsPack(shipments, map), `labels-${load?.code ?? 'load'}.pdf`);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setPacking(null);
+    }
+  };
+
+  const printCustoms = async () => {
+    if (shipments.length === 0) return;
+    setPacking('customs');
+    try {
+      const { buildCustomsPack, downloadBytes } = await import('@/lib/dispatchPack');
+      const bytes = await buildCustomsPack(shipments, {
+        name: settings?.company_name,
+        eori: settings?.eori,
+        returnAddress: settings?.return_address,
+      });
+      downloadBytes(bytes, `customs-${load?.code ?? 'load'}.pdf`);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setPacking(null);
+    }
+  };
+
   /* ── Render ──────────────────────────────────────────────────────────── */
   if (loadingLoad) {
     return (
@@ -415,6 +460,26 @@ export function LoadBuilderPage() {
               onClick={() => void printManifest()}
             >
               <Printer className="h-4 w-4" /> {t('operator.print_manifest')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              loading={packing === 'labels'}
+              disabled={shipments.length === 0 || packing !== null}
+              onClick={() => void printLabels()}
+            >
+              <Tags className="h-4 w-4" /> {L.printLabels}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              loading={packing === 'customs'}
+              disabled={shipments.length === 0 || packing !== null}
+              onClick={() => void printCustoms()}
+            >
+              <FileText className="h-4 w-4" /> {L.printCustoms}
             </Button>
           </div>
         }
