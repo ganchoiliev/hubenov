@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
 import { Receipt, FileDown } from 'lucide-react';
@@ -6,8 +7,9 @@ import { PageHeading, EmptyState, Stat } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { useMyInvoices } from '@/lib/queries';
+import { supabase } from '@/lib/supabase';
 import { formatMoney, formatDate } from '@/lib/utils';
-import type { Invoice, InvoiceStatus, Currency } from '@/types/domain';
+import type { Invoice, InvoiceStatus, Currency, PartySnapshot } from '@/types/domain';
 
 const TONE_BY_STATUS: Record<InvoiceStatus, 'success' | 'warning' | 'danger'> = {
   paid: 'success',
@@ -21,6 +23,8 @@ export function InvoicesPage() {
   const toast = useToast();
   const { profile } = useAuth();
   const { data: invoices, isLoading } = useMyInvoices(profile?.id);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const docLang: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
 
   const L =
     i18n.resolvedLanguage === 'en'
@@ -45,12 +49,50 @@ export function InvoicesPage() {
           .map(([currency, amount]) => formatMoney(amount, currency, locale))
           .join(' · ');
 
-  const openPdf = (inv: Invoice) => {
-    if (!inv.pdf_url) return;
+  // Generate the PDF on demand (invoices have no stored pdf_url). Enrich it with
+  // the linked parcel's sender/receiver/addresses/weight — all readable by the
+  // owning client under RLS. Dynamic import keeps pdf-lib out of the portal bundle.
+  const download = async (inv: Invoice) => {
+    setBusyId(inv.id);
     try {
-      window.open(inv.pdf_url, '_blank', 'noopener,noreferrer');
+      const { downloadInvoicePdf, partyForInvoice } = await import('@/lib/invoicePdf');
+      let shipmentCode: string | null = null;
+      let sender: ReturnType<typeof partyForInvoice> = null;
+      let receiver: ReturnType<typeof partyForInvoice> = null;
+      let weightKg: number | null = null;
+      if (inv.shipment_id) {
+        const { data: ship } = await supabase
+          .from('shipments')
+          .select('public_code, sender, receiver, weight_kg')
+          .eq('id', inv.shipment_id)
+          .maybeSingle();
+        const s = ship as { public_code?: string; sender?: PartySnapshot | null; receiver?: PartySnapshot | null; weight_kg?: number | null } | null;
+        if (s) {
+          shipmentCode = s.public_code ?? null;
+          sender = partyForInvoice(s.sender ?? null);
+          receiver = partyForInvoice(s.receiver ?? null);
+          weightKg = s.weight_kg ?? null;
+        }
+      }
+      await downloadInvoicePdf({
+        number: inv.number,
+        dateISO: inv.created_at,
+        amount: inv.amount,
+        currency: inv.currency,
+        status: inv.status,
+        clientName: profile?.full_name ?? '',
+        clientEmail: profile?.email ?? null,
+        company: {},
+        shipmentCode,
+        sender,
+        receiver,
+        weightKg,
+        locale: docLang,
+      });
     } catch {
       toast.error(t('common.error'));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -102,8 +144,8 @@ export function InvoicesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={!inv.pdf_url}
-                      onClick={() => openPdf(inv)}
+                      loading={busyId === inv.id}
+                      onClick={() => void download(inv)}
                       className="gap-2"
                     >
                       <FileDown className="h-4 w-4" /> {t('portal.download_pdf')}

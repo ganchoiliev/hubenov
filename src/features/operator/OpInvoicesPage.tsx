@@ -30,7 +30,7 @@ import { supabase } from '@/lib/supabase';
 import { cn, formatMoney, formatDate } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
 import type { Database } from '@/types/database.types';
-import type { Invoice, InvoiceStatus, Currency } from '@/types/domain';
+import type { Invoice, InvoiceStatus, Currency, PartySnapshot } from '@/types/domain';
 
 type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
 
@@ -201,15 +201,24 @@ export function OpInvoicesPage() {
 
   async function downloadPdf(inv: InvoiceRow) {
     try {
-      const { downloadInvoicePdf } = await import('@/lib/invoicePdf');
+      const { downloadInvoicePdf, partyForInvoice } = await import('@/lib/invoicePdf');
       let shipmentCode: string | null = null;
+      let sender: ReturnType<typeof partyForInvoice> = null;
+      let receiver: ReturnType<typeof partyForInvoice> = null;
+      let weightKg: number | null = null;
       if (inv.shipment_id) {
         const { data: ship } = await supabase
           .from('shipments')
-          .select('public_code')
+          .select('public_code, sender, receiver, weight_kg')
           .eq('id', inv.shipment_id)
           .maybeSingle();
-        shipmentCode = (ship as { public_code?: string } | null)?.public_code ?? null;
+        const s = ship as { public_code?: string; sender?: PartySnapshot | null; receiver?: PartySnapshot | null; weight_kg?: number | null } | null;
+        if (s) {
+          shipmentCode = s.public_code ?? null;
+          sender = partyForInvoice(s.sender ?? null);
+          receiver = partyForInvoice(s.receiver ?? null);
+          weightKg = s.weight_kg ?? null;
+        }
       }
       await downloadInvoicePdf({
         number: inv.number,
@@ -221,6 +230,9 @@ export function OpInvoicesPage() {
         clientEmail: inv.client?.email ?? null,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
         shipmentCode,
+        sender,
+        receiver,
+        weightKg,
         locale: docLang,
       });
     } catch {

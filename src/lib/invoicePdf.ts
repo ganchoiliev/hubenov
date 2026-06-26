@@ -8,7 +8,12 @@
  */
 import { PDFDocument, rgb } from 'pdf-lib';
 import { embedUnicodeFonts } from './pdfFont';
-import type { Currency, InvoiceStatus } from '@/types/domain';
+import type { Currency, InvoiceStatus, PartySnapshot } from '@/types/domain';
+
+export interface InvoiceParty {
+  name?: string | null;
+  address?: string | null;
+}
 
 export interface InvoicePdfData {
   number: string;
@@ -20,7 +25,20 @@ export interface InvoicePdfData {
   clientEmail?: string | null;
   company: { name?: string | null; eori?: string | null; returnAddress?: string | null };
   shipmentCode?: string | null;
+  sender?: InvoiceParty | null;
+  receiver?: InvoiceParty | null;
+  weightKg?: number | null;
   locale?: 'bg' | 'en';
+}
+
+/** Flatten a shipment party snapshot into a printable name + one-line address. */
+export function partyForInvoice(p?: PartySnapshot | null): InvoiceParty | null {
+  if (!p) return null;
+  const addr = [p.line1, p.line2 ?? '', [p.postcode, p.city].filter(Boolean).join(' '), p.country]
+    .map((s) => (s ?? '').toString().trim())
+    .filter(Boolean)
+    .join(', ');
+  return { name: p.name || null, address: addr || (p.econt_office_code ? `Econt ${p.econt_office_code}` : null) };
 }
 
 const A4 = { w: 595.28, h: 841.89 };
@@ -59,7 +77,11 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
           no: 'Фактура №',
           date: 'Дата',
           status: 'Статус',
-          billTo: 'ПОЛУЧАТЕЛ',
+          billTo: 'ПОЛУЧАТЕЛ НА ФАКТУРАТА',
+          shipmentHdr: 'ПРАТКА',
+          from: 'Изпращач',
+          to: 'Получател',
+          weight: 'Тегло',
           descCol: 'ОПИСАНИЕ',
           amountCol: 'СУМА',
           line: d.shipmentCode ? `Транспортна услуга · Пратка ${d.shipmentCode}` : 'Транспортна услуга (UK ⇄ BG)',
@@ -73,6 +95,10 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
           date: 'Date',
           status: 'Status',
           billTo: 'BILL TO',
+          shipmentHdr: 'SHIPMENT',
+          from: 'Sender',
+          to: 'Receiver',
+          weight: 'Weight',
           descCol: 'DESCRIPTION',
           amountCol: 'AMOUNT',
           line: d.shipmentCode ? `Transport service · Shipment ${d.shipmentCode}` : 'Transport service (UK ⇄ BG)',
@@ -100,6 +126,26 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
   if (d.clientEmail) {
     y -= 14;
     text(d.clientEmail, M, y, 9, font, muted);
+  }
+
+  // Shipment parties — sender / receiver / weight (when the invoice is tied to a
+  // parcel). Lines are truncated so a long address never overruns the margin.
+  const trunc = (s: string, n = 92) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  if (d.sender || d.receiver || d.weightKg != null) {
+    y -= 28;
+    text(t.shipmentHdr + (d.shipmentCode ? ` · ${d.shipmentCode}` : ''), M, y, 8, bold, muted);
+    if (d.sender && (d.sender.name || d.sender.address)) {
+      y -= 15;
+      text(trunc(`${t.from}: ${[d.sender.name, d.sender.address].filter(Boolean).join(' · ')}`), M, y, 9);
+    }
+    if (d.receiver && (d.receiver.name || d.receiver.address)) {
+      y -= 15;
+      text(trunc(`${t.to}: ${[d.receiver.name, d.receiver.address].filter(Boolean).join(' · ')}`), M, y, 9);
+    }
+    if (d.weightKg != null) {
+      y -= 15;
+      text(`${t.weight}: ${d.weightKg} ${lang === 'bg' ? 'кг' : 'kg'}`, M, y, 9);
+    }
   }
 
   y -= 40;
