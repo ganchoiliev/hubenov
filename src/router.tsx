@@ -65,6 +65,7 @@ const IntakePage = lazyPage(() => import('@/features/operator/IntakePage'), 'Int
 const ScanStationPage = lazyPage(() => import('@/features/operator/ScanStationPage'), 'ScanStationPage');
 const LoadsPage = lazyPage(() => import('@/features/operator/LoadsPage'), 'LoadsPage');
 const LoadBuilderPage = lazyPage(() => import('@/features/operator/LoadBuilderPage'), 'LoadBuilderPage');
+const RunSheetPage = lazyPage(() => import('@/features/operator/RunSheetPage'), 'RunSheetPage');
 const OpShipmentsPage = lazyPage(() => import('@/features/operator/OpShipmentsPage'), 'OpShipmentsPage');
 const OpInvoicesPage = lazyPage(() => import('@/features/operator/OpInvoicesPage'), 'OpInvoicesPage');
 const OpMessagesPage = lazyPage(() => import('@/features/operator/OpMessagesPage'), 'OpMessagesPage');
@@ -159,6 +160,7 @@ export const router = createBrowserRouter([
       { path: 'intake', element: <IntakePage /> },
       { path: 'loads', element: <LoadsPage /> },
       { path: 'loads/:id', element: <LoadBuilderPage /> },
+      { path: 'loads/:id/run', element: <RunSheetPage /> },
       { path: 'shipments', element: <OpShipmentsPage /> },
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'invoices', element: <OpInvoicesPage /> },

@@ -1456,7 +1456,7 @@ export function useRealtimeSync() {
     const channel = supabase
       .channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () =>
-        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming'], ['booked'], ['dash-period']]),
+        inval([['shipments'], ['shipment'], ['ot-lookup'], ['clients'], ['op-shipments'], ['dashboard'], ['load-stats'], ['cod-remit'], ['weekly-stats'], ['stuck'], ['top-cities'], ['my-incoming'], ['booked'], ['dash-period'], ['run-sheet']]),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courier_shipments' }, () =>
         inval([['courier'], ['dashboard'], ['cod-remit']]),

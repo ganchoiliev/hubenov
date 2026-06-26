@@ -56,6 +56,7 @@ export function LoadBuilderPage() {
           manifestReady: 'Манифестът е готов',
           printLabels: 'Етикети (всички)',
           printCustoms: 'Митница (всички)',
+          runSheet: 'Маршрутен лист',
           manifest: 'МАНИФЕСТ НА КУРС',
           colNo: '№',
           colCode: 'Код',
@@ -81,6 +82,7 @@ export function LoadBuilderPage() {
           manifestReady: 'Manifest ready',
           printLabels: 'Labels (all)',
           printCustoms: 'Customs (all)',
+          runSheet: 'Run-sheet',
           manifest: 'LOAD MANIFEST',
           colNo: 'No.',
           colCode: 'Code',
@@ -539,6 +541,11 @@ export function LoadBuilderPage() {
             >
               <FileText className="h-4 w-4" /> {L.printCustoms}
             </Button>
+            <Link to={`/op/loads/${id}/run`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Truck className="h-4 w-4" /> {L.runSheet}
+              </Button>
+            </Link>
           </div>
         }
       />
