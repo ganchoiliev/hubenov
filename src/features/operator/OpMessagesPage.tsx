@@ -37,6 +37,7 @@ export function OpMessagesPage() {
           you: 'Вие',
           client: 'Клиент',
           err: 'Възникна грешка. Опитайте отново.',
+          loadErr: 'Неуспешно зареждане на разговорите',
         }
       : {
           title: 'Messages',
@@ -51,9 +52,10 @@ export function OpMessagesPage() {
           you: 'You',
           client: 'Client',
           err: 'Something went wrong. Please try again.',
+          loadErr: 'Could not load conversations',
         };
 
-  const { data: conversations, isLoading } = useOpConversations();
+  const { data: conversations, isLoading, isError } = useOpConversations();
   const [selected, setSelected] = useState<OpConversation | null>(null);
   const { data: messages, isLoading: msgsLoading } = useConversationMessages(selected?.id ?? null);
   const send = useSendMessage();
@@ -95,6 +97,10 @@ export function OpMessagesPage() {
             {isLoading ? (
               <div className="flex h-full items-center justify-center py-10">
                 <Spinner className="h-6 w-6" />
+              </div>
+            ) : isError ? (
+              <div className="flex h-full items-center justify-center p-6">
+                <EmptyState title={L.loadErr} icon={<MessageSquare className="h-7 w-7" />} />
               </div>
             ) : !conversations || conversations.length === 0 ? (
               <div className="flex h-full items-center justify-center p-6">
