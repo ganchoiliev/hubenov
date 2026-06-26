@@ -48,6 +48,9 @@ const INVOICE_TONE: Record<InvoiceStatus, 'success' | 'warning' | 'danger'> = {
 export function OpInvoicesPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en-GB' : 'bg-BG';
+  // Documents (PDF + email) follow the operator's dashboard language, not the
+  // client's saved preference — so toggling EN/BG controls the language produced.
+  const docLang: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const L =
     i18n.resolvedLanguage === 'en'
       ? {
@@ -157,7 +160,7 @@ export function OpInvoicesPage() {
         invoice: inv,
         toEmail: inv.client.email,
         clientName: inv.client.full_name ?? '',
-        locale: inv.client.preferred_locale === 'en' ? 'en' : 'bg',
+        locale: docLang,
       });
       toast.success(res.simulated ? L.simulated : L.sent);
     } catch {
@@ -189,7 +192,7 @@ export function OpInvoicesPage() {
         clientEmail: inv.client?.email ?? null,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
         shipmentCode,
-        locale: inv.client?.preferred_locale === 'en' ? 'en' : 'bg',
+        locale: docLang,
       });
     } catch {
       toast.error(t('common.error'));
