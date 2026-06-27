@@ -7,8 +7,9 @@ import { calculateQuote } from '@/lib/pricing';
 import { PLACEHOLDER_RATES } from '@/lib/rates';
 import { sleep } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
+import { supabase } from '@/lib/supabase';
 import type { QuoteInput } from '@/schemas';
-import type { Quote } from '@/types/domain';
+import type { Quote, PricingRate } from '@/types/domain';
 import type {
   CourierLabel,
   CourierProvider,
@@ -52,7 +53,11 @@ export class MockEcontProvider implements CourierProvider {
   readonly name = 'econt' as const;
 
   async calculate(input: QuoteInput): Promise<Quote> {
-    await sleep(180);
+    // Pricing is OUR tariff — the owner edits it in Settings (pricing_rates), so
+    // the public quote must price from the DB, not hard-coded numbers. The
+    // PLACEHOLDER_RATES are only a fallback for a fresh install before seeding.
+    const { data } = await supabase.from('pricing_rates').select('*');
+    const rates = data && data.length > 0 ? (data as unknown as PricingRate[]) : PLACEHOLDER_RATES;
     return calculateQuote(
       {
         direction: input.direction,
@@ -64,7 +69,7 @@ export class MockEcontProvider implements CourierProvider {
         remote_area: input.remote_area,
         currency: input.currency,
       },
-      PLACEHOLDER_RATES,
+      rates,
     );
   }
 

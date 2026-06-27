@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks } from 'lucide-react';
-import { Button, Card, CardBody, Input, Select, Skeleton, Badge } from '@/components/ui';
+import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui';
+import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -137,23 +138,18 @@ function StatusChanger({
         <ArrowRight className="h-4 w-4" /> {statusLabel(next, locale)}
       </Button>
       {alternatives.length > 0 && (
-        <Select
-          aria-label={otherLabel}
+        <Dropdown
+          ariaLabel={otherLabel}
           value=""
-          onChange={(e) => {
-            const v = e.target.value as AnyStatus;
-            if (v) void apply(v);
-          }}
-          className="h-9 w-32 py-1.5 text-xs"
+          placeholder={otherLabel}
+          align="right"
           disabled={update.isPending}
-        >
-          <option value="">{otherLabel}</option>
-          {alternatives.map((s) => (
-            <option key={s} value={s}>
-              {statusLabel(s, locale)}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => {
+            if (v) void apply(v as AnyStatus);
+          }}
+          options={alternatives.map((s) => ({ value: s, label: statusLabel(s, locale) }))}
+          className="h-9 w-32 text-xs"
+        />
       )}
     </div>
   );
@@ -345,20 +341,18 @@ export function OpShipmentsPage() {
           />
         </div>
         <div className="relative sm:w-64">
-          <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-          <Select
+          <Filter className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+          <Dropdown
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as AnyStatus | 'all')}
-            className="pl-9"
-            aria-label={t('common.status')}
-          >
-            <option value="all">{L.filter_all}</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {statusLabel(s, locale)}
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => setStatusFilter(v as AnyStatus | 'all')}
+            options={[
+              { value: 'all', label: L.filter_all },
+              ...ALL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, locale) })),
+            ]}
+            ariaLabel={t('common.status')}
+            align="right"
+            className="w-full pl-9"
+          />
         </div>
         <Button variant="outline" onClick={onExport} disabled={filtered.length === 0} className="gap-2 sm:shrink-0">
           <Download className="h-4 w-4" /> {L.exportCsv}
@@ -476,41 +470,29 @@ export function OpShipmentsPage() {
               {selected.size} {L.selected}
             </span>
             <span className="mx-0.5 hidden h-6 w-px bg-border sm:block" aria-hidden />
-            <Select
+            <Dropdown
               value=""
-              onChange={(e) => {
-                const v = e.target.value;
+              placeholder={L.addToLoad}
+              ariaLabel={L.addToLoad}
+              disabled={bulkAssign.isPending}
+              onChange={(v) => {
                 if (v) void doAssign(v);
               }}
-              className="h-9 w-40 text-xs"
-              aria-label={L.addToLoad}
-              disabled={bulkAssign.isPending}
-            >
-              <option value="">{L.addToLoad}</option>
-              {(loads.data ?? [])
+              options={(loads.data ?? [])
                 .filter((l) => l.status !== 'closed')
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.code}
-                  </option>
-                ))}
-            </Select>
-            <Select
-              value=""
-              onChange={(e) => {
-                const v = e.target.value as AnyStatus | '';
-                if (v) void doStatus(v);
-              }}
+                .map((l) => ({ value: l.id, label: l.code }))}
               className="h-9 w-40 text-xs"
-              aria-label={L.setStatus}
-            >
-              <option value="">{L.setStatus}</option>
-              {ALL_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {statusLabel(s, locale)}
-                </option>
-              ))}
-            </Select>
+            />
+            <Dropdown
+              value=""
+              placeholder={L.setStatus}
+              ariaLabel={L.setStatus}
+              onChange={(v) => {
+                if (v) void doStatus(v as AnyStatus);
+              }}
+              options={ALL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, locale) }))}
+              className="h-9 w-40 text-xs"
+            />
             <Button size="sm" variant="outline" loading={printing} onClick={() => void doPrint()} className="gap-1.5">
               <Printer className="h-4 w-4" /> {L.printLabels}
             </Button>
