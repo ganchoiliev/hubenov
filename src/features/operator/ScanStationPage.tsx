@@ -116,6 +116,7 @@ export function ScanStationPage() {
   const [sound, setSound] = useState(() => localStorage.getItem(SOUND_KEY) !== 'off');
   const [printerReady, setPrinterReady] = useState<boolean | null>(null);
   const [testing, setTesting] = useState(false);
+  const [printHelp, setPrintHelp] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [flash, setFlash] = useState<{ type: 'ok' | 'err'; id: number } | null>(null);
   const flashId = useRef(0);
@@ -197,6 +198,11 @@ export function ScanStationPage() {
           ready: 'готов',
           notReady: 'не е свързан',
           checking: 'проверка…',
+          printHelpTitle: 'За печата',
+          printHelpBrowser:
+            'Метод „Браузър (PDF)": при печат се отваря диалогът на браузъра — избираш принтера (вкл. твоя HP) и потвърждаваш. Работи без настройка.',
+          printHelpSilent:
+            'За тих авто-печат без диалог при всяко сканиране: стартирай Chrome с --kiosk-printing и задай принтер по подразбиране, или инсталирай QZ Tray и избери „QZ" в Настройки.',
           testPrint: 'Тест печат',
           testOk: 'Тестовият етикет е изпратен',
           camera: 'Камера',
@@ -239,6 +245,11 @@ export function ScanStationPage() {
           ready: 'ready',
           notReady: 'not connected',
           checking: 'checking…',
+          printHelpTitle: 'About printing',
+          printHelpBrowser:
+            'Method "Browser (PDF)": printing opens the browser print dialog — pick your printer (including your HP) and confirm. Works with no setup.',
+          printHelpSilent:
+            'For silent auto-print with no dialog on every scan: launch Chrome with --kiosk-printing and set a default printer, or install QZ Tray and pick "QZ" in Settings.',
           testPrint: 'Test print',
           testOk: 'Test label sent',
           camera: 'Camera',
@@ -588,6 +599,17 @@ export function ScanStationPage() {
           <span className={cn('ml-0.5 inline-block h-1.5 w-1.5 rounded-full', printerReady === false ? 'bg-warning' : printerReady ? 'bg-success' : 'bg-muted-fg/40')} />
           <span>{printerReady === null ? L.checking : printerReady ? L.ready : L.notReady}</span>
         </span>
+        <button
+          type="button"
+          onClick={() => setPrintHelp((v) => !v)}
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-full border transition-colors',
+            printHelp ? 'border-brand bg-brand-50 text-brand' : 'border-border text-muted-fg hover:border-brand hover:text-brand',
+          )}
+          aria-label={L.printHelpTitle}
+        >
+          <Info className="h-4 w-4" />
+        </button>
         <Button size="sm" variant="outline" className="gap-1.5" loading={testing} onClick={() => void doTestPrint()}>
           <Printer className="h-4 w-4" /> {L.testPrint}
         </Button>
@@ -609,6 +631,16 @@ export function ScanStationPage() {
           </Button>
         </Link>
       </div>
+
+      {printHelp && (
+        <Card className="mb-4 border-brand/20 bg-brand-50/40">
+          <CardBody className="space-y-2 text-sm">
+            <p className="font-semibold text-foreground">{L.printHelpTitle}</p>
+            <p className="leading-relaxed text-muted-fg">{L.printHelpBrowser}</p>
+            <p className="leading-relaxed text-muted-fg">{L.printHelpSilent}</p>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Scan field — large, always focused */}
       <Card className="border-brand/30">
