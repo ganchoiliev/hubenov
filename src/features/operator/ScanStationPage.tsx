@@ -1,11 +1,14 @@
 /**
  * Scan workstation (§8). A USB/Bluetooth scanner types the code + Enter, so the
  * flow is identical when typing by hand (testable without hardware). Always
- * auto-focused so the next scan lands here.
+ * auto-focused so the next scan lands here — plus a global key-capture so the
+ * scanner works even if focus drifted, and an optional camera scanner for setups
+ * with no hardware scanner.
  *
  * Modes decide what each scan DOES — so an operator can blast through a whole
  * batch hands-free:
  *   • label   — print the 4×6 label + receive into the hub (at_uk_hub)
+ *   • inbound — external parcel: print our label + receive, or create it
  *   • receive — receive into the hub only (no print)
  *   • lookup  — just show the parcel; act via the buttons
  * Every result also exposes manual tools (print label, customs, advance, open).
@@ -31,6 +34,11 @@ import {
   Tag,
   Info,
   RotateCcw,
+  Camera,
+  X,
+  AlertTriangle,
+  Settings as SettingsIcon,
+  CheckCheck,
 } from 'lucide-react';
 import { Card, CardBody, Input, Badge, Button } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
@@ -54,6 +62,7 @@ interface ScanResult {
   ms: number;
   printed: boolean;
   queued: boolean;
+  already: boolean;
 }
 
 const PARCEL_DESC: Record<ParcelType, string> = {
@@ -105,11 +114,55 @@ export function ScanStationPage() {
   const [count, setCount] = useState(0);
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem(MODE_KEY) as Mode) || 'label');
   const [sound, setSound] = useState(() => localStorage.getItem(SOUND_KEY) !== 'off');
+  const [printerReady, setPrinterReady] = useState<boolean | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [flash, setFlash] = useState<{ type: 'ok' | 'err'; id: number } | null>(null);
+  const flashId = useRef(0);
+
+  const printMethod = settings?.print_method ?? 'browser';
 
   // Persistent auto-focus so the next scan always lands here.
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [last, processing, mode]);
+    if (!cameraOpen) inputRef.current?.focus();
+  }, [last, processing, mode, cameraOpen]);
+
+  // Probe the configured printer so the operator knows auto-print will work.
+  useEffect(() => {
+    let alive = true;
+    setPrinterReady(null);
+    getPrinter(printMethod)
+      .isAvailable()
+      .then((ok) => alive && setPrinterReady(ok))
+      .catch(() => alive && setPrinterReady(false));
+    return () => {
+      alive = false;
+    };
+  }, [printMethod]);
+
+  // Global key capture: a hardware scanner works even if focus drifted (e.g. the
+  // operator clicked a button). Printable keys refocus the field and are kept.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (cameraOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement;
+      const typing =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement ||
+        (el instanceof HTMLElement && el.isContentEditable);
+      if (typing) return;
+      if (e.key.length === 1 && /[A-Za-z0-9-]/.test(e.key)) {
+        setCode((c) => c + e.key.toUpperCase());
+        inputRef.current?.focus();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cameraOpen]);
+
+  const triggerFlash = (ok: boolean) => setFlash({ type: ok ? 'ok' : 'err', id: ++flashId.current });
 
   const L =
     locale === 'bg'
@@ -132,12 +185,28 @@ export function ScanStationPage() {
           recent: 'Последни сканирания',
           tips: 'Как се работи',
           tip1: 'Свържи USB/Bluetooth скенер — работи като клавиатура, нищо за настройка.',
-          tip2: 'Или въведи номера ръчно и натисни Enter.',
+          tip2: 'Или въведи номера ръчно и натисни Enter, или сканирай с камера.',
           tip3: 'Печат: задай принтер по подразбиране в браузъра; размерът на етикета е в Настройки.',
-          tip4: 'Режими: «Етикет» печата и приема; «Приемане» само приема; «Търсене» само показва.',
+          tip4: 'Режими: «Етикет» печата и приема; «Входящи» за чужди пратки; «Приемане» само приема; «Търсене» само показва.',
           idleTitle: 'Готов за сканиране',
           idleHint: 'Сканирай баркод или въведи ОТ/HB номер',
           example: 'напр.',
+          printer: 'Принтер',
+          printBrowser: 'Браузър (PDF)',
+          printQz: 'QZ Tray',
+          ready: 'готов',
+          notReady: 'не е свързан',
+          checking: 'проверка…',
+          testPrint: 'Тест печат',
+          testOk: 'Тестовият етикет е изпратен',
+          camera: 'Камера',
+          cameraTitle: 'Сканиране с камера',
+          cameraHint: 'Насочи баркода или QR кода към камерата',
+          cameraUnsupported: 'Браузърът не поддържа сканиране с камера. Ползвай Chrome или USB скенер.',
+          cameraLast: 'Последно',
+          close: 'Затвори',
+          already: 'Вече е в склада',
+          alreadyHint: 'Етикетът е преотпечатан; статусът не е променян.',
         }
       : {
           modes: { label: 'Label', receive: 'Receive', lookup: 'Lookup', inbound: 'Inbound' },
@@ -158,12 +227,28 @@ export function ScanStationPage() {
           recent: 'Recent scans',
           tips: 'How it works',
           tip1: 'Plug in a USB/Bluetooth scanner — it acts as a keyboard, nothing to set up.',
-          tip2: 'Or type the number by hand and press Enter.',
+          tip2: 'Or type the number by hand and press Enter, or scan with the camera.',
           tip3: 'Printing: set a default printer in the browser; label size is in Settings.',
-          tip4: 'Modes: "Label" prints + receives; "Receive" only receives; "Lookup" only shows.',
+          tip4: 'Modes: "Label" prints + receives; "Inbound" for external parcels; "Receive" only receives; "Lookup" only shows.',
           idleTitle: 'Ready to scan',
           idleHint: 'Scan a barcode or type an OT/HB number',
           example: 'e.g.',
+          printer: 'Printer',
+          printBrowser: 'Browser (PDF)',
+          printQz: 'QZ Tray',
+          ready: 'ready',
+          notReady: 'not connected',
+          checking: 'checking…',
+          testPrint: 'Test print',
+          testOk: 'Test label sent',
+          camera: 'Camera',
+          cameraTitle: 'Scan with camera',
+          cameraHint: 'Point the barcode or QR code at the camera',
+          cameraUnsupported: 'This browser cannot scan with the camera. Use Chrome or a USB scanner.',
+          cameraLast: 'Last',
+          close: 'Close',
+          already: 'Already at hub',
+          alreadyHint: 'Label reprinted; status was not changed.',
         };
 
   const setModePersist = (m: Mode) => {
@@ -191,20 +276,39 @@ export function ScanStationPage() {
       declared_value: shipment.declared_value,
       currency: shipment.currency,
     });
-    return getPrinter(settings?.print_method).print({ pdf, title: shipment.public_code });
+    return getPrinter(printMethod).print({ pdf, title: shipment.public_code });
+  };
+
+  const doTestPrint = async () => {
+    setTesting(true);
+    try {
+      const pdf = await buildLabelPdf({
+        public_code: locale === 'bg' ? 'ТЕСТ' : 'TEST',
+        awb_barcode: 'HBTEST00000',
+        client_code: 'HB-TEST',
+        direction: 'UK_BG',
+        weight_kg: 1,
+        sender: { name: 'Доставки Хубенов', phone: '', line1: '542 Liverpool Road', city: 'Manchester', postcode: 'M30 7JA', country: 'GB' },
+        receiver: { name: locale === 'bg' ? 'Тест печат' : 'Test print', phone: '', line1: '—', city: 'София', postcode: '1000', country: 'BG' },
+        is_gift: false,
+        declared_value: 0,
+        currency: 'GBP',
+      });
+      const r = await getPrinter(printMethod).print({ pdf, title: 'TEST' });
+      if (r.queued) toast.info(t('operator.queued_offline'));
+      else if (r.ok) toast.success(L.testOk);
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setTesting(false);
+      inputRef.current?.focus();
+    }
   };
 
   // ── Scan engine ────────────────────────────────────────────────────────────
-  // A hardware scanner fires `code + Enter` faster than a print + network round
-  // trip. We never disable the input; codes go into a queue and are processed
-  // strictly one at a time, so nothing is dropped or re-ordered. Identical codes
-  // within a short window are ignored (double-trigger scanners).
   const DEDUP_MS = 2500;
 
-  // Inbound: a parcel arriving from an external website/courier. Scan its QR or
-  // barcode → if it matches a Hubenov shipment (our QR) or a pre-registered
-  // tracking № we print our label + receive it; otherwise open intake prefilled
-  // (with any structured data found) to create it and auto-print.
   const handleInbound = async (value: string) => {
     const parsed = parseScanPayload(value);
     const started = performance.now();
@@ -231,16 +335,19 @@ export function ScanStationPage() {
         ms: Math.round(performance.now() - started),
         printed: !!printRes && printRes.ok && !printRes.queued,
         queued: !!printRes?.queued,
+        already: !needStatus,
       };
       setLast(result);
       setHistory((h) => [result, ...h].slice(0, 8));
       setCount((c) => c + 1);
       if (sound) beep(true);
+      triggerFlash(true);
       toast[result.queued ? 'info' : 'success'](result.queued ? t('operator.queued_offline') : t('operator.printed'));
       return;
     }
     // Unknown → create it in intake, prefilled + auto-print on save.
     if (sound) beep(true);
+    triggerFlash(true);
     const params = new URLSearchParams({ inbound: parsed.raw, autoprint: '1' });
     if (parsed.recipient?.name) params.set('rname', parsed.recipient.name);
     if (parsed.recipient?.phone) params.set('rphone', parsed.recipient.phone);
@@ -262,6 +369,7 @@ export function ScanStationPage() {
       if (!shipment) {
         setNotFound(value);
         if (sound) beep(false);
+        triggerFlash(false);
         toast.error(`${t('track.not_found')} (${value})`);
         return;
       }
@@ -269,11 +377,9 @@ export function ScanStationPage() {
       let printed = false;
       let queued = false;
       let finalStatus = shipment.status;
+      const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
 
       if (mode === 'label' || mode === 'receive') {
-        const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
-        // Print and the status write run concurrently so a slow printer never
-        // blocks receiving the parcel into the hub.
         const printTask: Promise<{ ok: boolean; queued?: boolean } | null> =
           mode === 'label' ? labelFor(shipment).catch(() => null) : Promise.resolve(null);
         const statusTask: Promise<boolean> = needStatus
@@ -301,15 +407,18 @@ export function ScanStationPage() {
         ms: Math.round(performance.now() - started),
         printed,
         queued,
+        already: (mode === 'label' || mode === 'receive') && !needStatus,
       };
       setLast(result);
       setHistory((h) => [result, ...h].slice(0, 8));
       setCount((c) => c + 1);
       if (sound) beep(true);
+      triggerFlash(true);
       if (mode === 'label') toast[queued ? 'info' : 'success'](queued ? t('operator.queued_offline') : t('operator.printed'));
       else if (mode === 'receive') toast.success(L.received);
     } catch {
       if (sound) beep(false);
+      triggerFlash(false);
       toast.error(t('common.error'));
     }
   };
@@ -328,7 +437,7 @@ export function ScanStationPage() {
     } finally {
       processingRef.current = false;
       setProcessing(false);
-      inputRef.current?.focus();
+      if (!cameraOpen) inputRef.current?.focus();
     }
   };
 
@@ -410,14 +519,28 @@ export function ScanStationPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      {/* Glance-from-distance flash: green on success, red on failure. */}
+      <AnimatePresence>
+        {flash && (
+          <motion.div
+            key={flash.id}
+            initial={{ opacity: 0.22 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.55, ease: 'easeOut' }}
+            onAnimationComplete={() => setFlash(null)}
+            className={cn('pointer-events-none fixed inset-0 z-[55]', flash.type === 'ok' ? 'bg-success' : 'bg-danger')}
+          />
+        )}
+      </AnimatePresence>
+
       <PageHeading title={t('operator.scan_title')} subtitle={L.modeHint[mode]} />
 
       {/* Mode selector + session controls */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-border bg-card p-1">
           {modeBtn('label', <Tag className="h-4 w-4" />)}
-          {modeBtn('receive', <PackageCheck className="h-4 w-4" />)}
           {modeBtn('inbound', <QrCode className="h-4 w-4" />)}
+          {modeBtn('receive', <PackageCheck className="h-4 w-4" />)}
           {modeBtn('lookup', <Eye className="h-4 w-4" />)}
         </div>
         <div className="flex items-center gap-2">
@@ -447,6 +570,44 @@ export function ScanStationPage() {
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-fg" />}
           </Button>
         </div>
+      </div>
+
+      {/* Printer readiness + camera + test print */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium',
+            printerReady === false
+              ? 'border-warning/40 bg-warning/10 text-warning'
+              : 'border-border bg-card text-muted-fg',
+          )}
+          title={L.tip3}
+        >
+          <Printer className="h-3.5 w-3.5" />
+          {L.printer}: {printMethod === 'qz' ? L.printQz : L.printBrowser}
+          <span className={cn('ml-0.5 inline-block h-1.5 w-1.5 rounded-full', printerReady === false ? 'bg-warning' : printerReady ? 'bg-success' : 'bg-muted-fg/40')} />
+          <span>{printerReady === null ? L.checking : printerReady ? L.ready : L.notReady}</span>
+        </span>
+        <Button size="sm" variant="outline" className="gap-1.5" loading={testing} onClick={() => void doTestPrint()}>
+          <Printer className="h-4 w-4" /> {L.testPrint}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={() => {
+            const ok = typeof window !== 'undefined' && 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
+            if (ok) setCameraOpen(true);
+            else toast.info(L.cameraUnsupported);
+          }}
+        >
+          <Camera className="h-4 w-4" /> {L.camera}
+        </Button>
+        <Link to="/op/settings" className="ml-auto">
+          <Button size="sm" variant="ghost" className="gap-1.5 text-muted-fg">
+            <SettingsIcon className="h-4 w-4" /> {t('operator.settings')}
+          </Button>
+        </Link>
       </div>
 
       {/* Scan field — large, always focused */}
@@ -523,6 +684,14 @@ export function ScanStationPage() {
                     )}
                   </div>
                   <CardBody>
+                    {last.already && (
+                      <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-foreground/80">
+                        <CheckCheck className="h-4 w-4 shrink-0 text-warning" />
+                        <span>
+                          <span className="font-semibold text-foreground">{L.already}.</span> {L.alreadyHint}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <p className="font-mono text-lg font-bold text-foreground">{last.shipment.public_code}</p>
                       <StatusBadge status={last.shipment.status} />
@@ -594,6 +763,8 @@ export function ScanStationPage() {
                   <span className="flex items-center gap-1 text-xs text-muted-fg">
                     {h.queued ? (
                       <WifiOff className="h-3.5 w-3.5 text-warning" />
+                    ) : h.already ? (
+                      <CheckCheck className="h-3.5 w-3.5 text-warning" />
                     ) : (
                       <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                     )}
@@ -619,6 +790,19 @@ export function ScanStationPage() {
           </Card>
         </div>
       </div>
+
+      <AnimatePresence>
+        {cameraOpen && (
+          <CameraScanner
+            onDetect={(value) => {
+              if (sound) beep(true);
+              enqueue(value);
+            }}
+            onClose={() => setCameraOpen(false)}
+            labels={{ title: L.cameraTitle, hint: L.cameraHint, unsupported: L.cameraUnsupported, close: L.close, last: L.cameraLast }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -630,5 +814,136 @@ function Party({ label, name, city }: { label: string; name: string; city: strin
       <p className="mt-0.5 font-semibold text-foreground">{name}</p>
       <p className="text-sm text-muted-fg">{city}</p>
     </div>
+  );
+}
+
+/* ── Camera scanner ──────────────────────────────────────────────────────────
+ * Uses the browser BarcodeDetector + getUserMedia. No external library. Detects
+ * continuously and feeds each new code to the same scan pipeline (dedup upstream).
+ */
+interface DetectedBarcode {
+  rawValue: string;
+}
+interface BarcodeDetectorLike {
+  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>;
+}
+type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => BarcodeDetectorLike;
+
+function CameraScanner({
+  onDetect,
+  onClose,
+  labels,
+}: {
+  onDetect: (value: string) => void;
+  onClose: () => void;
+  labels: { title: string; hint: string; unsupported: string; close: string; last: string };
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastHit, setLastHit] = useState<string | null>(null);
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let raf = 0;
+    let cancelled = false;
+    let lastVal = '';
+    let lastTs = 0;
+
+    const Ctor = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
+    if (!Ctor || !navigator.mediaDevices?.getUserMedia) {
+      setError(labels.unsupported);
+      return;
+    }
+    const detector = new Ctor({
+      formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'itf', 'codabar', 'upc_a', 'upc_e', 'data_matrix'],
+    });
+
+    const tick = async () => {
+      const v = videoRef.current;
+      if (!cancelled && v && v.readyState >= 2) {
+        try {
+          const codes = await detector.detect(v);
+          const hit = codes[0]?.rawValue?.trim();
+          if (hit) {
+            const now = Date.now();
+            if (hit !== lastVal || now - lastTs > 2500) {
+              lastVal = hit;
+              lastTs = now;
+              setLastHit(hit);
+              onDetect(hit);
+            }
+          }
+        } catch {
+          /* transient decode error */
+        }
+      }
+      if (!cancelled) raf = requestAnimationFrame(tick);
+    };
+
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (cancelled) {
+          stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        raf = requestAnimationFrame(tick);
+      } catch {
+        setError(labels.unsupported);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((tr) => tr.stop());
+    };
+  }, [onDetect, labels.unsupported]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/85 p-4"
+    >
+      <div className="mb-3 flex w-full max-w-md items-center justify-between text-white">
+        <span className="flex items-center gap-2 font-semibold">
+          <Camera className="h-5 w-5" /> {labels.title}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20"
+        >
+          <X className="h-4 w-4" /> {labels.close}
+        </button>
+      </div>
+
+      {error ? (
+        <div className="flex max-w-md items-start gap-2 rounded-xl bg-white/10 p-4 text-sm text-white">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+          <span>{error}</span>
+        </div>
+      ) : (
+        <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black">
+          <video ref={videoRef} playsInline muted className="aspect-[3/4] w-full object-cover" />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-40 w-64 rounded-xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-center text-sm text-white/70">{labels.hint}</p>
+      {lastHit && (
+        <p className="mt-1 font-mono text-xs text-success">
+          {labels.last}: {lastHit}
+        </p>
+      )}
+    </motion.div>
   );
 }
