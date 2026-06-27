@@ -34,9 +34,12 @@ export interface ParcelOrigin {
   retailer: string | null;
 }
 
-export function getParcelOrigin(s: Pick<Shipment, 'inbound_ref' | 'sender'>): ParcelOrigin {
+export function getParcelOrigin(s: Pick<Shipment, 'kind' | 'inbound_ref' | 'sender'>): ParcelOrigin {
   const ref = s.inbound_ref?.trim() || null;
-  if (!ref) return { isOnline: false, ref: null, retailer: null };
+  // `kind` is the source of truth; fall back to a tracking number for any row
+  // created before migration 0022 (defensive against deploy/backfill ordering).
+  const isOnline = s.kind === 'forward' || !!ref;
+  if (!isOnline) return { isOnline: false, ref: null, retailer: null };
 
   let retailer: string | null = null;
   const shop = (s.sender.line1 || '').trim();
@@ -48,7 +51,7 @@ export function getParcelOrigin(s: Pick<Shipment, 'inbound_ref' | 'sender'>): Pa
       shop; // unknown shop → show whatever the operator/client typed
   }
   // Fall back to the carrier signature in the tracking number (Amazon = TBA…).
-  if (!retailer && /^TBA/i.test(ref)) retailer = 'Amazon';
+  if (!retailer && ref && /^TBA/i.test(ref)) retailer = 'Amazon';
 
   return { isOnline: true, ref, retailer };
 }

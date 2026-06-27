@@ -290,6 +290,7 @@ export function useCreateShipment() {
           client_id,
           created_by,
           direction: rest.direction,
+          kind: 'send',
           parcel_type: rest.parcel_type,
           sender: rest.sender,
           receiver: rest.receiver,
@@ -359,6 +360,7 @@ export function useRegisterIncoming() {
           declared_value: input.declared_value,
           currency: input.currency,
           status: 'booked',
+          kind: 'forward',
           inbound_ref: input.inbound_ref,
           notes: input.notes,
         } as never)

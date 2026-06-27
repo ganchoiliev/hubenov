@@ -14,7 +14,7 @@ export function OnlineBadge({
   showRef = false,
   className,
 }: {
-  shipment: Pick<Shipment, 'inbound_ref' | 'sender'>;
+  shipment: Pick<Shipment, 'kind' | 'inbound_ref' | 'sender'>;
   showRef?: boolean;
   className?: string;
 }) {

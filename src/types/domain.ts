@@ -33,6 +33,8 @@ export type AnyStatus = ShipmentStatus | SideStatus;
 
 export type PaymentStatus = 'unpaid' | 'paid' | 'partial';
 export type ParcelType = 'parcel' | 'document' | 'pallet' | 'food' | 'other';
+/** Service model: an ordinary send vs a forwarded online order (UK shop → hub → BG). */
+export type ShipmentKind = 'send' | 'forward';
 export type AddressKind = 'sender' | 'receiver';
 export type TrackingLeg = 'own' | 'econt';
 export type TrackingSource = 'scan' | 'manual' | 'econt_poll';
@@ -88,6 +90,7 @@ export interface Shipment {
   sender: PartySnapshot;
   receiver: PartySnapshot;
   direction: Direction;
+  kind: ShipmentKind;
   parcel_type: ParcelType;
   weight_kg: number;
   length_cm: number;

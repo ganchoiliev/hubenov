@@ -403,6 +403,7 @@ export function IntakePage() {
           client_id: client.id,
           created_by: operatorId,
           status: 'collected_uk',
+          kind: inboundRef ? 'forward' : 'send',
           inbound_ref: inboundRef,
         } as never)
         .select('*')

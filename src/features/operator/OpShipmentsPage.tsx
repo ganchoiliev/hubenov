@@ -7,6 +7,7 @@ import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui'
 import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { OnlineBadge } from '@/components/shared/OnlineBadge';
+import { getParcelOrigin } from '@/lib/parcelOrigin';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -229,7 +230,7 @@ export function OpShipmentsPage() {
     const q = query.trim().toLowerCase();
     return shipments.filter((s) => {
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-      if (onlineOnly && !s.inbound_ref) return false;
+      if (onlineOnly && !getParcelOrigin(s).isOnline) return false;
       if (!q) return true;
       return (
         s.public_code.toLowerCase().includes(q) ||
@@ -326,6 +327,7 @@ export function OpShipmentsPage() {
     const csv = buildCsv(filtered, [
       { label: 'Code', get: (s) => s.public_code },
       { label: 'Direction', get: (s) => s.direction },
+      { label: 'Kind', get: (s) => s.kind },
       { label: 'Status', get: (s) => s.status },
       { label: 'Receiver', get: (s) => s.receiver.name },
       { label: 'City', get: (s) => s.receiver.city },
