@@ -6,7 +6,7 @@
  * highlight across each workflow's steps) rather than recorded GIFs — they stay on
  * brand and never go stale when the UI changes.
  */
-import { useEffect, useState, Fragment, type ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
 import {
@@ -37,38 +37,37 @@ import { PageHeading } from '@/components/shared/common';
 
 type DemoStep = { icon: LucideIcon; label: string };
 
-/** Looping highlight that walks across a workflow's steps — a vector "demo". */
+/**
+ * A calm process strip. Steps reveal once with a gentle stagger when the card
+ * mounts, then sit still — purposeful motion, not a looping "traffic light".
+ * Hovering a step lifts it, so the only ongoing motion is user-driven.
+ */
 function FlowDemo({ steps }: { steps: DemoStep[] }) {
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    if (steps.length < 2) return;
-    const id = setInterval(() => setActive((a) => (a + 1) % steps.length), 1600);
-    return () => clearInterval(id);
-  }, [steps.length]);
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/40 p-3">
+    <motion.div
+      className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/40 p-3"
+      initial="hidden"
+      animate="show"
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+    >
       {steps.map((s, i) => {
         const Icon = s.icon;
-        const on = i === active;
         return (
           <Fragment key={i}>
             {i > 0 && <ArrowRight className="h-4 w-4 shrink-0 text-muted-fg/40" />}
             <motion.div
-              animate={{ scale: on ? 1.05 : 1, opacity: on ? 1 : 0.5 }}
-              transition={{ duration: 0.3 }}
-              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
-                on
-                  ? 'border-brand bg-brand-50 text-brand-700 shadow-sm'
-                  : 'border-border bg-card text-muted-fg'
-              }`}
+              variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              whileHover={{ y: -2 }}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-brand hover:text-brand"
             >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <Icon className="h-3.5 w-3.5 shrink-0 text-brand" />
               {s.label}
             </motion.div>
           </Fragment>
         );
       })}
-    </div>
+    </motion.div>
   );
 }
 
