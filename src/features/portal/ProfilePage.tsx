@@ -145,6 +145,7 @@ export function ProfilePage() {
   const [elPass, setElPass] = useState('');
   const [elPass2, setElPass2] = useState('');
   const [elBusy, setElBusy] = useState(false);
+  const [elMsg, setElMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Sync the profile form once the profile is available.
   useEffect(() => {
@@ -212,10 +213,20 @@ export function ProfilePage() {
   // Attach an email + password to the SAME auth account (no new account, so no
   // duplicate). Supabase emails a confirmation when the address is new.
   const onSetupEmailLogin = async () => {
+    setElMsg(null);
     const em = elEmail.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast.error(L.el_need_email);
-    if (elPass.length < 8) return toast.error(L.el_short);
-    if (elPass !== elPass2) return toast.error(L.el_mismatch);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+      setElMsg({ ok: false, text: L.el_need_email });
+      return;
+    }
+    if (elPass.length < 8) {
+      setElMsg({ ok: false, text: L.el_short });
+      return;
+    }
+    if (elPass !== elPass2) {
+      setElMsg({ ok: false, text: L.el_mismatch });
+      return;
+    }
     setElBusy(true);
     try {
       const { error } = await supabase.auth.updateUser({ email: em, password: elPass });
@@ -226,9 +237,14 @@ export function ProfilePage() {
       }
       setElPass('');
       setElPass2('');
+      setElMsg({ ok: true, text: L.el_saved });
       toast.success(L.el_saved);
-    } catch {
-      toast.error(t('common.error'));
+    } catch (e) {
+      // Surface the real provider message (e.g. "New password should be
+      // different from the old password") instead of a generic toast.
+      const msg = e instanceof Error && e.message ? e.message : t('common.error');
+      setElMsg({ ok: false, text: msg });
+      toast.error(msg);
     } finally {
       setElBusy(false);
     }
@@ -362,7 +378,14 @@ export function ProfilePage() {
                   onChange={(e) => setElPass2(e.target.value)}
                 />
               </Field>
-              <div className="sm:col-span-2 flex justify-end">
+              <div className="sm:col-span-2 flex items-center justify-between gap-3">
+                {elMsg ? (
+                  <p className={cn('text-sm font-medium', elMsg.ok ? 'text-emerald-600' : 'text-red-600')}>
+                    {elMsg.text}
+                  </p>
+                ) : (
+                  <span />
+                )}
                 <Button onClick={onSetupEmailLogin} loading={elBusy} variant="outline">
                   {L.el_save}
                 </Button>
