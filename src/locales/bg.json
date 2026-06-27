@@ -25,7 +25,10 @@
     "required": "Задължително поле",
     "error": "Възникна грешка. Опитайте отново.",
     "kg": "кг",
-    "cm": "см"
+    "cm": "см",
+    "menu": "Меню",
+    "switch_language": "Смени езика",
+    "toggle_theme": "Смени темата"
   },
   "nav": {
     "home": "Начало",
@@ -247,7 +250,8 @@
     "settings": "Настройки",
     "pricing_editor": "Тарифи",
     "manual_status": "Ръчна промяна на статус",
-    "create_load": "Нов курс"
+    "create_load": "Нов курс",
+    "view_client": "Виж клиента"
   },
   "status": {
     "draft": "Чернова",

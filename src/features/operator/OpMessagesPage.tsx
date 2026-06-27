@@ -36,6 +36,8 @@ export function OpMessagesPage() {
           send: 'Изпрати',
           you: 'Вие',
           client: 'Клиент',
+          unread: 'Непрочетено',
+          back: 'Назад',
           err: 'Възникна грешка. Опитайте отново.',
           loadErr: 'Неуспешно зареждане на разговорите',
         }
@@ -51,6 +53,8 @@ export function OpMessagesPage() {
           send: 'Send',
           you: 'You',
           client: 'Client',
+          unread: 'Unread',
+          back: 'Back',
           err: 'Something went wrong. Please try again.',
           loadErr: 'Could not load conversations',
         };
@@ -123,7 +127,7 @@ export function OpMessagesPage() {
                         {c.client_name || c.client_code || '—'}
                       </span>
                       {c.unread ? (
-                        <span className="h-2 w-2 shrink-0 rounded-full bg-brand" aria-label="unread" />
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-brand" role="status" aria-label={L.unread} />
                       ) : c.last_at ? (
                         <span className="shrink-0 text-[11px] text-muted-fg">
                           {formatDate(c.last_at, dateLocale, { day: '2-digit', month: 'short' })}
@@ -154,7 +158,7 @@ export function OpMessagesPage() {
                 <button
                   className="rounded-lg p-1.5 text-muted-fg hover:bg-muted hover:text-foreground lg:hidden"
                   onClick={() => setSelected(null)}
-                  aria-label="Back"
+                  aria-label={L.back}
                 >
                   <ArrowLeft className="h-4.5 w-4.5" />
                 </button>

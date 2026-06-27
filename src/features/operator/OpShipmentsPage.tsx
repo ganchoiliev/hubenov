@@ -137,7 +137,7 @@ function StatusChanger({
       </Button>
       {alternatives.length > 0 && (
         <Select
-          aria-label="other status"
+          aria-label={otherLabel}
           value=""
           onChange={(e) => {
             const v = e.target.value as AnyStatus;

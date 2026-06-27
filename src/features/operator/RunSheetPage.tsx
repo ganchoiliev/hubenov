@@ -142,8 +142,8 @@ function RunRow({
               variant="outline"
               disabled={update.isPending}
               onClick={() => void apply('exception')}
-              className="h-12 shrink-0 gap-1.5 px-3 text-amber-600 hover:bg-amber-50"
-              aria-label="exception"
+              className="h-12 shrink-0 gap-1.5 px-3 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
+              aria-label={statusLabel('exception', lang)}
             >
               <AlertTriangle className="h-5 w-5" />
             </Button>

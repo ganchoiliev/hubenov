@@ -124,17 +124,17 @@ export function HomePage() {
             </h1>
             <p className="mt-5 max-w-xl text-lg text-white/85">{t('home.hero_subtitle')}</p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/quote">
-                <Button size="lg" className="gap-2">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link to="/quote" className="block sm:w-auto">
+                <Button size="lg" className="w-full gap-2 sm:w-auto">
                   {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/track">
+              <Link to="/track" className="block sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="gap-2 border-white/60 bg-white/15 text-white shadow-lg backdrop-blur-md hover:bg-white/25"
+                  className="w-full gap-2 border-white/60 bg-white/15 text-white shadow-lg backdrop-blur-md hover:bg-white/25 sm:w-auto"
                 >
                   <Search className="h-4 w-4" /> {t('home.cta_track')}
                 </Button>
@@ -174,7 +174,7 @@ export function HomePage() {
         <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {VALUES.map((v) => (
             <StaggerItem key={v.titleKey}>
-              <div className="h-full rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-lift">
+              <div className="h-full rounded-2xl border border-border bg-card p-6 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                   <v.icon className="h-5.5 w-5.5" />
                 </div>
@@ -227,14 +227,14 @@ export function HomePage() {
                   ? 'Използвай нашия адрес в Манчестър като адрес за доставка. Получаваме колета вместо теб и го изпращаме до вратата ти в България — с нашия бус всеки петък.'
                   : 'Use our Manchester address as your delivery address. We receive the parcel for you and forward it to your door in Bulgaria — on our own van every Friday.'}
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/quote">
-                  <Button size="lg" className="gap-2">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link to="/quote" className="block sm:w-auto">
+                  <Button size="lg" className="w-full gap-2 sm:w-auto">
                     {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Link to="/contact">
-                  <Button size="lg" variant="outline" className="gap-2">
+                <Link to="/contact" className="block sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full gap-2 sm:w-auto">
                     {lang === 'bg' ? 'Попитай как' : 'Ask how it works'}
                   </Button>
                 </Link>
@@ -356,7 +356,7 @@ export function HomePage() {
       <Section>
         <motion.div
           {...reveal}
-          className="flex flex-col items-center gap-5 rounded-3xl border border-brand/20 bg-brand-50 p-10 text-center shadow-soft dark:bg-brand-50/20 md:p-14"
+          className="flex flex-col items-center gap-5 rounded-3xl border border-brand/20 bg-brand-50 p-10 text-center shadow-soft dark:border-brand/40 dark:bg-brand-50/20 md:p-14"
         >
           <h2 className="font-display text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
             {lang === 'bg' ? 'Готови ли сте да изпратите?' : 'Ready to send a parcel?'}
@@ -366,14 +366,14 @@ export function HomePage() {
               ? 'Изчислете цена за секунди или проследете пратка с номер.'
               : 'Get a price in seconds, or track a parcel by number.'}
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/quote">
-              <Button size="lg" className="gap-2">
+          <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
+            <Link to="/quote" className="block sm:w-auto">
+              <Button size="lg" className="w-full gap-2 sm:w-auto">
                 {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link to="/track">
-              <Button size="lg" variant="outline" className="gap-2">
+            <Link to="/track" className="block sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full gap-2 sm:w-auto">
                 <Search className="h-4 w-4" /> {t('home.cta_track')}
               </Button>
             </Link>

@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
-import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted, useUpdateParcel } from '@/lib/queries';
+import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted, useUpdateParcel, useClientCode } from '@/lib/queries';
 import { HubenovQr } from '@/components/shared/HubenovQr';
 import { supabase } from '@/lib/supabase';
 import { calculateQuote } from '@/lib/pricing';
@@ -31,6 +31,9 @@ export function ShipmentDetailPage() {
   const qc = useQueryClient();
   const { data: shipment, isLoading } = useShipment(id);
   const { data: events } = useTrackingEvents(id);
+  // Operator-only: resolve the owning client's OT code so we can deep-link to
+  // their record from the sender/receiver card.
+  const { data: clientCode } = useClientCode(inOperator ? shipment?.client_id : undefined);
 
   // Live status: subscribe to new tracking events for this shipment (§2 Realtime).
   useEffect(() => {
@@ -103,6 +106,17 @@ export function ShipmentDetailPage() {
               <PartyView label={t('wizard.step_sender')} p={shipment.sender} />
               <div className="border-t border-border" />
               <PartyView label={t('wizard.step_receiver')} p={shipment.receiver} />
+              {inOperator && (
+                <Link
+                  to={clientCode ? `/op/lookup?code=${encodeURIComponent(clientCode)}` : '/op/clients'}
+                  className="-mb-1 flex items-center justify-between gap-2 rounded-xl border-t border-border pt-3 text-sm font-semibold text-brand transition-colors hover:text-brand-600"
+                >
+                  <span className="flex items-center gap-2">
+                    <UserRound className="h-4 w-4" /> {t('operator.view_client')}
+                  </span>
+                  <ArrowLeft className="h-4 w-4 rotate-180" />
+                </Link>
+              )}
             </CardBody>
           </Card>
 
@@ -481,6 +495,9 @@ function CustomsPanel({ shipment }: { shipment: Shipment }) {
           sub: 'Документ за митница. Данните идват от пратката — редактирай при нужда.',
           desc: 'Описание на стоката',
           hs: 'HS код',
+          qty: 'Количество',
+          unit: 'Единична стойност',
+          remove: 'Премахни реда',
           add: 'Добави ред',
           gift: 'Подарък / лична пратка',
           total: 'Общо',
@@ -492,6 +509,9 @@ function CustomsPanel({ shipment }: { shipment: Shipment }) {
           sub: 'Customs document. Pre-filled from the shipment — edit as needed.',
           desc: 'Goods description',
           hs: 'HS code',
+          qty: 'Quantity',
+          unit: 'Unit value',
+          remove: 'Remove line',
           add: 'Add line',
           gift: 'Gift / personal',
           total: 'Total',
@@ -543,9 +563,9 @@ function CustomsPanel({ shipment }: { shipment: Shipment }) {
             <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_64px_104px_auto]">
               <Input placeholder={L.desc} value={it.description} onChange={(e) => setItem(i, { description: e.target.value })} />
               <Input placeholder={L.hs} value={it.hs_code ?? ''} onChange={(e) => setItem(i, { hs_code: e.target.value })} className="font-mono" />
-              <Input type="number" min="1" step="1" value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) || 1 })} aria-label="qty" />
-              <Input type="number" min="0" step="0.01" value={it.unit_value} onChange={(e) => setItem(i, { unit_value: Number(e.target.value) || 0 })} aria-label="unit value" />
-              <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(i)} aria-label="remove" className="px-2">
+              <Input type="number" min="1" step="1" value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) || 1 })} aria-label={L.qty} />
+              <Input type="number" min="0" step="0.01" value={it.unit_value} onChange={(e) => setItem(i, { unit_value: Number(e.target.value) || 0 })} aria-label={L.unit} />
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(i)} aria-label={L.remove} className="px-2">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -579,7 +599,7 @@ function CustomsPanel({ shipment }: { shipment: Shipment }) {
         {assessment.warnings.length > 0 && (
           <div className="space-y-1">
             {assessment.warnings.map((w) => (
-              <p key={w} className="flex items-center gap-2 text-xs text-amber-600">
+              <p key={w} className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {lang === 'bg' ? WARN_BG[w] ?? w : w}
               </p>
             ))}

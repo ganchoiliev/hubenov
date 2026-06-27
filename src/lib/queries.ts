@@ -101,6 +101,17 @@ export async function getClientCode(clientId: string): Promise<string | null> {
   return (data as { client_code: string } | null)?.client_code ?? null;
 }
 
+/** Operator: resolve a client's OT code from their id, e.g. to deep-link from a
+ *  shipment to the owning client's record (/op/lookup?code=…). */
+export function useClientCode(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['client-code', clientId],
+    enabled: !!clientId,
+    staleTime: 5 * 60_000,
+    queryFn: () => getClientCode(clientId!),
+  });
+}
+
 /* ── Operator: OT lookup (§7) ────────────────────────────────────────────── */
 export function useOtLookup(code: string | null) {
   return useQuery({

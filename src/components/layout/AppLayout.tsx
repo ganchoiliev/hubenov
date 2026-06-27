@@ -128,7 +128,7 @@ export function AppLayout({ items, scope }: { items: NavItem[]; scope: 'portal' 
           <button
             className="rounded-lg p-2 text-foreground transition-colors hover:bg-muted lg:hidden"
             onClick={() => setMobileOpen((o) => !o)}
-            aria-label="Menu"
+            aria-label={mobileOpen ? t('common.close') : t('common.menu')}
             aria-expanded={mobileOpen}
             aria-controls="app-sidebar"
           >

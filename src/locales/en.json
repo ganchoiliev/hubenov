@@ -25,7 +25,10 @@
     "required": "This field is required",
     "error": "Something went wrong. Please try again.",
     "kg": "kg",
-    "cm": "cm"
+    "cm": "cm",
+    "menu": "Menu",
+    "switch_language": "Switch language",
+    "toggle_theme": "Toggle theme"
   },
   "nav": {
     "home": "Home",
@@ -247,7 +250,8 @@
     "settings": "Settings",
     "pricing_editor": "Pricing rates",
     "manual_status": "Manual status change",
-    "create_load": "New load"
+    "create_load": "New load",
+    "view_client": "View client"
   },
   "status": {
     "draft": "Draft",

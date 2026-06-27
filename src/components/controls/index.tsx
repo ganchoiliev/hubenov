@@ -5,14 +5,14 @@ import { useTheme } from '@/components/theme/ThemeProvider';
 import { cn } from '@/lib/utils';
 
 export function LanguageSwitch({ className }: { className?: string }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const current = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const toggle = () => void i18n.changeLanguage(current === 'bg' ? 'en' : 'bg');
 
   return (
     <button
       onClick={toggle}
-      aria-label="Switch language"
+      aria-label={t('common.switch_language')}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold',
         'text-muted-fg hover:bg-muted hover:text-foreground transition-colors',
@@ -28,11 +28,12 @@ export function LanguageSwitch({ className }: { className?: string }) {
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
+  const { t } = useTranslation();
   const { theme, toggle } = useTheme();
   return (
     <button
       onClick={toggle}
-      aria-label="Toggle theme"
+      aria-label={t('common.toggle_theme')}
       className={cn(
         'inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-fg',
         'hover:bg-muted hover:text-foreground transition-colors',

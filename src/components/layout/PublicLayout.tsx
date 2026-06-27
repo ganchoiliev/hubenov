@@ -88,9 +88,10 @@ export function PublicLayout() {
               </Button>
             </Link>
             <button
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground lg:hidden"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted lg:hidden"
               onClick={() => setOpen((o) => !o)}
-              aria-label="Menu"
+              aria-label={open ? t('common.close') : t('common.menu')}
+              aria-expanded={open}
             >
               {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>

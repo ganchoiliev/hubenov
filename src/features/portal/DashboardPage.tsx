@@ -25,7 +25,7 @@ export function DashboardPage() {
   const copyCode = () => {
     if (profile?.client_code) {
       void navigator.clipboard.writeText(profile.client_code);
-      toast.success(profile.client_code);
+      toast.success(`${lang === 'bg' ? 'Копирано' : 'Copied'}: ${profile.client_code}`);
     }
   };
 
