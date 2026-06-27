@@ -211,9 +211,7 @@ export function OperatorHomePage() {
       )}
 
       {/* Money */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label={L.cod} value={money(dash?.cod.collecting)} hint={`${dash?.cod.collectingCount ?? 0} ${L.codHint}`} />
-        <Stat label={L.codRemit} value={money(dash?.cod.awaiting)} hint={`${dash?.cod.awaitingCount ?? 0} · ${L.codRemitHint}`} />
+      <div className="grid gap-4 sm:grid-cols-2">
         <Stat label={L.due} value={money(dash?.invoices.due)} hint={L.dueHint} />
         <Stat label={L.paid} value={money(dash?.invoices.paid)} hint={L.paidHint} />
       </div>
@@ -379,15 +377,11 @@ export function OperatorHomePage() {
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-fg">
               <AlertTriangle className="h-4 w-4 text-amber-500" /> {L.attnTitle}
             </p>
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <Link to="/op/invoices" className="rounded-lg border border-border px-3 py-2 transition-colors hover:bg-muted">
+            <div className="mb-3">
+              <Link to="/op/invoices" className="block rounded-lg border border-border px-3 py-2 transition-colors hover:bg-muted">
                 <p className="font-display text-xl font-extrabold tabular-nums text-foreground">{dash?.invoices.dueCount ?? 0}</p>
                 <p className="text-xs text-muted-fg">{L.unpaidInv}</p>
               </Link>
-              <div className="rounded-lg border border-border px-3 py-2">
-                <p className="font-display text-xl font-extrabold tabular-nums text-foreground">{dash?.cod.awaitingCount ?? 0}</p>
-                <p className="text-xs text-muted-fg">{L.codRemit}</p>
-              </div>
             </div>
             {stuck && stuck.length > 0 ? (
               <div className="space-y-1.5">
