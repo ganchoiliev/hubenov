@@ -435,6 +435,13 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
             'Двойно щракване. При първо стартиране: „More info" → „Run anyway".',
             'Влез веднъж и сканирай — етикетите се печатат автоматично.',
           ],
+          macSteps: 'Стъпки (Mac):',
+          ms: [
+            'Задай принтера по подразбиране (Системни настройки → Принтери).',
+            'Натисни „Mac версия" и запази файла.',
+            'Отвори Терминал и въведи: chmod +x ~/Downloads/Доставки-Хубенов-Печат.command',
+            'Премести файла на работния плот и двойно щракни (десен бутон → Open при първо стартиране).',
+          ],
           qzTitle: 'Алтернатива: QZ Tray (тих печат)',
           qzNote: 'Без kiosk Chrome — инсталирай QZ Tray и избери „QZ" като метод за печат във „Фирмени настройки".',
           qzLink: 'Изтегли QZ Tray',
@@ -451,6 +458,13 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
             'Put the file on the Desktop.',
             'Double-click it. First run: "More info" → "Run anyway".',
             'Log in once and scan — labels print automatically.',
+          ],
+          macSteps: 'Steps (Mac):',
+          ms: [
+            'Set the label printer as default (System Settings → Printers).',
+            'Click "Mac version" and save the file.',
+            'Open Terminal and run: chmod +x ~/Downloads/Доставки-Хубенов-Печат.command',
+            'Move it to the Desktop and double-click (right-click → Open on first run).',
           ],
           qzTitle: 'Alternative: QZ Tray (silent)',
           qzNote: 'No kiosk Chrome — install QZ Tray and set Print method = QZ in Company settings above.',
@@ -482,6 +496,16 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
           <p className="mb-1.5 text-sm font-semibold text-foreground">{T.steps}</p>
           <ol className="space-y-1.5 text-sm text-muted-fg">
             {T.s.map((step, i) => (
+              <li key={i}>
+                {i + 1}. {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <p className="mb-1.5 text-sm font-semibold text-foreground">{T.macSteps}</p>
+          <ol className="space-y-1.5 text-sm text-muted-fg">
+            {T.ms.map((step, i) => (
               <li key={i}>
                 {i + 1}. {step}
               </li>
