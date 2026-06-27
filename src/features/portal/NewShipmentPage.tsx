@@ -250,6 +250,17 @@ export function NewShipmentPage() {
                         <Input type="number" min="1" {...register('height_cm', { valueAsNumber: true })} />
                       </div>
                     </div>
+                    <div className="sm:col-span-2">
+                      <Field
+                        label={lang === 'bg' ? 'Съдържание (за митница)' : 'Contents (for customs)'}
+                        error={formState.errors.contents?.message}
+                      >
+                        <Input
+                          {...register('contents')}
+                          placeholder={lang === 'bg' ? 'напр. дрехи, очила, картичка' : 'e.g. clothes, glasses, card'}
+                        />
+                      </Field>
+                    </div>
                     {quote && (
                       <div className="rounded-xl border border-brand/20 bg-brand-50 p-4 sm:col-span-2 dark:bg-brand-50/20">
                         <div className="flex items-end justify-between gap-3">

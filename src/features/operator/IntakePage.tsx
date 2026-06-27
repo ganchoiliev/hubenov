@@ -83,6 +83,12 @@ export function IntakePage() {
           length_cm: 'Дължина (см)',
           width_cm: 'Ширина (см)',
           height_cm: 'Височина (см)',
+          dims_optional: 'Размерите са по желание — попълни само за обемни/леки пратки.',
+          pieces: 'Брой кашони',
+          pieces_hint: 'Печата по 1 етикет на кашон (1/4, 2/4…).',
+          contents: 'Съдържание (за митница)',
+          contents_hint: 'Какво има вътре — изисква се от митницата, печата се на етикета.',
+          contents_ph: 'напр. дрехи, очила, картичка',
           price: 'Цена за доставка',
           price_hint: 'Сумата, която таксувате клиента — създава фактура автоматично.',
           invoice_created: 'Фактура е създадена:',
@@ -130,6 +136,12 @@ export function IntakePage() {
           length_cm: 'Length (cm)',
           width_cm: 'Width (cm)',
           height_cm: 'Height (cm)',
+          dims_optional: 'Dimensions are optional — fill only for bulky/light parcels.',
+          pieces: 'Boxes',
+          pieces_hint: 'Prints one label per box (1/4, 2/4…).',
+          contents: 'Contents (for customs)',
+          contents_hint: 'What is inside — required by customs, printed on the label.',
+          contents_ph: 'e.g. clothes, glasses, card',
           price: 'Delivery price',
           price_hint: 'What you charge the customer — creates an invoice automatically.',
           invoice_created: 'Invoice created:',
@@ -294,6 +306,8 @@ export function IntakePage() {
       parcel_type: 'parcel',
       is_gift: false,
       currency: 'GBP',
+      pieces: 1,
+      contents: '',
       sender: { name: '', phone: '', line1: '', city: '', postcode: '', country: 'GB' },
       receiver: {
         name: '',
@@ -383,6 +397,8 @@ export function IntakePage() {
           declared_value: data.declared_value,
           price: data.price ?? null,
           currency: data.currency,
+          pieces: data.pieces,
+          contents: data.contents?.trim() || null,
           notes: data.notes ?? null,
           client_id: client.id,
           created_by: operatorId,
@@ -427,6 +443,11 @@ export function IntakePage() {
             is_gift: created.is_gift,
             declared_value: created.declared_value,
             currency: created.currency,
+            pieces: created.pieces,
+            contents: created.contents,
+            length_cm: created.length_cm,
+            width_cm: created.width_cm,
+            height_cm: created.height_cm,
           });
           await getPrinter(settings?.print_method).print({ pdf, title: created.public_code });
         } catch {
@@ -752,6 +773,7 @@ export function IntakePage() {
                 <Input id="height_cm" type="number" step="0.1" min="0" {...register('height_cm', num)} />
               </Field>
             </div>
+            <p className="-mt-1 text-xs text-muted-fg">{L.dims_optional}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={L.price} hint={L.price_hint} error={errors.price?.message} htmlFor="price">
                 <Input id="price" type="number" step="0.01" min="0" {...register('price', num)} />
@@ -779,6 +801,16 @@ export function IntakePage() {
                   ))}
                 </Select>
               </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label={L.pieces} hint={L.pieces_hint} error={errors.pieces?.message} htmlFor="pieces">
+                <Input id="pieces" type="number" step="1" min="1" {...register('pieces', num)} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label={L.contents} hint={L.contents_hint} error={errors.contents?.message} htmlFor="contents">
+                  <Input id="contents" {...register('contents')} placeholder={L.contents_ph} />
+                </Field>
+              </div>
             </div>
           </CardBody>
         </Card>

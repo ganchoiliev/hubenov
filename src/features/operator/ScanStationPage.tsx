@@ -286,6 +286,11 @@ export function ScanStationPage() {
       is_gift: shipment.is_gift,
       declared_value: shipment.declared_value,
       currency: shipment.currency,
+      pieces: shipment.pieces,
+      contents: shipment.contents,
+      length_cm: shipment.length_cm,
+      width_cm: shipment.width_cm,
+      height_cm: shipment.height_cm,
     });
     return getPrinter(printMethod).print({ pdf, title: shipment.public_code });
   };
@@ -484,7 +489,7 @@ export function ScanStationPage() {
     const s = last.shipment;
     try {
       const { downloadCustomsPdf } = await import('@/lib/customsDoc');
-      const items = [{ description: PARCEL_DESC[s.parcel_type], qty: 1, unit_value: s.declared_value }];
+      const items = [{ description: s.contents?.trim() || PARCEL_DESC[s.parcel_type], qty: 1, unit_value: s.declared_value }];
       const a = assessCustoms(items, s.is_gift, s.currency as Currency, settings?.eori ?? null);
       await downloadCustomsPdf({
         ref: s.public_code,

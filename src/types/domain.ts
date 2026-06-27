@@ -100,6 +100,8 @@ export interface Shipment {
   price: number | null;
   payment_status: PaymentStatus;
   load_id: string | null;
+  pieces: number;
+  contents: string | null;
   notes: string | null;
   created_by: string;
   created_at: string;

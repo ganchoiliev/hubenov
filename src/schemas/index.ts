@@ -35,15 +35,21 @@ export const partySchema = z.object({
   econt_office_code: z.string().optional().nullable(),
 });
 
+const emptyToZero = (v: unknown) =>
+  v === '' || v === null || (typeof v === 'number' && Number.isNaN(v)) ? 0 : v;
+/** Dimensions are optional at intake — operators only measure light/bulky parcels
+ *  charged by volume. Empty → 0, so pricing then uses the actual weight. */
+const optionalDim = z.preprocess(emptyToZero, z.number().nonnegative().max(300));
+
 export const shipmentInputSchema = z.object({
   direction: directionSchema,
   parcel_type: parcelTypeSchema.default('parcel'),
   sender: partySchema,
   receiver: partySchema,
   weight_kg: z.number().positive().max(1000),
-  length_cm: z.number().positive().max(300),
-  width_cm: z.number().positive().max(300),
-  height_cm: z.number().positive().max(300),
+  length_cm: optionalDim,
+  width_cm: optionalDim,
+  height_cm: optionalDim,
   declared_value: z.number().nonnegative(),
   // What we charge the customer (delivery fee) — flows to the invoice. Distinct
   // from declared_value (goods value for customs). Optional at intake.
@@ -53,6 +59,15 @@ export const shipmentInputSchema = z.object({
   ),
   currency: currencySchema.default('GBP'),
   is_gift: z.boolean().default(false),
+  // Number of boxes — renders that many label pages "i/N".
+  pieces: z
+    .preprocess(
+      (v) => (v === '' || v === null || (typeof v === 'number' && Number.isNaN(v)) ? 1 : v),
+      z.number().int().min(1).max(99),
+    )
+    .default(1),
+  // What's inside — customs requirement, also printed on the label.
+  contents: z.string().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export type ShipmentInput = z.infer<typeof shipmentInputSchema>;

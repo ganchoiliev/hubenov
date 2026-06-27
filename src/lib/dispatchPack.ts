@@ -41,6 +41,11 @@ export async function buildLabelsPack(
         is_gift: s.is_gift,
         declared_value: s.declared_value,
         currency: s.currency,
+        pieces: s.pieces,
+        contents: s.contents,
+        length_cm: s.length_cm,
+        width_cm: s.width_cm,
+        height_cm: s.height_cm,
       }),
     );
   }
@@ -64,7 +69,7 @@ export async function buildCustomsPack(
   const parts: Uint8Array[] = [];
   for (const s of shipments) {
     const items = [
-      { description: PARCEL_DESC[s.parcel_type] ?? 'Goods', qty: 1, unit_value: s.declared_value },
+      { description: s.contents?.trim() || PARCEL_DESC[s.parcel_type] || 'Goods', qty: 1, unit_value: s.declared_value },
     ];
     const a = assessCustoms(items, s.is_gift, s.currency as Currency, company.eori ?? null);
     parts.push(

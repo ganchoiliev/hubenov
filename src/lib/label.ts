@@ -1,8 +1,10 @@
 /**
  * Own-AWB 4×6" label core (§5 label-render, §8). Code128 barcode + OT code +
- * sender/receiver + route + customs summary, as a printer-agnostic PDF (not
- * ZPL — §8). Runs in the browser so scan→print works in Wave 1 without the
- * Edge Function; the `label-render` function mirrors this spec server-side.
+ * sender/receiver + contents + route, as a printer-agnostic PDF (not ZPL — §8).
+ *
+ * Multi-piece: a shipment with `pieces > 1` renders ONE page per box, each
+ * stamped "КАШОН i / N", so a single print job produces every box's label and
+ * the team can see at a glance that no box is missing.
  */
 import { PDFDocument, rgb } from 'pdf-lib';
 // Use the explicit browser subpath — bwip-js's root export map has no default
@@ -22,12 +24,28 @@ export interface LabelData {
   is_gift: boolean;
   declared_value: number;
   currency: string;
+  /** Total boxes in this shipment (default 1). Renders one page per box. */
+  pieces?: number;
+  /** Customs/contents description, e.g. "очила, дрехи, картичка". */
+  contents?: string | null;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
 }
 
 // 4×6 inch at 72pt/in.
 const W = 288;
 const H = 432;
 const M = 14;
+
+const INK = rgb(0.06, 0.13, 0.09);
+const GREEN = rgb(0.09, 0.42, 0.27);
+const MUTED = rgb(0.4, 0.45, 0.42);
+const HAIR = rgb(0.7, 0.74, 0.71);
+
+type Page = ReturnType<PDFDocument['addPage']>;
+type Font = Awaited<ReturnType<PDFDocument['embedFont']>>;
+type Img = Awaited<ReturnType<PDFDocument['embedPng']>>;
 
 /** Render a Code128 barcode to PNG bytes via an offscreen canvas. */
 export async function renderBarcodePng(text: string): Promise<Uint8Array> {
@@ -50,97 +68,143 @@ export async function renderBarcodePng(text: string): Promise<Uint8Array> {
 
 export async function buildLabelPdf(data: LabelData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([W, H]);
   const { font, bold } = await embedUnicodeFonts(doc);
 
-  const ink = rgb(0.06, 0.13, 0.09);
-  const line = (y: number) =>
-    page.drawLine({
-      start: { x: M, y },
-      end: { x: W - M, y },
-      thickness: 0.8,
-      color: rgb(0.7, 0.74, 0.71),
-    });
-
-  // Header — brand + route
-  page.drawText('HUBENOV DELIVERIES', { x: M, y: H - 26, size: 13, font: bold, color: ink });
-  page.drawText(routeText(data.direction), { x: M, y: H - 42, size: 9, font, color: ink });
-  page.drawText(`OT: ${data.client_code}`, { x: W - M - 90, y: H - 26, size: 10, font: bold, color: ink });
-  line(H - 50);
-
-  // Barcode
+  // The AWB barcode is the same for every box — render it once.
+  let barcode: Img | null = null;
   try {
-    const png = await renderBarcodePng(data.awb_barcode);
-    const img = await doc.embedPng(png);
-    const bw = W - 2 * M;
-    const bh = 56;
-    page.drawImage(img, { x: M, y: H - 50 - bh - 8, width: bw, height: bh });
+    barcode = await doc.embedPng(await renderBarcodePng(data.awb_barcode));
   } catch {
-    // Fallback: no barcode image (e.g. no DOM) — still print the code.
+    barcode = null;
   }
-  page.drawText(data.awb_barcode, { x: M, y: H - 124, size: 11, font: bold, color: ink });
-  page.drawText(data.public_code, { x: W - M - 100, y: H - 124, size: 10, font, color: ink });
-  line(H - 134);
 
-  // Sender / receiver
-  let y = H - 150;
-  y = block(page, font, bold, ink, 'SENDER / ИЗПРАЩАЧ', data.sender, M, y);
-  y -= 6;
-  line(y);
-  y -= 14;
-  y = block(page, font, bold, ink, 'RECEIVER / ПОЛУЧАТЕЛ', data.receiver, M, y);
-
-  // Footer — weight, gift/goods, value
-  line(70);
-  page.drawText(`Weight: ${data.weight_kg.toFixed(1)} kg`, { x: M, y: 52, size: 10, font: bold, color: ink });
-  page.drawText(data.is_gift ? 'GIFT / ПОДАРЪК' : 'GOODS / СТОКА', {
-    x: M,
-    y: 38,
-    size: 10,
-    font,
-    color: ink,
-  });
-  page.drawText(`Value: ${data.declared_value.toFixed(2)} ${data.currency}`, {
-    x: W - M - 130,
-    y: 38,
-    size: 9,
-    font,
-    color: ink,
-  });
-
+  const total = Math.max(1, Math.floor(data.pieces ?? 1));
+  for (let i = 1; i <= total; i++) {
+    drawLabel(doc.addPage([W, H]), font, bold, data, barcode, i, total);
+  }
   return doc.save();
 }
 
-function block(
-  page: ReturnType<PDFDocument['addPage']>,
-  font: Awaited<ReturnType<PDFDocument['embedFont']>>,
-  bold: Awaited<ReturnType<PDFDocument['embedFont']>>,
-  ink: ReturnType<typeof rgb>,
-  title: string,
-  p: PartySnapshot,
-  x: number,
-  startY: number,
-): number {
-  let y = startY;
-  page.drawText(title, { x, y, size: 8, font: bold, color: rgb(0.4, 0.45, 0.42) });
+function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode: Img | null, idx: number, total: number): void {
+  const line = (y: number) =>
+    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.8, color: HAIR });
+
+  // ── Header: brand + route + OT code, with a bold piece badge top-right ──────
+  page.drawText('ДОСТАВКИ ХУБЕНОВ', { x: M, y: H - 24, size: 12, font: bold, color: INK });
+  page.drawText(routeText(data.direction), { x: M, y: H - 38, size: 8, font, color: MUTED });
+  page.drawText(`ОТ: ${data.client_code}`, { x: M, y: H - 52, size: 9.5, font: bold, color: INK });
+
+  // Piece badge — big, filled, always shown (e.g. "1/1", "2/4").
+  const bw = 60;
+  const bh = 30;
+  const bx = W - M - bw;
+  const by = H - 12 - bh;
+  page.drawRectangle({ x: bx, y: by, width: bw, height: bh, color: GREEN });
+  const pieceLabel = `${idx}/${total}`;
+  const pieceSize = 16;
+  const pieceW = bold.widthOfTextAtSize(pieceLabel, pieceSize);
+  page.drawText(pieceLabel, { x: bx + (bw - pieceW) / 2, y: by + 9, size: pieceSize, font: bold, color: rgb(1, 1, 1) });
+  page.drawText('КАШОН', { x: bx + (bw - bold.widthOfTextAtSize('КАШОН', 6)) / 2, y: by + bh - 9, size: 6, font: bold, color: rgb(1, 1, 1) });
+
+  line(H - 60);
+
+  // ── Barcode (AWB) ───────────────────────────────────────────────────────────
+  const barH = 56;
+  if (barcode) {
+    page.drawImage(barcode, { x: M, y: H - 60 - barH - 6, width: W - 2 * M, height: barH });
+  }
+  page.drawText(data.awb_barcode, { x: M, y: H - 60 - barH - 20, size: 11, font: bold, color: INK });
+  page.drawText(data.public_code, {
+    x: W - M - bold.widthOfTextAtSize(data.public_code, 10),
+    y: H - 60 - barH - 20,
+    size: 10,
+    font,
+    color: INK,
+  });
+  let y = H - 60 - barH - 30;
+  line(y);
+  y -= 16;
+
+  // ── Sender / receiver ───────────────────────────────────────────────────────
+  y = block(page, font, bold, 'ИЗПРАЩАЧ / SENDER', data.sender, y);
+  y -= 4;
+  line(y);
   y -= 14;
-  page.drawText(p.name, { x, y, size: 11, font: bold, color: ink });
+  y = block(page, font, bold, 'ПОЛУЧАТЕЛ / RECEIVER', data.receiver, y);
+
+  // ── Contents (customs) ──────────────────────────────────────────────────────
+  const contents = data.contents?.trim();
+  if (contents) {
+    y -= 2;
+    line(y);
+    y -= 13;
+    page.drawText('СЪДЪРЖАНИЕ / CONTENTS', { x: M, y, size: 8, font: bold, color: MUTED });
+    y -= 12;
+    for (const ln of wrapText(contents, 56, 2)) {
+      page.drawText(ln, { x: M, y, size: 9, font, color: INK });
+      y -= 11;
+    }
+  }
+
+  // ── Footer: weight (+ dims) and gift / value ────────────────────────────────
+  line(64);
+  const dims =
+    data.length_cm && data.width_cm && data.height_cm
+      ? `  ·  ${trimNum(data.length_cm)}×${trimNum(data.width_cm)}×${trimNum(data.height_cm)} см`
+      : '';
+  page.drawText(`Тегло: ${data.weight_kg.toFixed(1)} кг${dims}`, { x: M, y: 48, size: 10, font: bold, color: INK });
+  page.drawText(data.is_gift ? 'ПОДАРЪК / GIFT' : 'СТОКА / GOODS', { x: M, y: 32, size: 9, font, color: INK });
+  const val = `Стойност: ${data.declared_value.toFixed(2)} ${data.currency}`;
+  page.drawText(val, { x: W - M - font.widthOfTextAtSize(val, 9), y: 32, size: 9, font, color: INK });
+}
+
+function block(page: Page, font: Font, bold: Font, title: string, p: PartySnapshot, startY: number): number {
+  let y = startY;
+  page.drawText(title, { x: M, y, size: 8, font: bold, color: MUTED });
+  y -= 14;
+  page.drawText(p.name.slice(0, 40), { x: M, y, size: 11, font: bold, color: INK });
   y -= 13;
-  page.drawText(p.phone, { x, y, size: 9, font, color: ink });
+  page.drawText(p.phone, { x: M, y, size: 9, font, color: INK });
   y -= 13;
   const addr = [p.line1, p.line2].filter(Boolean).join(', ');
-  page.drawText(addr.slice(0, 48), { x, y, size: 9, font, color: ink });
+  page.drawText(addr.slice(0, 50), { x: M, y, size: 9, font, color: INK });
   y -= 12;
   const cityLine = p.econt_office_code
-    ? `${p.city} — Econt office ${p.econt_office_code}`
+    ? `${p.city} — Еконт офис ${p.econt_office_code}`
     : `${p.postcode} ${p.city}, ${p.country}`;
-  page.drawText(cityLine.slice(0, 48), { x, y, size: 9, font, color: ink });
+  page.drawText(cityLine.slice(0, 50), { x: M, y, size: 9, font, color: INK });
   y -= 14;
   return y;
 }
 
+function wrapText(s: string, max: number, maxLines: number): string[] {
+  const words = s.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length > max) {
+      if (cur) lines.push(cur);
+      cur = w;
+      if (lines.length >= maxLines) break;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  const out = lines.slice(0, maxLines);
+  if (out.length === maxLines && s.length > out.join(' ').length) {
+    out[maxLines - 1] = `${out[maxLines - 1]!.slice(0, max - 1)}…`;
+  }
+  return out;
+}
+
+function trimNum(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 function routeText(d: Direction): string {
-  return d === 'UK_BG' ? 'United Kingdom  ->  Bulgaria' : 'Bulgaria  ->  United Kingdom';
+  return d === 'UK_BG' ? 'Великобритания  →  България' : 'България  →  Великобритания';
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {

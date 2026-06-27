@@ -272,9 +272,13 @@ export function useCreateShipment() {
           declared_value: rest.declared_value,
           currency: rest.currency,
           is_gift: rest.is_gift,
+          pieces: rest.pieces,
+          contents: rest.contents?.trim() || null,
           notes: rest.notes ?? null,
           status: 'booked',
-        })
+          // `as never`: generated DB types predate the pieces/contents columns
+          // (migration 0017). Regenerate later with `npm run db:types`.
+        } as never)
         .select('*')
         .single();
       if (error) throw error;
