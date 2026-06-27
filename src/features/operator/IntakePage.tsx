@@ -795,21 +795,21 @@ function PartyFields({
         <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={labels.name} error={e?.name?.message} htmlFor={wizardName('name')}>
-            <Input id={wizardName('name')} autoComplete="off" {...register(`${prefix}.name`)} />
+            <Input id={wizardName('name')} autoComplete="hb-no-name" {...register(`${prefix}.name`)} />
           </Field>
           <Field label={labels.phone} error={e?.phone?.message} htmlFor={wizardName('phone')}>
-            <Input id={wizardName('phone')} autoComplete="off" {...register(`${prefix}.phone`)} />
+            <Input id={wizardName('phone')} autoComplete="hb-no-tel" {...register(`${prefix}.phone`)} />
           </Field>
         </div>
         <Field label={labels.line1} error={e?.line1?.message} htmlFor={wizardName('line1')}>
-          <Input id={wizardName('line1')} autoComplete="off" {...register(`${prefix}.line1`)} />
+          <Input id={wizardName('line1')} autoComplete="hb-no-addr" {...register(`${prefix}.line1`)} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={labels.city} error={e?.city?.message} htmlFor={wizardName('city')}>
-            <Input id={wizardName('city')} autoComplete="off" {...register(`${prefix}.city`)} />
+            <Input id={wizardName('city')} autoComplete="hb-no-city" {...register(`${prefix}.city`)} />
           </Field>
           <Field label={labels.postcode} error={e?.postcode?.message} htmlFor={wizardName('postcode')}>
-            <Input id={wizardName('postcode')} autoComplete="off" {...register(`${prefix}.postcode`)} />
+            <Input id={wizardName('postcode')} autoComplete="hb-no-zip" {...register(`${prefix}.postcode`)} />
           </Field>
         </div>
         {withOffice && (
