@@ -16,6 +16,7 @@ import {
   Boxes,
   Inbox,
   History,
+  HelpCircle,
 } from 'lucide-react';
 
 import { PublicLayout } from '@/components/layout/PublicLayout';
@@ -72,6 +73,7 @@ const OpInvoicesPage = lazyPage(() => import('@/features/operator/OpInvoicesPage
 const OpMessagesPage = lazyPage(() => import('@/features/operator/OpMessagesPage'), 'OpMessagesPage');
 const AuditLogPage = lazyPage(() => import('@/features/operator/AuditLogPage'), 'AuditLogPage');
 const SettingsPage = lazyPage(() => import('@/features/operator/SettingsPage'), 'SettingsPage');
+const HelpPage = lazyPage(() => import('@/features/operator/HelpPage'), 'HelpPage');
 
 function Suspended({ children }: { children: ReactNode }) {
   return (
@@ -109,6 +111,7 @@ export const OPERATOR_NAV: NavItem[] = [
   { to: '/op/messages', labelKey: 'operator.messages', icon: MessageSquare, badge: 'messages' },
   { to: '/op/audit', labelKey: 'operator.audit', icon: History },
   { to: '/op/settings', labelKey: 'operator.settings', icon: Settings },
+  { to: '/op/help', labelKey: 'operator.help', icon: HelpCircle },
 ];
 
 export const router = createBrowserRouter([
@@ -169,6 +172,7 @@ export const router = createBrowserRouter([
       { path: 'messages', element: <OpMessagesPage /> },
       { path: 'audit', element: <AuditLogPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'help', element: <HelpPage /> },
     ],
   },
 ]);
