@@ -376,12 +376,16 @@ export function ScanStationPage() {
         await handleInbound(value);
         return;
       }
-      const shipment = await resolveShipmentByCode(value);
+      // Extract the real code from whatever was scanned: our QR encodes a tracking
+      // URL (…/track?code=HB-0031), a 1D barcode is the bare AWB. Run every mode
+      // through the same parser so the camera/QR resolves like a hand-typed code.
+      const lookupCode = parseScanPayload(value).code ?? value;
+      const shipment = await resolveShipmentByCode(lookupCode);
       if (!shipment) {
-        setNotFound(value);
+        setNotFound(lookupCode);
         if (sound) beep(false);
         triggerFlash(false);
-        toast.error(`${t('track.not_found')} (${value})`);
+        toast.error(`${t('track.not_found')} (${lookupCode})`);
         return;
       }
 
