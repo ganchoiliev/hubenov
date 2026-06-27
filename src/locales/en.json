@@ -125,6 +125,9 @@
     "no_events": "No events for this parcel yet.",
     "inbound_no": "Inbound number (Amazon/courier)"
   },
+  "origin": {
+    "online": "Online parcel"
+  },
   "auth": {
     "login_title": "Sign in",
     "login_subtitle": "Sign in with your phone number — we'll text you a code.",

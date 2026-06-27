@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag } from 'lucide-react';
 import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +41,7 @@ const COPY = {
     delErr: 'Неуспешно изтриване',
     selected: 'избрани',
     exportCsv: 'Експорт CSV',
+    onlineFilter: 'Онлайн пратки',
     selectAll: 'Избери всички',
     addToLoad: 'Добави в курс…',
     setStatus: 'Промени статус…',
@@ -72,6 +74,7 @@ const COPY = {
     delErr: 'Could not delete',
     selected: 'selected',
     exportCsv: 'Export CSV',
+    onlineFilter: 'Online parcels',
     selectAll: 'Select all',
     addToLoad: 'Add to load…',
     setStatus: 'Set status…',
@@ -172,6 +175,7 @@ export function OpShipmentsPage() {
   const del = useDeleteShipment();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AnyStatus | 'all'>('all');
+  const [onlineOnly, setOnlineOnly] = useState(false);
 
   const onDelete = async (s: Shipment) => {
     const ok = await confirm({
@@ -225,14 +229,16 @@ export function OpShipmentsPage() {
     const q = query.trim().toLowerCase();
     return shipments.filter((s) => {
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+      if (onlineOnly && !s.inbound_ref) return false;
       if (!q) return true;
       return (
         s.public_code.toLowerCase().includes(q) ||
         s.awb_barcode.toLowerCase().includes(q) ||
+        (s.inbound_ref ?? '').toLowerCase().includes(q) ||
         s.receiver.name.toLowerCase().includes(q)
       );
     });
-  }, [data, query, statusFilter]);
+  }, [data, query, statusFilter, onlineOnly]);
 
   const allSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
   const toggleAll = () =>
@@ -361,6 +367,15 @@ export function OpShipmentsPage() {
             className="w-full pl-9"
           />
         </div>
+        <Button
+          variant={onlineOnly ? 'primary' : 'outline'}
+          onClick={() => setOnlineOnly((v) => !v)}
+          aria-pressed={onlineOnly}
+          title={L.onlineFilter}
+          className="gap-2 sm:shrink-0"
+        >
+          <ShoppingBag className="h-4 w-4" /> {L.onlineFilter}
+        </Button>
         <Button variant="outline" onClick={onExport} disabled={filtered.length === 0} className="gap-2 sm:shrink-0">
           <Download className="h-4 w-4" /> {L.exportCsv}
         </Button>
@@ -420,8 +435,11 @@ export function OpShipmentsPage() {
                           {s.receiver.name}
                           <span className="text-muted-fg"> · {s.receiver.city}</span>
                         </p>
-                        <p className="text-xs text-muted-fg">
-                          {s.weight_kg} {t('common.kg')}
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-fg">
+                          <span>
+                            {s.weight_kg} {t('common.kg')}
+                          </span>
+                          <OnlineBadge shipment={s} />
                         </p>
                       </div>
 

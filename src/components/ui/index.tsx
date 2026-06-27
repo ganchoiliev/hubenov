@@ -172,7 +172,7 @@ export function Field({
 }
 
 /* ── Badge ──────────────────────────────────────────────────────────────── */
-type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info';
+type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'accent';
 const TONE: Record<Tone, string> = {
   neutral: 'bg-muted text-muted-fg',
   brand: 'bg-brand-50 text-brand-700',
@@ -180,6 +180,7 @@ const TONE: Record<Tone, string> = {
   warning: 'bg-warning/20 text-amber-700 dark:text-amber-300',
   danger: 'bg-danger/15 text-danger',
   info: 'bg-info/15 text-info',
+  accent: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
 };
 export function Badge({
   tone = 'neutral',

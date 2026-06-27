@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PackagePlus, ArrowRight, Weight } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Skeleton } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useAuth } from '@/lib/auth';
@@ -106,9 +107,10 @@ export function MyShipmentsPage() {
                 <Card className="transition-shadow hover:shadow-lift">
                   <CardBody className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-mono text-sm font-semibold text-foreground">{s.public_code}</p>
                         <Badge tone="neutral">{s.direction === 'UK_BG' ? 'UK→BG' : 'BG→UK'}</Badge>
+                        <OnlineBadge shipment={s} />
                       </div>
                       <p className="mt-0.5 truncate text-xs text-muted-fg">
                         {s.receiver.name} · {s.receiver.city}

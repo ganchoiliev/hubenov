@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound, Printer } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
@@ -127,6 +128,7 @@ export function ShipmentDetailPage() {
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl font-extrabold text-foreground">{shipment.public_code}</h1>
           <Badge tone="neutral">{shipment.direction === 'UK_BG' ? 'UK → BG' : 'BG → UK'}</Badge>
+          <OnlineBadge shipment={shipment} showRef />
         </div>
         <div className="flex items-center gap-2">
           {inOperator && (
