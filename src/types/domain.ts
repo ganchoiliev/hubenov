@@ -84,6 +84,7 @@ export interface Shipment {
   client_id: string;
   public_code: string;
   awb_barcode: string;
+  inbound_ref: string | null;
   sender: PartySnapshot;
   receiver: PartySnapshot;
   direction: Direction;

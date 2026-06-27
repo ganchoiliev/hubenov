@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
@@ -108,6 +108,9 @@ export function ShipmentDetailPage() {
 
           <Card>
             <CardBody className="space-y-2.5 text-sm">
+              {shipment.inbound_ref && (
+                <Row icon={<Hash className="h-4 w-4" />} label={t('track.inbound_no')} value={shipment.inbound_ref} />
+              )}
               <Row icon={<Package className="h-4 w-4" />} label={t('common.weight')} value={`${shipment.weight_kg} ${t('common.kg')}`} />
               <Row
                 label={t('quote.declared_value')}
@@ -596,7 +599,13 @@ function PartyView({ label, p }: { label: string; p: PartySnapshot }) {
       <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-fg">
         <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
-          {[p.line1, p.line2].filter(Boolean).join(', ')}, {p.postcode} {p.city}, {p.country}
+          {[
+            [p.line1, p.line2].filter(Boolean).join(', '),
+            [p.postcode, p.city].filter(Boolean).join(' '),
+            p.country,
+          ]
+            .filter(Boolean)
+            .join(', ')}
           {p.econt_office_code ? ` · Econt ${p.econt_office_code}` : ''}
         </span>
       </p>

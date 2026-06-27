@@ -116,7 +116,8 @@
     "privacy_note": "For privacy we show status only — never names or addresses.",
     "current_status": "Current status",
     "history": "History",
-    "no_events": "No events for this parcel yet."
+    "no_events": "No events for this parcel yet.",
+    "inbound_no": "Inbound number (Amazon/courier)"
   },
   "auth": {
     "login_title": "Sign in",
