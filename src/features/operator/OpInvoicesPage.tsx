@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { Receipt, Send, Pencil, Plus, Download, Search, Trash2, Ban } from 'lucide-react';
+import { Receipt, Send, Pencil, Plus, Download, Search, Trash2, Ban, X, Link2 } from 'lucide-react';
 import {
   Button,
   Card,
@@ -13,6 +13,7 @@ import {
   Badge,
   Skeleton,
 } from '@/components/ui';
+import { Dropdown } from '@/components/ui/Dropdown';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { useToast } from '@/components/ui/toast';
@@ -22,6 +23,7 @@ import {
   useCreateInvoice,
   useCreateClient,
   useClients,
+  useClientShipments,
   useCompanySettings,
   useDeleteInvoice,
   useVoidInvoice,
@@ -32,7 +34,7 @@ import { buildCsv, downloadCsv } from '@/lib/csv';
 import { cn, formatMoney, formatDate } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
 import type { Database } from '@/types/database.types';
-import type { Invoice, InvoiceStatus, Currency, PartySnapshot } from '@/types/domain';
+import type { Invoice, InvoiceItem, InvoiceStatus, Currency, PartySnapshot } from '@/types/domain';
 
 type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
 
@@ -90,6 +92,8 @@ export function OpInvoicesPage() {
           voidBody: 'Mark this invoice as void? It keeps its number but is excluded from your totals — the accounting-safe way to cancel an issued invoice.',
           voidConfirm: 'Void',
           voided: 'Invoice voided',
+          searchPlaceholder: 'Search by number or client…',
+          noMatches: 'No invoices match your search.',
         }
       : {
           payment_recorded: 'Плащането е записано',
@@ -123,6 +127,8 @@ export function OpInvoicesPage() {
           voidBody: 'Да се анулира фактурата? Запазва номера си, но се изключва от сумите — счетоводно правилният начин да откажете издадена фактура.',
           voidConfirm: 'Анулирай',
           voided: 'Фактурата е анулирана',
+          searchPlaceholder: 'Търси по номер или клиент…',
+          noMatches: 'Няма фактури, отговарящи на търсенето.',
         };
 
   const toast = useToast();
@@ -133,6 +139,7 @@ export function OpInvoicesPage() {
   const sendEmail = useSendInvoiceEmail();
   const { data: settings } = useCompanySettings();
   const [creating, setCreating] = useState(false);
+  const [q, setQ] = useState('');
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ['op-invoices'],
@@ -146,6 +153,15 @@ export function OpInvoicesPage() {
       return (data ?? []) as unknown as InvoiceRow[];
     },
   });
+
+  // Client-side filter: match by invoice number or client name (case-insensitive).
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return invoices ?? [];
+    return (invoices ?? []).filter((inv) =>
+      [inv.number, inv.client?.full_name ?? ''].some((h) => h.toLowerCase().includes(term)),
+    );
+  }, [invoices, q]);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [eAmount, setEAmount] = useState('');
@@ -255,6 +271,7 @@ export function OpInvoicesPage() {
         status: inv.status,
         clientName: inv.client?.full_name ?? '',
         clientEmail: inv.client?.email ?? null,
+        items: inv.items,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
         shipmentCode,
         sender,
@@ -310,6 +327,13 @@ export function OpInvoicesPage() {
         </div>
       )}
 
+      {invoices && invoices.length > 0 && (
+        <div className="relative mb-4">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L.searchPlaceholder} className="pl-9" />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
@@ -318,9 +342,11 @@ export function OpInvoicesPage() {
         </div>
       ) : !invoices || invoices.length === 0 ? (
         <EmptyState title={L.no_invoices} description={L.no_invoices_desc} icon={<Receipt className="h-7 w-7" />} />
+      ) : filtered.length === 0 ? (
+        <EmptyState title={L.noMatches} icon={<Search className="h-7 w-7" />} />
       ) : (
         <Stagger className="space-y-3">
-          {invoices.map((inv) => (
+          {filtered.map((inv) => (
             <StaggerItem key={inv.id}>
               <Card>
                 <CardBody>
@@ -364,14 +390,15 @@ export function OpInvoicesPage() {
                           <Ban className="h-4 w-4" /> {L.voidLabel}
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-danger hover:bg-danger/10"
+                      <button
+                        type="button"
+                        aria-label={L.del}
+                        title={L.del}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => void delInvoice(inv)}
                       >
-                        <Trash2 className="h-4 w-4" /> {L.del}
-                      </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
 
@@ -447,8 +474,15 @@ export function OpInvoicesPage() {
   );
 }
 
+/** A single editable line-item row in the new-invoice form. */
+interface ItemRow {
+  description: string;
+  amount: string;
+}
+
 function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => void }) {
   const toast = useToast();
+  const locale = lang === 'en' ? 'en-GB' : 'bg-BG';
   const { data: clients } = useClients();
   const createClient = useCreateClient();
   const createInvoice = useCreateInvoice();
@@ -459,9 +493,13 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
   const [nName, setNName] = useState('');
   const [nPhone, setNPhone] = useState('');
   const [nEmail, setNEmail] = useState('');
-  const [amount, setAmount] = useState('');
+  const [items, setItems] = useState<ItemRow[]>([{ description: '', amount: '' }]);
   const [currency, setCurrency] = useState<Currency>('GBP');
+  const [shipmentId, setShipmentId] = useState<string>('');
   const [busy, setBusy] = useState(false);
+
+  // The selected existing client's parcels, for the optional parcel link.
+  const { data: parcels } = useClientShipments(mode === 'existing' && picked ? picked.id : undefined);
 
   const L =
     lang === 'bg'
@@ -474,15 +512,25 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
           name: 'Име',
           phone: 'Телефон',
           email: 'Имейл',
+          description: 'Описание',
           amount: 'Сума',
+          addRow: 'Добави ред',
+          removeRow: 'Премахни ред',
+          total: 'Общо',
           currency: 'Валута',
+          linkParcel: 'Свържи с пратка',
+          noParcel: 'Без пратка',
+          transport: 'Транспортна услуга',
           create: 'Създай фактура',
           cancel: 'Отказ',
           created: 'Фактурата е създадена',
-          badAmount: 'Невалидна сума',
+          badAmount: 'Добавете поне един ред с положителна сума',
           needClient: 'Изберете клиент',
           needName: 'Въведете име',
           err: 'Грешка',
+          preview: 'Преглед',
+          invoice: 'ФАКТУРА',
+          client: 'Клиент',
         }
       : {
           existing: 'Existing client',
@@ -493,15 +541,25 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
           name: 'Name',
           phone: 'Phone',
           email: 'Email',
+          description: 'Description',
           amount: 'Amount',
+          addRow: 'Add row',
+          removeRow: 'Remove row',
+          total: 'Total',
           currency: 'Currency',
+          linkParcel: 'Link to parcel',
+          noParcel: 'No parcel',
+          transport: 'Transport service',
           create: 'Create invoice',
           cancel: 'Cancel',
           created: 'Invoice created',
-          badAmount: 'Invalid amount',
+          badAmount: 'Add at least one row with a positive amount',
           needClient: 'Select a client',
           needName: 'Enter a name',
           err: 'Error',
+          preview: 'Preview',
+          invoice: 'INVOICE',
+          client: 'Client',
         };
 
   const matches = useMemo(() => {
@@ -516,9 +574,48 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
       .slice(0, 6);
   }, [clients, search]);
 
+  // Parsed line items + live total for the preview and submit.
+  const parsedItems = useMemo<InvoiceItem[]>(
+    () =>
+      items
+        .map((r) => ({ description: r.description.trim(), amount: Number(r.amount.replace(',', '.')) || 0 }))
+        .filter((r) => r.description || r.amount > 0),
+    [items],
+  );
+  const total = useMemo(
+    () => Math.round(parsedItems.reduce((s, it) => s + it.amount, 0) * 100) / 100,
+    [parsedItems],
+  );
+
+  const previewName =
+    mode === 'new' ? nName.trim() || '—' : picked?.full_name || L.client;
+
+  const setItem = (i: number, patch: Partial<ItemRow>) =>
+    setItems((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRow = () => setItems((rows) => [...rows, { description: '', amount: '' }]);
+  const removeRow = (i: number) =>
+    setItems((rows) => (rows.length <= 1 ? rows : rows.filter((_, idx) => idx !== i)));
+
+  // Picking a parcel sets the linked shipment_id and adds/fills a transport line.
+  const onPickParcel = (id: string) => {
+    setShipmentId(id);
+    if (!id) return;
+    const p = (parcels ?? []).find((x) => x.id === id);
+    if (!p) return;
+    const desc = `${L.transport} ${p.public_code}`;
+    const amt = p.price != null ? String(p.price) : '';
+    setItems((rows) => {
+      // Fill the first empty row, else append a new one.
+      const emptyIdx = rows.findIndex((r) => !r.description.trim() && !r.amount.trim());
+      if (emptyIdx >= 0) {
+        return rows.map((r, idx) => (idx === emptyIdx ? { description: desc, amount: amt } : r));
+      }
+      return [...rows, { description: desc, amount: amt }];
+    });
+  };
+
   const submit = async () => {
-    const amt = Number(amount.replace(',', '.'));
-    if (!Number.isFinite(amt) || amt <= 0) {
+    if (parsedItems.length === 0 || total <= 0) {
       toast.error(L.badAmount);
       return;
     }
@@ -546,7 +643,12 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
         }
         clientId = picked.id;
       }
-      await createInvoice.mutateAsync({ client_id: clientId, amount: amt, currency });
+      await createInvoice.mutateAsync({
+        client_id: clientId,
+        items: parsedItems,
+        currency,
+        shipment_id: mode === 'existing' && shipmentId ? shipmentId : null,
+      });
       toast.success(L.created);
       onDone();
     } catch {
@@ -559,7 +661,10 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
   const tab = (m: 'existing' | 'new', label: string) => (
     <button
       type="button"
-      onClick={() => setMode(m)}
+      onClick={() => {
+        setMode(m);
+        setShipmentId('');
+      }}
       className={cn(
         'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
         mode === m ? 'bg-brand text-brand-fg' : 'text-muted-fg hover:text-foreground',
@@ -569,97 +674,213 @@ function NewInvoicePanel({ lang, onDone }: { lang: 'bg' | 'en'; onDone: () => vo
     </button>
   );
 
+  const parcelOptions = useMemo(
+    () =>
+      (parcels ?? []).map((p) => ({
+        value: p.id,
+        label: `${p.public_code}${p.receiver_city ? ` · ${p.receiver_city}` : ''}`,
+      })),
+    [parcels],
+  );
+
   return (
     <Card>
-      <CardBody className="space-y-4">
-        <div className="inline-flex rounded-lg border border-border p-0.5">
-          {tab('existing', L.existing)}
-          {tab('new', L.neu)}
+      <CardBody className="grid gap-5 lg:grid-cols-2">
+        {/* ── Form ─────────────────────────────────────────────────────── */}
+        <div className="space-y-4">
+          <div className="inline-flex rounded-lg border border-border p-0.5">
+            {tab('existing', L.existing)}
+            {tab('new', L.neu)}
+          </div>
+
+          {mode === 'existing' ? (
+            picked ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 p-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{picked.full_name || '—'}</p>
+                    <p className="truncate text-xs text-muted-fg">
+                      {picked.client_code}
+                      {picked.phone ? ` · ${picked.phone}` : ''}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setPicked(null);
+                      setShipmentId('');
+                    }}
+                  >
+                    {L.change}
+                  </Button>
+                </div>
+
+                {/* Parcel link (optional) — fills a transport line on select. */}
+                {parcelOptions.length > 0 && (
+                  <div>
+                    <span className="mb-1 flex items-center gap-1.5 text-xs text-muted-fg">
+                      <Link2 className="h-3.5 w-3.5" /> {L.linkParcel}
+                    </span>
+                    <Dropdown
+                      value={shipmentId}
+                      onChange={onPickParcel}
+                      options={[{ value: '', label: L.noParcel }, ...parcelOptions]}
+                      placeholder={L.noParcel}
+                      ariaLabel={L.linkParcel}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={L.search} className="pl-9" />
+                </div>
+                {search.trim() && (
+                  <div className="mt-2 space-y-1">
+                    {matches.length === 0 ? (
+                      <p className="px-1 text-xs text-muted-fg">{L.noMatches}</p>
+                    ) : (
+                      matches.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setPicked(c);
+                            setSearch('');
+                          }}
+                          className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+                        >
+                          <span className="text-sm font-medium text-foreground">{c.full_name || '—'}</span>
+                          <span className="font-mono text-xs text-muted-fg">{c.client_code}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{L.name}</span>
+                <Input value={nName} onChange={(e) => setNName(e.target.value)} autoFocus />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{L.phone}</span>
+                <Input value={nPhone} onChange={(e) => setNPhone(e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted-fg">{L.email}</span>
+                <Input value={nEmail} onChange={(e) => setNEmail(e.target.value)} />
+              </label>
+            </div>
+          )}
+
+          {/* ── Line items editor ─────────────────────────────────────── */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr,8rem,2rem] gap-2 px-1 text-xs font-medium text-muted-fg">
+              <span>{L.description}</span>
+              <span>{L.amount}</span>
+              <span className="sr-only">{L.removeRow}</span>
+            </div>
+            {items.map((row, i) => (
+              <div key={i} className="grid grid-cols-[1fr,8rem,2rem] items-center gap-2">
+                <Input
+                  value={row.description}
+                  onChange={(e) => setItem(i, { description: e.target.value })}
+                  placeholder={L.description}
+                />
+                <Input
+                  inputMode="decimal"
+                  value={row.amount}
+                  onChange={(e) => setItem(i, { amount: e.target.value })}
+                  placeholder="0.00"
+                />
+                <button
+                  type="button"
+                  aria-label={L.removeRow}
+                  title={L.removeRow}
+                  disabled={items.length <= 1}
+                  onClick={() => removeRow(i)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-fg"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <Button type="button" size="sm" variant="ghost" onClick={addRow} className="gap-1.5">
+              <Plus className="h-4 w-4" /> {L.addRow}
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted-fg">{L.currency}</span>
+              <Select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+                <option value="GBP">GBP £</option>
+                <option value="EUR">EUR €</option>
+                <option value="BGN">BGN лв</option>
+              </Select>
+            </label>
+            <div className="flex items-end justify-end">
+              <div className="text-right">
+                <span className="block text-xs text-muted-fg">{L.total}</span>
+                <span className="font-display text-xl font-extrabold text-foreground">
+                  {formatMoney(total, currency, locale)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={onDone}>
+              {L.cancel}
+            </Button>
+            <Button size="sm" onClick={() => void submit()} loading={busy} className="gap-2">
+              <Plus className="h-4 w-4" /> {L.create}
+            </Button>
+          </div>
         </div>
 
-        {mode === 'existing' ? (
-          picked ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 p-3">
-              <div className="min-w-0">
-                <p className="font-semibold text-foreground">{picked.full_name || '—'}</p>
-                <p className="truncate text-xs text-muted-fg">
-                  {picked.client_code}
-                  {picked.phone ? ` · ${picked.phone}` : ''}
-                </p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>
-                {L.change}
-              </Button>
+        {/* ── Live preview ─────────────────────────────────────────────── */}
+        <div>
+          <span className="mb-2 block text-xs font-medium text-muted-fg">{L.preview}</span>
+          <div className="rounded-xl border border-border bg-muted/30 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-display text-lg font-extrabold tracking-tight text-brand">{L.invoice}</span>
+              <Badge tone="brand">{currency}</Badge>
             </div>
-          ) : (
-            <div>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={L.search} className="pl-9" />
-              </div>
-              {search.trim() && (
-                <div className="mt-2 space-y-1">
-                  {matches.length === 0 ? (
-                    <p className="px-1 text-xs text-muted-fg">{L.noMatches}</p>
-                  ) : (
-                    matches.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => {
-                          setPicked(c);
-                          setSearch('');
-                        }}
-                        className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
-                      >
-                        <span className="text-sm font-medium text-foreground">{c.full_name || '—'}</span>
-                        <span className="font-mono text-xs text-muted-fg">{c.client_code}</span>
-                      </button>
-                    ))
-                  )}
+            <p className="mt-3 text-xs uppercase tracking-wide text-muted-fg">{L.client}</p>
+            <p className="font-semibold text-foreground">{previewName}</p>
+
+            <div className="mt-4 border-t border-border pt-3">
+              {parsedItems.length === 0 ? (
+                <p className="text-sm text-muted-fg">—</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {parsedItems.map((it, i) => (
+                    <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate text-foreground">{it.description || '—'}</span>
+                      <span className="shrink-0 tabular-nums text-muted-fg">
+                        {formatMoney(it.amount, currency, locale)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          )
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted-fg">{L.name}</span>
-              <Input value={nName} onChange={(e) => setNName(e.target.value)} autoFocus />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted-fg">{L.phone}</span>
-              <Input value={nPhone} onChange={(e) => setNPhone(e.target.value)} />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted-fg">{L.email}</span>
-              <Input value={nEmail} onChange={(e) => setNEmail(e.target.value)} />
-            </label>
+
+            <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-border pt-3">
+              <span className="text-sm font-semibold text-foreground">{L.total}</span>
+              <span className="font-display text-lg font-extrabold text-foreground">
+                {formatMoney(total, currency, locale)}
+              </span>
+            </div>
           </div>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted-fg">{L.amount}</span>
-            <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted-fg">{L.currency}</span>
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
-              <option value="GBP">GBP £</option>
-              <option value="EUR">EUR €</option>
-              <option value="BGN">BGN лв</option>
-            </Select>
-          </label>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onDone}>
-            {L.cancel}
-          </Button>
-          <Button size="sm" onClick={() => void submit()} loading={busy} className="gap-2">
-            <Plus className="h-4 w-4" /> {L.create}
-          </Button>
         </div>
       </CardBody>
     </Card>

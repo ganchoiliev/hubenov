@@ -134,6 +134,12 @@ export interface Load {
   created_at: string;
 }
 
+/** One line of an invoice breakdown (description + amount in the invoice currency). */
+export interface InvoiceItem {
+  description: string;
+  amount: number;
+}
+
 export interface Invoice {
   id: string;
   client_id: string;
@@ -142,6 +148,8 @@ export interface Invoice {
   amount: number;
   currency: Currency;
   status: InvoiceStatus;
+  /** Optional line-item breakdown. Null on legacy invoices — `amount` is authoritative. */
+  items: InvoiceItem[] | null;
   pdf_url: string | null;
   created_at: string;
 }

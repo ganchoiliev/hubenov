@@ -83,6 +83,7 @@ export function InvoicesPage() {
         status: inv.status,
         clientName: profile?.full_name ?? '',
         clientEmail: profile?.email ?? null,
+        items: inv.items,
         company: {},
         shipmentCode,
         sender,

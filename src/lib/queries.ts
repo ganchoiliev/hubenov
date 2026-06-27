@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type {
   Invoice,
+  InvoiceItem,
   Load,
   Profile,
   Shipment,
@@ -48,6 +49,33 @@ export function useMyShipments(clientId: string | undefined) {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as Shipment[];
+    },
+  });
+}
+
+/** Operator: a client's parcels, slimmed for the invoice parcel-link picker
+ *  (code + receiver city + price). Enabled only when a client is selected. */
+export interface ClientParcelOption {
+  id: string;
+  public_code: string;
+  receiver_city: string | null;
+  price: number | null;
+}
+export function useClientShipments(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['client-shipments', clientId],
+    enabled: !!clientId,
+    queryFn: async (): Promise<ClientParcelOption[]> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('id, public_code, receiver, price')
+        .eq('client_id', clientId!)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return ((data ?? []) as unknown as { id: string; public_code: string; receiver: { city?: string } | null; price: number | null }[]).map(
+        (r) => ({ id: r.id, public_code: r.public_code, receiver_city: r.receiver?.city ?? null, price: r.price }),
+      );
     },
   });
 }
@@ -635,9 +663,10 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: async (input: {
       client_id: string;
-      amount: number;
+      amount?: number;
       currency: Currency;
       shipment_id?: string | null;
+      items?: InvoiceItem[];
     }): Promise<Invoice> => {
       // One invoice per shipment (0013 unique index is the hard guard; this
       // pre-check lets callers surface "already invoiced" instead of a raw error).
@@ -649,15 +678,24 @@ export function useCreateInvoice() {
           .maybeSingle();
         if (existing) throw new Error('invoice_exists');
       }
+      // When a line-item breakdown is supplied, the stored `amount` is derived
+      // from it (rounded to 2dp) so the total always matches the rows. Otherwise
+      // fall back to the explicit `amount` (legacy single-figure invoices).
+      const hasItems = !!input.items && input.items.length > 0;
+      const amount = hasItems
+        ? Math.round(input.items!.reduce((s, it) => s + (Number(it.amount) || 0), 0) * 100) / 100
+        : input.amount ?? 0;
       const { data, error } = await supabase
         .from('invoices')
         // `number` is auto-filled by the 0010 trigger (INV-0001…); `status`
-        // defaults to 'unpaid'. `as never`: generated types still require number.
+        // defaults to 'unpaid'. `as never`: generated types still require number
+        // and predate the `items` column (migration 0020).
         .insert({
           client_id: input.client_id,
-          amount: input.amount,
+          amount,
           currency: input.currency,
           shipment_id: input.shipment_id ?? null,
+          items: hasItems ? input.items : null,
         } as never)
         .select('*')
         .single();
@@ -707,6 +745,7 @@ export function useSendInvoiceEmail() {
         status: args.invoice.status,
         clientName: args.clientName,
         clientEmail: args.toEmail,
+        items: args.invoice.items,
         company: { name: s?.company_name, eori: s?.eori, returnAddress: s?.return_address },
         shipmentCode,
         locale: args.locale,

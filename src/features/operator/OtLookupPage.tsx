@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { m as motion } from 'framer-motion';
-import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search } from 'lucide-react';
-import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch } from '@/components/ui';
+import { m as motion, AnimatePresence } from 'framer-motion';
+import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search, Download, Ban, Trash2 } from 'lucide-react';
+import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import {
   useOtLookup,
@@ -13,11 +14,18 @@ import {
   useCreateInvoice,
   useSendInvoiceEmail,
   useClients,
+  useCompanySettings,
+  useVoidInvoice,
+  useDeleteInvoice,
 } from '@/lib/queries';
+import { supabase } from '@/lib/supabase';
 import { otCodeSchema } from '@/schemas';
 import { formatMoney } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
-import type { Profile, Invoice, Shipment, Currency } from '@/types/domain';
+import type { Database } from '@/types/database.types';
+import type { Profile, Invoice, InvoiceStatus, Shipment, Currency, PartySnapshot } from '@/types/domain';
+
+type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
 
 export function OtLookupPage() {
   const { t, i18n } = useTranslation();
@@ -297,13 +305,24 @@ function InvoicesPanel({
 }) {
   const { t } = useTranslation();
   const toast = useToast();
+  const confirm = useConfirm();
   const create = useCreateInvoice();
   const sendEmail = useSendInvoiceEmail();
+  const voidInv = useVoidInvoice();
+  const del = useDeleteInvoice();
+  const { data: settings } = useCompanySettings();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('GBP');
   const [shipmentId, setShipmentId] = useState('');
   const [sendingId, setSendingId] = useState<string | null>(null);
+
+  // Inline edit (amount + currency + status), mirroring the main invoices list.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [eAmount, setEAmount] = useState('');
+  const [eCurrency, setECurrency] = useState<Currency>('GBP');
+  const [eStatus, setEStatus] = useState<InvoiceStatus>('unpaid');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const T =
     lang === 'bg'
@@ -312,37 +331,75 @@ function InvoicesPanel({
           create: 'Нова фактура',
           amount: 'Сума',
           currency: 'Валута',
+          status: 'Статус',
           link: 'Свържи с пратка (по избор)',
           none: 'Без пратка',
           save: 'Създай',
+          saveEdit: 'Запази',
           cancel: 'Отказ',
           created: 'Фактурата е създадена',
           err: 'Грешка',
           send: 'Изпрати',
+          edit: 'Редактирай',
           sending: 'Изпращане…',
           sent: 'Имейлът е изпратен',
           simulated: 'Тест режим: имейлът е логнат (липсва RESEND_API_KEY)',
           noEmail: 'Няма имейл за този клиент',
           badAmount: 'Невалидна сума',
+          saved: 'Фактурата е обновена',
+          voidLabel: 'Анулирай',
+          voidTitle: 'Анулиране на фактура',
+          voidBody: 'Да се анулира фактурата? Запазва номера си, но се изключва от сумите.',
+          voidConfirm: 'Анулирай',
+          voided: 'Фактурата е анулирана',
+          del: 'Изтрий',
+          delTitle: 'Изтриване на фактура',
+          delBody: 'Изтриването на издадена фактура оставя дупка в номерацията — възможен данъчен/одит проблем. Действието е необратимо.',
+          delConfirm: 'Изтрий',
+          deleted: 'Фактурата е изтрита',
+          delErr: 'Неуспешно изтриване',
         }
       : {
           title: 'Invoices',
           create: 'New invoice',
           amount: 'Amount',
           currency: 'Currency',
+          status: 'Status',
           link: 'Link to shipment (optional)',
           none: 'No shipment',
           save: 'Create',
+          saveEdit: 'Save',
           cancel: 'Cancel',
           created: 'Invoice created',
           err: 'Error',
           send: 'Send',
+          edit: 'Edit',
           sending: 'Sending…',
           sent: 'Email sent',
           simulated: 'Test mode: email logged (RESEND_API_KEY not set)',
           noEmail: 'No email on file for this client',
           badAmount: 'Invalid amount',
+          saved: 'Invoice updated',
+          voidLabel: 'Void',
+          voidTitle: 'Void invoice',
+          voidBody: 'Mark this invoice as void? It keeps its number but is excluded from your totals.',
+          voidConfirm: 'Void',
+          voided: 'Invoice voided',
+          del: 'Delete',
+          delTitle: 'Delete invoice',
+          delBody: 'Deleting an issued invoice leaves a gap in your numbering, which can be a tax/audit problem. This cannot be undone.',
+          delConfirm: 'Delete',
+          deleted: 'Invoice deleted',
+          delErr: 'Could not delete',
         };
+
+  const STATUSES: InvoiceStatus[] = ['unpaid', 'partial', 'paid', 'void'];
+  const TONE: Record<InvoiceStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+    paid: 'success',
+    partial: 'warning',
+    unpaid: 'danger',
+    void: 'neutral',
+  };
 
   const submit = async () => {
     const amt = Number(amount.replace(',', '.'));
@@ -379,6 +436,97 @@ function InvoicesPanel({
       toast.error(T.err);
     } finally {
       setSendingId(null);
+    }
+  };
+
+  const openEdit = (inv: Invoice) => {
+    setEditId(inv.id);
+    setEAmount(String(inv.amount));
+    setECurrency(inv.currency);
+    setEStatus(inv.status);
+  };
+
+  const saveEdit = async (inv: Invoice) => {
+    const amt = Number(eAmount.replace(',', '.'));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error(T.badAmount);
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const patch: InvoiceUpdate = { amount: amt, currency: eCurrency, status: eStatus };
+      const { error } = await supabase.from('invoices').update(patch as never).eq('id', inv.id);
+      if (error) throw error;
+      toast.success(T.saved);
+      setEditId(null);
+    } catch {
+      toast.error(T.err);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const voidInvoice = async (inv: Invoice) => {
+    const ok = await confirm({ title: T.voidTitle, body: T.voidBody, confirmLabel: T.voidConfirm, cancelLabel: T.cancel, danger: true });
+    if (!ok) return;
+    try {
+      await voidInv.mutateAsync(inv.id);
+      toast.success(T.voided);
+    } catch {
+      toast.error(T.delErr);
+    }
+  };
+
+  const delInvoice = async (inv: Invoice) => {
+    const ok = await confirm({ title: T.delTitle, body: T.delBody, confirmLabel: T.delConfirm, cancelLabel: T.cancel, danger: true });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(inv.id);
+      toast.success(T.deleted);
+    } catch {
+      toast.error(T.delErr);
+    }
+  };
+
+  const downloadPdf = async (inv: Invoice) => {
+    try {
+      const { downloadInvoicePdf, partyForInvoice } = await import('@/lib/invoicePdf');
+      let shipmentCode: string | null = null;
+      let sender: ReturnType<typeof partyForInvoice> = null;
+      let receiver: ReturnType<typeof partyForInvoice> = null;
+      let weightKg: number | null = null;
+      if (inv.shipment_id) {
+        const { data: ship } = await supabase
+          .from('shipments')
+          .select('public_code, sender, receiver, weight_kg')
+          .eq('id', inv.shipment_id)
+          .maybeSingle();
+        const s = ship as { public_code?: string; sender?: PartySnapshot | null; receiver?: PartySnapshot | null; weight_kg?: number | null } | null;
+        if (s) {
+          shipmentCode = s.public_code ?? null;
+          sender = partyForInvoice(s.sender ?? null);
+          receiver = partyForInvoice(s.receiver ?? null);
+          weightKg = s.weight_kg ?? null;
+        }
+      }
+      await downloadInvoicePdf({
+        number: inv.number,
+        dateISO: inv.created_at,
+        amount: inv.amount,
+        currency: inv.currency,
+        status: inv.status,
+        clientName: profile.full_name,
+        clientEmail: profile.email,
+        items: inv.items,
+        company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
+        shipmentCode,
+        sender,
+        receiver,
+        weightKg,
+        locale: lang,
+      });
+    } catch {
+      toast.error(T.err);
     }
   };
 
@@ -453,24 +601,110 @@ function InvoicesPanel({
         <div className="space-y-2">
           {invoices.map((inv) => (
             <Card key={inv.id}>
-              <CardBody className="flex flex-wrap items-center justify-between gap-3 py-3.5">
-                <span className="font-mono text-sm">{inv.number}</span>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold">{formatMoney(inv.amount, inv.currency, locale)}</span>
-                  <Badge tone={inv.status === 'paid' ? 'success' : 'warning'}>
-                    {t(`portal.invoice_${inv.status}`)}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled={!profile.email || sendingId === inv.id}
-                    title={!profile.email ? T.noEmail : undefined}
-                    onClick={() => void send(inv)}
-                  >
-                    <Send className="h-3.5 w-3.5" /> {sendingId === inv.id ? T.sending : T.send}
-                  </Button>
+              <CardBody className="py-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-mono text-sm">{inv.number}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="mr-1 font-semibold">{formatMoney(inv.amount, inv.currency, locale)}</span>
+                    <Badge tone={TONE[inv.status]}>{t(`portal.invoice_${inv.status}`)}</Badge>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void downloadPdf(inv)}>
+                      <Download className="h-3.5 w-3.5" /> PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      disabled={!profile.email || sendingId === inv.id}
+                      title={!profile.email ? T.noEmail : undefined}
+                      onClick={() => void send(inv)}
+                    >
+                      <Send className="h-3.5 w-3.5" /> {sendingId === inv.id ? T.sending : T.send}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={editId === inv.id ? 'secondary' : 'outline'}
+                      className="gap-1.5"
+                      onClick={() => (editId === inv.id ? setEditId(null) : openEdit(inv))}
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> {T.edit}
+                    </Button>
+                    {(inv.status === 'unpaid' || inv.status === 'partial') && (
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void voidInvoice(inv)}>
+                        <Ban className="h-3.5 w-3.5" /> {T.voidLabel}
+                      </Button>
+                    )}
+                    <button
+                      type="button"
+                      aria-label={T.del}
+                      title={T.del}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={() => void delInvoice(inv)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
+
+                <AnimatePresence initial={false}>
+                  {editId === inv.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }}
+                      className="overflow-hidden"
+                    >
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void saveEdit(inv);
+                        }}
+                        className="mt-4 grid gap-3 rounded-xl border border-border bg-muted/40 p-4 sm:grid-cols-3"
+                      >
+                        <Field label={T.amount} htmlFor={`ot-e-amount-${inv.id}`}>
+                          <Input
+                            id={`ot-e-amount-${inv.id}`}
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={eAmount}
+                            onChange={(e) => setEAmount(e.target.value)}
+                          />
+                        </Field>
+                        <Field label={T.currency} htmlFor={`ot-e-cur-${inv.id}`}>
+                          <Select
+                            id={`ot-e-cur-${inv.id}`}
+                            value={eCurrency}
+                            onChange={(e) => setECurrency(e.target.value as Currency)}
+                          >
+                            <option value="GBP">GBP £</option>
+                            <option value="EUR">EUR €</option>
+                            <option value="BGN">BGN лв</option>
+                          </Select>
+                        </Field>
+                        <Field label={T.status} htmlFor={`ot-e-st-${inv.id}`}>
+                          <Select
+                            id={`ot-e-st-${inv.id}`}
+                            value={eStatus}
+                            onChange={(e) => setEStatus(e.target.value as InvoiceStatus)}
+                          >
+                            {STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {t(`portal.invoice_${s}`)}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <div className="flex justify-end sm:col-span-3">
+                          <Button type="submit" size="sm" loading={savingEdit} className="gap-2">
+                            {T.saveEdit}
+                          </Button>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </CardBody>
             </Card>
           ))}

@@ -8,7 +8,7 @@
  */
 import { PDFDocument, rgb } from 'pdf-lib';
 import { embedUnicodeFonts } from './pdfFont';
-import type { Currency, InvoiceStatus, PartySnapshot } from '@/types/domain';
+import type { Currency, InvoiceItem, InvoiceStatus, PartySnapshot } from '@/types/domain';
 
 export interface InvoiceParty {
   name?: string | null;
@@ -23,6 +23,9 @@ export interface InvoicePdfData {
   status: InvoiceStatus;
   clientName: string;
   clientEmail?: string | null;
+  /** Optional line-item breakdown. When non-empty, each row is printed and the
+   *  total is their sum; otherwise a single transport-service line is printed. */
+  items?: InvoiceItem[] | null;
   company: { name?: string | null; eori?: string | null; returnAddress?: string | null };
   shipmentCode?: string | null;
   sender?: InvoiceParty | null;
@@ -153,14 +156,28 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
   right(t.amountCol, A4.w - M, y, 8, bold, muted);
   y -= 8;
   hr(y);
-  y -= 20;
-  text(t.line, M, y, 10);
-  right(money(d.amount, d.currency), A4.w - M, y, 10);
+
+  // Line items when present; otherwise the legacy single transport line. The
+  // printed total is the sum of items (so it always agrees with the rows) or the
+  // invoice `amount` for legacy/single-figure invoices.
+  const items = (d.items ?? []).filter((it) => (it.description ?? '').trim() || Number(it.amount) > 0);
+  const total = items.length > 0 ? items.reduce((s, it) => s + (Number(it.amount) || 0), 0) : d.amount;
+  if (items.length > 0) {
+    for (const it of items) {
+      y -= 20;
+      text(trunc(it.description || '-', 70), M, y, 10);
+      right(money(Number(it.amount) || 0, d.currency), A4.w - M, y, 10);
+    }
+  } else {
+    y -= 20;
+    text(t.line, M, y, 10);
+    right(money(d.amount, d.currency), A4.w - M, y, 10);
+  }
   y -= 16;
   hr(y);
   y -= 24;
   text(t.total, M, y, 11, bold);
-  right(money(d.amount, d.currency), A4.w - M, y, 13, bold);
+  right(money(total, d.currency), A4.w - M, y, 13, bold);
 
   y -= 52;
   text(t.pay, M, y, 9, font, muted);
