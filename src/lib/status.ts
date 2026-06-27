@@ -38,7 +38,7 @@ export const STATUS_META: Record<AnyStatus, StatusMeta> = {
 /** Allowed forward transitions along the happy path + side exits. */
 const TRANSITIONS: Record<AnyStatus, AnyStatus[]> = {
   draft: ['booked', 'cancelled'],
-  booked: ['collected_uk', 'cancelled', 'exception'],
+  booked: ['at_uk_hub', 'cancelled', 'exception'],
   collected_uk: ['at_uk_hub', 'exception'],
   at_uk_hub: ['on_load', 'exception'],
   on_load: ['departed_uk', 'at_uk_hub', 'exception'],
@@ -73,8 +73,17 @@ export function isTerminal(status: AnyStatus): boolean {
   return TRANSITIONS[status]?.length === 0;
 }
 
-/** The full ordered main timeline, for rendering the progress tracker. */
-export const MAIN_TIMELINE: ShipmentStatus[] = [...SHIPMENT_STATUSES];
+/** Customer/operator-facing timeline. `draft` (creation) and `collected_uk`
+ *  (merged into `at_uk_hub` for our single Manchester hub) are not shown. */
+export const MAIN_TIMELINE: ShipmentStatus[] = SHIPMENT_STATUSES.filter(
+  (s) => s !== 'draft' && s !== 'collected_uk',
+);
+
+/** Statuses an operator can set by hand. Excludes `draft` (auto/initial) and
+ *  `collected_uk` (merged into `at_uk_hub`), so the status menu stays simple. */
+export const OPERATOR_STATUSES: AnyStatus[] = (Object.keys(STATUS_META) as AnyStatus[]).filter(
+  (s) => s !== 'draft' && s !== 'collected_uk',
+);
 
 export function statusLabel(status: AnyStatus, locale: 'bg' | 'en'): string {
   const meta = STATUS_META[status];

@@ -926,7 +926,7 @@ export function useStuckShipments() {
       const { data, error } = await supabase
         .from('shipments')
         .select('id, public_code, status, receiver, created_at')
-        .in('status', ['collected_uk', 'at_uk_hub', 'exception'])
+        .in('status', ['at_uk_hub', 'exception'])
         .order('created_at', { ascending: true })
         .limit(50);
       if (error) throw error;

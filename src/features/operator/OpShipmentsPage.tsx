@@ -12,10 +12,10 @@ import { useConfirm } from '@/components/ui/confirm';
 import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
 import { buildCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
-import { STATUS_META, nextStatuses, statusLabel } from '@/lib/status';
+import { OPERATOR_STATUSES, nextStatuses, statusLabel } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
 
-const ALL_STATUSES = Object.keys(STATUS_META) as AnyStatus[];
+const ALL_STATUSES = OPERATOR_STATUSES;
 
 const COPY = {
   bg: {
