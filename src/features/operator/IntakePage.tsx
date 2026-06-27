@@ -88,6 +88,7 @@ export function IntakePage() {
           new_client_hint: 'Няма такъв клиент? Създайте го — веднага получава ОТ номер за проследяване.',
           email_label: 'Имейл (по избор)',
           create_client: 'Създай клиент',
+          created_title: 'Пратката е създадена',
           created_code: 'Номер на пратката',
           to_scan: 'Към сканиране и печат',
           copy: 'Копирай',
@@ -131,6 +132,7 @@ export function IntakePage() {
           new_client_hint: 'No such client? Create them — they get an OT number for tracking instantly.',
           email_label: 'Email (optional)',
           create_client: 'Create client',
+          created_title: 'Shipment created',
           created_code: 'Shipment code',
           to_scan: 'To scan & print',
           copy: 'Copy',
@@ -320,6 +322,13 @@ export function IntakePage() {
   const autoPrintRef = useRef(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const successRef = useRef<HTMLDivElement>(null);
+
+  // Bring the green "created" panel into view (the Create button sits far down
+  // the form, so the confirmation would otherwise appear off-screen).
+  useEffect(() => {
+    if (createdCode) successRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [createdCode]);
 
   const copyCreated = () => {
     if (!createdCode) return;
@@ -563,15 +572,19 @@ export function IntakePage() {
       {/* Step 2 — success panel */}
       {createdCode && (
         <motion.div
+          ref={successRef}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
           className="mt-5"
         >
-          <Card className="border-success/40">
+          <Card className="border-success/40 bg-success/5">
             <CardBody className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-fg">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-success">
+                  <CheckCircle2 className="h-4 w-4" /> {L.created_title}
+                </p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-muted-fg">
                   {L.created_code}
                 </p>
                 <button
