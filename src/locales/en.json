@@ -149,7 +149,20 @@
     "signout": "Sign out",
     "phone_help": "Enter your phone - we text a 6-digit code. Your first sign-in creates your account; you can add an email later in your profile.",
     "staff_login": "Staff sign-in",
-    "login_subtitle_staff": "Staff sign-in - email and password."
+    "login_subtitle_staff": "Staff sign-in - email and password.",
+    "bad_credentials": "Wrong email or password.",
+    "forgot_password": "Forgot password?",
+    "forgot_need_email": "Enter your email to get a reset link.",
+    "reset_sent": "If the email exists, we've sent a reset link.",
+    "reset_title": "New password",
+    "reset_subtitle": "Enter your new password.",
+    "new_password": "New password",
+    "confirm_password": "Confirm password",
+    "reset_save": "Save password",
+    "reset_done": "Password updated. You can sign in now.",
+    "password_short": "Password must be at least 8 characters.",
+    "password_mismatch": "Passwords do not match.",
+    "back_to_login": "Back to sign in"
   },
   "portal": {
     "dashboard": "Dashboard",

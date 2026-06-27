@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { M, authErrorMessage } from '@/lib/authMessages';
 import type { Address, AddressKind, Country, Locale } from '@/types/domain';
 
 interface ProfileForm {
@@ -216,15 +217,15 @@ export function ProfilePage() {
     setElMsg(null);
     const em = elEmail.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
-      setElMsg({ ok: false, text: L.el_need_email });
+      setElMsg({ ok: false, text: M.needEmail });
       return;
     }
     if (elPass.length < 8) {
-      setElMsg({ ok: false, text: L.el_short });
+      setElMsg({ ok: false, text: M.passwordShort });
       return;
     }
     if (elPass !== elPass2) {
-      setElMsg({ ok: false, text: L.el_mismatch });
+      setElMsg({ ok: false, text: M.passwordMismatch });
       return;
     }
     setElBusy(true);
@@ -237,12 +238,12 @@ export function ProfilePage() {
       }
       setElPass('');
       setElPass2('');
-      setElMsg({ ok: true, text: L.el_saved });
-      toast.success(L.el_saved);
+      setElMsg({ ok: true, text: M.emailSaved });
+      toast.success(M.emailSaved);
     } catch (e) {
-      // Surface the real provider message (e.g. "New password should be
-      // different from the old password") instead of a generic toast.
-      const msg = e instanceof Error && e.message ? e.message : t('common.error');
+      // Surface a bilingual, mapped provider message (e.g. "different from the
+      // old password") instead of a raw English string or a generic toast.
+      const msg = authErrorMessage(e);
       setElMsg({ ok: false, text: msg });
       toast.error(msg);
     } finally {

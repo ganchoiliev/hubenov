@@ -26,6 +26,7 @@ interface AuthCtx {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithEmailCode: (email: string, opts?: { shouldCreateUser?: boolean }) => Promise<void>;
   verifyEmailCode: (email: string, token: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -74,6 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signInWithEmail(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      },
+      async resetPassword(email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
         if (error) throw error;
       },
       // Passwordless: emails a 6-digit code (no Twilio needed). shouldCreateUser

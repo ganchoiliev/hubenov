@@ -46,6 +46,7 @@ const NotFoundPage = lazyPage(() => import('@/features/public/NotFoundPage'), 'N
 
 // Auth
 const LoginPage = lazyPage(() => import('@/features/auth/LoginPage'), 'LoginPage');
+const ResetPasswordPage = lazyPage(() => import('@/features/auth/ResetPasswordPage'), 'ResetPasswordPage');
 
 // Portal
 const DashboardPage = lazyPage(() => import('@/features/portal/DashboardPage'), 'DashboardPage');
@@ -127,6 +128,7 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/login', element: <Suspended><LoginPage /></Suspended> },
+  { path: '/reset-password', element: <Suspended><ResetPasswordPage /></Suspended> },
   {
     path: '/portal',
     element: (

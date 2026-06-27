@@ -10,31 +10,25 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { otpVerifySchema } from '@/schemas';
 import { DIAL_COUNTRIES, DEFAULT_DIAL, toE164, isE164 } from '@/lib/phone';
+import { M, authErrorMessage } from '@/lib/authMessages';
+import { cn } from '@/lib/utils';
 
 type Mode = 'phone' | 'email';
 type PhoneStep = 'enter' | 'verify';
 
 /**
- * Login model:
- *  - Clients sign in / sign up with PHONE only (one canonical identity, so no
- *    duplicate phone-vs-email accounts can ever form). Phone OTP starts working
- *    the moment Infobip is live; nothing to flip here.
- *  - A discreet "email" link opens email + PASSWORD. That serves staff
- *    (operator@…) and any client who set a password in their dashboard. There
- *    is no email-code (OTP) path: email can never CREATE an account, so it can
- *    never spawn a duplicate.
+ * Clients sign in / sign up with PHONE only (one canonical identity, no
+ * duplicate accounts). A discreet email link opens email + PASSWORD, for staff
+ * and for clients who set a password in their dashboard. There is no email-code
+ * path: email can never create an account. All notifications are bilingual.
  */
 export function LoginPage() {
   const { t } = useTranslation();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithPhone, verifyPhone, signInWithEmail, session, role, isStaff } = useAuth();
+  const { signInWithPhone, verifyPhone, signInWithEmail, resetPassword, session, role, isStaff } = useAuth();
 
-  // After auth, route by role: staff → operator console, clients → portal.
-  // Wait until the profile (role) resolves so a brief null-profile window does
-  // not bounce staff into the client portal. A deep-link is honored only if it
-  // belongs to the user's own area.
   useEffect(() => {
     if (!session || !role) return;
     const explicitFrom = (location.state as { from?: string } | null)?.from;
@@ -51,57 +45,78 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const goPhone = () => {
     setMode('phone');
     setStep('enter');
     setToken('');
+    setMsg(null);
   };
   const goEmail = () => {
     setMode('email');
     setStep('enter');
     setToken('');
+    setMsg(null);
   };
 
   const sendCode = async () => {
+    setMsg(null);
     const e164 = toE164(dial, phone);
-    if (!isE164(e164)) return toast.error(t('auth.phone_invalid'));
+    if (!isE164(e164)) return setMsg({ ok: false, text: M.invalidPhone });
     setBusy(true);
     try {
       await signInWithPhone(e164);
       setStep('verify');
       toast.info(t('auth.code_sent', { phone: e164 }));
-    } catch {
-      toast.error(t('common.error'));
+    } catch (e) {
+      setMsg({ ok: false, text: authErrorMessage(e) });
     } finally {
       setBusy(false);
     }
   };
 
   const verify = async () => {
+    setMsg(null);
     const e164 = toE164(dial, phone);
     const parsed = otpVerifySchema.safeParse({ phone: e164, token });
-    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? t('common.error'));
+    if (!parsed.success) return setMsg({ ok: false, text: M.generic });
     setBusy(true);
     try {
       await verifyPhone(e164, parsed.data.token);
       toast.success(t('portal.welcome', { name: '' }));
       // redirect handled by the role-based effect once the session is set
-    } catch {
-      toast.error(t('common.error'));
+    } catch (e) {
+      setMsg({ ok: false, text: authErrorMessage(e) });
     } finally {
       setBusy(false);
     }
   };
 
   const emailLogin = async () => {
-    if (!email.trim() || !password) return toast.error(t('common.error'));
+    setMsg(null);
+    if (!email.trim() || !password) return setMsg({ ok: false, text: M.badCredentials });
     setBusy(true);
     try {
       await signInWithEmail(email.trim(), password);
       // redirect handled by the role-based effect once the session is set
-    } catch {
-      toast.error(t('common.error'));
+    } catch (e) {
+      setMsg({ ok: false, text: authErrorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forgotPassword = async () => {
+    setMsg(null);
+    const e = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return setMsg({ ok: false, text: M.forgotNeedEmail });
+    setBusy(true);
+    try {
+      await resetPassword(e);
+      setMsg({ ok: true, text: M.resetSent });
+    } catch (err) {
+      setMsg({ ok: false, text: authErrorMessage(err) });
     } finally {
       setBusy(false);
     }
@@ -124,6 +139,12 @@ export function LoginPage() {
               <p className="mt-1.5 text-sm text-muted-fg">
                 {t(mode === 'email' ? 'auth.login_subtitle_email' : 'auth.login_subtitle')}
               </p>
+
+              {msg && (
+                <p className={cn('mt-3 text-sm font-medium', msg.ok ? 'text-emerald-600' : 'text-red-600')}>
+                  {msg.text}
+                </p>
+              )}
 
               {mode === 'phone' ? (
                 <div className="mt-6 space-y-4">
@@ -218,11 +239,20 @@ export function LoginPage() {
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void emailLogin();
+                      }}
                     />
                   </Field>
                   <Button onClick={emailLogin} loading={busy} className="w-full">
                     {t('auth.login_title')}
                   </Button>
+                  <button
+                    onClick={forgotPassword}
+                    className="w-full text-sm text-muted-fg hover:text-brand"
+                  >
+                    {t('auth.forgot_password')}
+                  </button>
                   <button
                     onClick={goPhone}
                     className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"
