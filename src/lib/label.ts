@@ -126,7 +126,7 @@ function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode:
   y -= 16;
 
   // ── Sender / receiver ───────────────────────────────────────────────────────
-  y = block(page, font, bold, 'ИЗПРАЩАЧ / SENDER', data.sender, y, true);
+  y = block(page, font, bold, 'ИЗПРАЩАЧ / SENDER', data.sender, y);
   y -= 4;
   line(y);
   y -= 14;
@@ -158,21 +158,17 @@ function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode:
   page.drawText(val, { x: W - M - font.widthOfTextAtSize(val, 9), y: 32, size: 9, font, color: INK });
 }
 
-function block(page: Page, font: Font, bold: Font, title: string, p: PartySnapshot, startY: number, compact = false): number {
+function block(page: Page, font: Font, bold: Font, title: string, p: PartySnapshot, startY: number): number {
   let y = startY;
   page.drawText(title, { x: M, y, size: 8, font: bold, color: MUTED });
   y -= 14;
   page.drawText(p.name.slice(0, 40), { x: M, y, size: 11, font: bold, color: INK });
   y -= 13;
-  // Compact (sender): name + city only — the street/phone of the sender isn't
-  // needed for last-mile delivery (the receiver block carries that).
-  if (!compact) {
-    page.drawText(p.phone, { x: M, y, size: 9, font, color: INK });
-    y -= 13;
-    const addr = [p.line1, p.line2].filter(Boolean).join(', ');
-    page.drawText(addr.slice(0, 50), { x: M, y, size: 9, font, color: INK });
-    y -= 12;
-  }
+  page.drawText(p.phone, { x: M, y, size: 9, font, color: INK });
+  y -= 13;
+  const addr = [p.line1, p.line2].filter(Boolean).join(', ');
+  page.drawText(addr.slice(0, 50), { x: M, y, size: 9, font, color: INK });
+  y -= 12;
   const cityLine = p.econt_office_code
     ? `${p.city} — Еконт офис ${p.econt_office_code}`
     : `${p.postcode} ${p.city}, ${p.country}`;
