@@ -13,10 +13,10 @@ import { formatMoney, cn } from '@/lib/utils';
 import type { AnyStatus, Currency } from '@/types/domain';
 
 const ACTIONS = [
-  { to: '/op/scan', icon: ScanLine, key: 'operator.scan_title' },
-  { to: '/op/lookup', icon: UserSearch, key: 'operator.lookup_title' },
-  { to: '/op/intake', icon: PackagePlus, key: 'operator.intake_title' },
-  { to: '/op/loads', icon: Truck, key: 'operator.loads' },
+  { to: '/op/intake', icon: PackagePlus, key: 'operator.intake_title', descBg: 'Приеми нова пратка от клиент', descEn: 'Take a new parcel from a client' },
+  { to: '/op/scan', icon: ScanLine, key: 'operator.scan_title', descBg: 'Сканирай и принтирай етикет', descEn: 'Scan and print a label' },
+  { to: '/op/loads', icon: Truck, key: 'operator.loads', descBg: 'Курсове и товарене', descEn: 'Loads and loading' },
+  { to: '/op/lookup', icon: UserSearch, key: 'operator.lookup_title', descBg: 'Намери клиент по ОТ номер', descEn: 'Find a client by OT code' },
 ];
 
 const ROLE_BG: Record<string, string> = {
@@ -196,6 +196,32 @@ export function OperatorHomePage() {
           <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
         </button>
       </div>
+
+      {/* Quick actions — big, friendly: the daily tasks, first thing the owner sees */}
+      <Stagger className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {ACTIONS.map((a) => (
+          <StaggerItem key={a.to}>
+            <Link to={a.to}>
+              <Card className="group h-full border-brand/20 transition-shadow hover:shadow-lift">
+                <CardBody className="flex flex-col gap-3 p-5">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                    <a.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="flex items-center gap-1 font-display text-base font-bold text-foreground">
+                      {t(a.key)}
+                      <ArrowRight className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-1" />
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-fg">
+                      {lang === 'bg' ? a.descBg : a.descEn}
+                    </p>
+                  </div>
+                </CardBody>
+              </Card>
+            </Link>
+          </StaggerItem>
+        ))}
+      </Stagger>
 
       {isError && (
         <Card className="mb-4 border-red-300 bg-red-50">
@@ -473,27 +499,6 @@ export function OperatorHomePage() {
           </CardBody>
         </Card>
       )}
-
-      {/* Quick actions */}
-      <Stagger className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ACTIONS.map((a) => (
-          <StaggerItem key={a.to}>
-            <Link to={a.to}>
-              <Card className="group h-full transition-shadow hover:shadow-lift">
-                <CardBody className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                    <a.icon className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{t(a.key)}</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-fg transition-transform group-hover:translate-x-1" />
-                </CardBody>
-              </Card>
-            </Link>
-          </StaggerItem>
-        ))}
-      </Stagger>
 
       {/* Next departure + status breakdown */}
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
