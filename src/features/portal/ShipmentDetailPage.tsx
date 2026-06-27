@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound, Printer } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
 import { Timeline } from '@/components/shared/Timeline';
 import { PageHeading } from '@/components/shared/common';
-import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted, useUpdateParcel, useClientCode } from '@/lib/queries';
+import { useShipment, useTrackingEvents, useCompanySettings, useCourierShipment, useSaveCourierRef, useMarkCodRemitted, useUpdateParcel, useClientCode, getClientCode } from '@/lib/queries';
+import { buildLabelPdf } from '@/lib/label';
+import { getPrinter } from '@/providers/print';
 import { HubenovQr } from '@/components/shared/HubenovQr';
 import { supabase } from '@/lib/supabase';
 import { calculateQuote } from '@/lib/pricing';
@@ -34,6 +36,43 @@ export function ShipmentDetailPage() {
   // Operator-only: resolve the owning client's OT code so we can deep-link to
   // their record from the sender/receiver card.
   const { data: clientCode } = useClientCode(inOperator ? shipment?.client_id : undefined);
+  const { data: settings } = useCompanySettings();
+  const toast = useToast();
+  const [printing, setPrinting] = useState(false);
+
+  // Staff: print the 4×6 label PDF for this parcel (one page per box).
+  const printLabel = async () => {
+    if (!shipment) return;
+    setPrinting(true);
+    try {
+      const code = clientCode ?? (await getClientCode(shipment.client_id)) ?? '—';
+      const pdf = await buildLabelPdf({
+        public_code: shipment.public_code,
+        awb_barcode: shipment.awb_barcode,
+        client_code: code,
+        direction: shipment.direction,
+        weight_kg: shipment.weight_kg,
+        sender: shipment.sender,
+        receiver: shipment.receiver,
+        is_gift: shipment.is_gift,
+        declared_value: shipment.declared_value,
+        currency: shipment.currency,
+        pieces: shipment.pieces,
+        contents: shipment.contents,
+        length_cm: shipment.length_cm,
+        width_cm: shipment.width_cm,
+        height_cm: shipment.height_cm,
+      });
+      const r = await getPrinter(settings?.print_method).print({ pdf, title: shipment.public_code });
+      if (r.queued) toast.info(t('operator.queued_offline'));
+      else if (r.ok) toast.success(t('operator.printed'));
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   // Live status: subscribe to new tracking events for this shipment (§2 Realtime).
   useEffect(() => {
@@ -89,7 +128,14 @@ export function ShipmentDetailPage() {
           <h1 className="font-display text-2xl font-extrabold text-foreground">{shipment.public_code}</h1>
           <Badge tone="neutral">{shipment.direction === 'UK_BG' ? 'UK → BG' : 'BG → UK'}</Badge>
         </div>
-        <StatusBadge status={shipment.status} />
+        <div className="flex items-center gap-2">
+          {inOperator && (
+            <Button size="sm" variant="outline" className="gap-1.5" loading={printing} onClick={() => void printLabel()}>
+              <Printer className="h-4 w-4" /> {locale === 'en-GB' ? 'Print label' : 'Принтай етикет'}
+            </Button>
+          )}
+          <StatusBadge status={shipment.status} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
