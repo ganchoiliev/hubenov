@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
-import { Phone, Mail, ArrowLeft } from 'lucide-react';
+import { Phone, Mail, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { LanguageSwitch } from '@/components/controls';
 import { Logo } from '@/components/brand/Logo';
@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { otpVerifySchema } from '@/schemas';
 import { DIAL_COUNTRIES, DEFAULT_DIAL, toE164, isE164 } from '@/lib/phone';
+import { CLIENT_PHONE_ONLY } from '@/config/flags';
 
 type Mode = 'phone' | 'email';
 type PhoneStep = 'enter' | 'verify';
@@ -53,6 +54,15 @@ export function LoginPage() {
     setToken('');
   };
 
+  // Phone-only mode hides the client email tab; staff reach email + password
+  // through a discreet link that opens the email form on the password method.
+  const openStaff = () => {
+    setMode('email');
+    setEmailMethod('password');
+    setStep('enter');
+    setToken('');
+  };
+
   const sendCode = async () => {
     const e164 = toE164(dial, phone);
     if (!isE164(e164)) return toast.error(t('auth.phone_invalid'));
@@ -89,7 +99,7 @@ export function LoginPage() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return toast.error(t('auth.email_invalid'));
     setBusy(true);
     try {
-      await signInWithEmailCode(e);
+      await signInWithEmailCode(e, { shouldCreateUser: !CLIENT_PHONE_ONLY });
       setStep('verify');
       toast.info(t('auth.code_sent_email', { email: e }));
     } catch {
@@ -147,7 +157,9 @@ export function LoginPage() {
             <CardBody className="p-8">
               <h1 className="font-display text-2xl font-extrabold text-foreground">{t('auth.login_title')}</h1>
               <p className="mt-1.5 text-sm text-muted-fg">
-                {t(mode === 'email' ? 'auth.login_subtitle_email' : 'auth.login_subtitle')}
+                {mode === 'email'
+                  ? t(CLIENT_PHONE_ONLY ? 'auth.login_subtitle_staff' : 'auth.login_subtitle_email')
+                  : t('auth.login_subtitle')}
               </p>
 
               {mode === 'phone' ? (
@@ -210,13 +222,22 @@ export function LoginPage() {
                       </button>
                     </>
                   )}
-                  <p className="text-xs text-muted-fg">{t('auth.first_login_note')}</p>
-                  <button
-                    onClick={() => switchMode('email')}
-                    className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"
-                  >
-                    <Mail className="h-4 w-4" /> {t('auth.use_email')}
-                  </button>
+                  <p className="text-xs text-muted-fg">{t('auth.phone_help')}</p>
+                  {CLIENT_PHONE_ONLY ? (
+                    <button
+                      onClick={openStaff}
+                      className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-xs text-muted-fg hover:text-brand"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" /> {t('auth.staff_login')}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => switchMode('email')}
+                      className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"
+                    >
+                      <Mail className="h-4 w-4" /> {t('auth.use_email')}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
@@ -292,7 +313,9 @@ export function LoginPage() {
                       </button>
                     </>
                   )}
-                  <p className="text-xs text-muted-fg">{t('auth.first_login_note')}</p>
+                  {!CLIENT_PHONE_ONLY && (
+                    <p className="text-xs text-muted-fg">{t('auth.first_login_note')}</p>
+                  )}
                   <button
                     onClick={() => switchMode('phone')}
                     className="flex w-full items-center justify-center gap-1.5 border-t border-border pt-4 text-sm text-muted-fg hover:text-brand"

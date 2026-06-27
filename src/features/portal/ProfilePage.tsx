@@ -51,6 +51,7 @@ export function ProfilePage() {
           full_name: 'Име и фамилия',
           phone: 'Телефон',
           email: 'Имейл',
+          email_optional: 'По желание - за фактури и известия. Входът е с телефонния номер.',
           locale: 'Език',
           copied: 'Копирано',
           add_address: 'Добави адрес',
@@ -75,6 +76,7 @@ export function ProfilePage() {
           full_name: 'Full name',
           phone: 'Phone',
           email: 'Email',
+          email_optional: 'Optional - for invoices and notifications. You sign in with your phone number.',
           locale: 'Language',
           copied: 'Copied',
           add_address: 'Add address',
@@ -250,6 +252,7 @@ export function ProfilePage() {
               </Field>
               <Field label={L.email} htmlFor="email">
                 <Input id="email" type="email" autoComplete="email" {...registerProfile('email')} />
+                <p className="mt-1 text-xs text-muted-fg">{L.email_optional}</p>
               </Field>
               <Field label={L.locale} htmlFor="preferred_locale">
                 <Select id="preferred_locale" {...registerProfile('preferred_locale')}>

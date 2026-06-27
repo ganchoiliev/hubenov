@@ -45,7 +45,7 @@ Authentication → **Providers → Email**: ON (the demo accounts use email logi
 
 ## 6. Regenerate DB types + run
 ```bash
-npx supabase gen types typescript --project-id <your-ref> > src/types/database.types.ts   # optional, needs `supabase login`
+npx supabase gen types typescript --project-id klvbjzdhcnonsunxkakn src/types/database.types.ts   # optional, needs `supabase login`
 npm run dev
 ```
 
