@@ -508,6 +508,23 @@ export async function trackPublic(code: string): Promise<PublicTracking | null> 
   return (data as PublicTracking | null) ?? null;
 }
 
+/** One row per parcel for a whole account, looked up by OT (client) code.
+ *  Status-only, no PII — see the track_account RPC (migration 0018). */
+export interface AccountParcel {
+  public_code: string;
+  status: AnyStatus;
+  direction: string;
+  updated_at: string;
+  receiver_city: string | null;
+}
+export async function trackAccount(code: string): Promise<AccountParcel[]> {
+  // `as never`: track_account is newer than the generated DB types (migration
+  // 0018). Regenerate later with `npm run db:types`.
+  const { data, error } = await supabase.rpc('track_account' as never, { p_code: code } as never);
+  if (error) throw error;
+  return (data as unknown as AccountParcel[] | null) ?? [];
+}
+
 /* ── Company settings (operator-configurable: EORI, label, print) ─────────── */
 export interface CompanySettings {
   id: number;

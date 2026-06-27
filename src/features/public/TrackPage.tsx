@@ -2,20 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
-import { Search, ShieldCheck, PackageX } from 'lucide-react';
+import { Search, ShieldCheck, PackageX, ArrowLeft } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Timeline } from '@/components/shared/Timeline';
 import { Section, PageHeading } from '@/components/shared/common';
-import { trackPublic, type PublicTracking } from '@/lib/queries';
+import { trackPublic, trackAccount, type PublicTracking, type AccountParcel } from '@/lib/queries';
 import { trackInputSchema } from '@/schemas';
 
 type State =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'found'; data: PublicTracking }
+  | { kind: 'single'; data: PublicTracking; fromAccount?: string }
+  | { kind: 'account'; code: string; parcels: AccountParcel[] }
   | { kind: 'not_found' }
   | { kind: 'error' };
+
+const dir = (d: string) => (d === 'UK_BG' ? 'UK → BG' : 'BG → UK');
 
 export function TrackPage() {
   const { t } = useTranslation();
@@ -23,13 +26,24 @@ export function TrackPage() {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [searchParams] = useSearchParams();
 
-  const runTrack = useCallback(async (raw: string) => {
+  const runTrack = useCallback(async (raw: string, fromAccount?: string) => {
     const parsed = trackInputSchema.safeParse({ code: raw });
     if (!parsed.success) return;
     setState({ kind: 'loading' });
     try {
-      const data = await trackPublic(parsed.data.code);
-      setState(data ? { kind: 'found', data } : { kind: 'not_found' });
+      // A parcel code (HB-0034) resolves to one parcel; an OT/account code
+      // (HB-GY8X) resolves to every parcel on that account.
+      const single = await trackPublic(parsed.data.code);
+      if (single) {
+        setState({ kind: 'single', data: single, fromAccount });
+        return;
+      }
+      const parcels = await trackAccount(parsed.data.code);
+      if (parcels.length > 0) {
+        setState({ kind: 'account', code: parsed.data.code.trim().toUpperCase(), parcels });
+        return;
+      }
+      setState({ kind: 'not_found' });
     } catch {
       setState({ kind: 'error' });
     }
@@ -93,8 +107,47 @@ export function TrackPage() {
             </Card>
           )}
 
-          {state.kind === 'found' && (
+          {state.kind === 'account' && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="mb-4 flex items-baseline justify-between">
+                <p className="font-mono text-lg font-bold text-foreground">{state.code}</p>
+                <p className="text-sm text-muted-fg">
+                  {state.parcels.length} {t('track.parcels')}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {state.parcels.map((p) => (
+                  <button
+                    key={p.public_code}
+                    type="button"
+                    onClick={() => void runTrack(p.public_code, state.code)}
+                    className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-brand"
+                  >
+                    <div>
+                      <p className="font-mono font-semibold text-foreground">{p.public_code}</p>
+                      <p className="text-xs text-muted-fg">
+                        {dir(p.direction)}
+                        {p.receiver_city ? ` · ${p.receiver_city}` : ''}
+                      </p>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {state.kind === 'single' && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              {state.fromAccount && (
+                <button
+                  type="button"
+                  onClick={() => void runTrack(state.fromAccount!)}
+                  className="mb-4 flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+                >
+                  <ArrowLeft className="h-4 w-4" /> {t('track.back_to_account')}
+                </button>
+              )}
               <Card>
                 <CardBody>
                   <div className="mb-6 flex items-center justify-between">
