@@ -72,6 +72,12 @@ export function Dropdown({
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
+    const onScroll = (e: Event) => {
+      // Scrolling INSIDE the menu must not close it — only page/ancestor scroll does.
+      const t = e.target as Node | null;
+      if (t && panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
@@ -80,12 +86,12 @@ export function Dropdown({
       if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;
       setOpen(false);
     };
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', close);
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);
     return () => {
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', close);
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onDown);
