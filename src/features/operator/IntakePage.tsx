@@ -10,7 +10,6 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { m as motion } from 'framer-motion';
 import {
-  UserSearch,
   UserPlus,
   CheckCircle2,
   PackagePlus,
@@ -24,13 +23,19 @@ import { PageHeading } from '@/components/shared/common';
 import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
-import { useClients, useCreateInvoice, useCompanySettings, getClientCode } from '@/lib/queries';
+import {
+  useClients,
+  useCreateInvoice,
+  useCompanySettings,
+  getClientCode,
+  useClientRecentParties,
+} from '@/lib/queries';
 import { transliterate } from '@/lib/translit';
 import { buildLabelPdf } from '@/lib/label';
 import { getPrinter } from '@/providers/print';
 import { supabase } from '@/lib/supabase';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
-import type { Shipment, Country, Direction, ParcelType, Currency } from '@/types/domain';
+import type { Shipment, Country, Direction, ParcelType, Currency, PartySnapshot } from '@/types/domain';
 
 interface ResolvedClient {
   id: string;
@@ -60,7 +65,10 @@ export function IntakePage() {
       ? {
           client_code: 'ОТ номер на клиент',
           client_code_hint: 'Въведете и натиснете Enter, за да заредите клиента.',
-          search_client: 'Търси клиент по име или телефон…',
+          search_client: 'Търси клиент по име, телефон или ОТ номер…',
+          change: 'Смени',
+          prev_sender: 'Предишен подател',
+          prev_receiver: 'Предишен получател',
           no_matches: 'Няма съвпадения',
           or: 'или',
           resolving: 'Търсене на клиент…',
@@ -104,7 +112,10 @@ export function IntakePage() {
       : {
           client_code: 'Client OT code',
           client_code_hint: 'Type and press Enter to load the client.',
-          search_client: 'Search client by name or phone…',
+          search_client: 'Search client by name, phone or OT number…',
+          change: 'Change',
+          prev_sender: 'Previous sender',
+          prev_receiver: 'Recent receiver',
           no_matches: 'No matches',
           or: 'or',
           resolving: 'Resolving client…',
@@ -237,13 +248,6 @@ export function IntakePage() {
     }
   };
 
-  const onCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      void resolveClient();
-    }
-  };
-
   // Deep-link: /op/intake?code=HB-XXXX (e.g. "New shipment" from a client record).
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -311,6 +315,24 @@ export function IntakePage() {
     setValue('sender.country', sender);
     setValue('receiver.country', receiver);
   }, [direction, setValue]);
+
+  // Recent sender/receiver parties for the loaded client — one-click fill so the
+  // operator doesn't retype the usual sender (the client) or a repeat receiver.
+  const { data: recents } = useClientRecentParties(client?.id);
+  const fillParty = (prefix: 'sender' | 'receiver', p: PartySnapshot) => {
+    const v = {
+      name: p.name ?? '',
+      phone: p.phone ?? '',
+      line1: p.line1 ?? '',
+      line2: p.line2 ?? null,
+      city: p.city ?? '',
+      postcode: p.postcode ?? '',
+      country: p.country,
+      econt_office_code: p.econt_office_code ?? null,
+    };
+    if (prefix === 'sender') setValue('sender', v, { shouldDirty: true });
+    else setValue('receiver', v, { shouldDirty: true });
+  };
 
   // Prefill the sender from the loaded/created client (they're the account holder).
   useEffect(() => {
@@ -447,38 +469,9 @@ export function IntakePage() {
         </div>
       )}
 
-      {/* Step 1 — resolve client by OT code */}
+      {/* Step 1 — find or create the client (one search: name / phone / OT code) */}
       <Card>
         <CardBody className="space-y-4">
-          <Field label={L.client_code} hint={!client ? L.client_code_hint : undefined} htmlFor="ot-code">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Input
-                id="ot-code"
-                value={codeInput}
-                onChange={(e) => {
-                  setCodeInput(e.target.value);
-                  setNotFound(false);
-                }}
-                onKeyDown={onCodeKeyDown}
-                onBlur={() => void resolveClient()}
-                placeholder={t('operator.lookup_placeholder')}
-                className="flex-1 font-mono uppercase"
-                autoFocus
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                loading={resolving}
-                onClick={() => void resolveClient()}
-              >
-                <UserSearch className="h-4 w-4" /> {t('operator.lookup_button')}
-              </Button>
-            </div>
-          </Field>
-
           {resolving && (
             <div className="flex items-center gap-2 text-sm text-muted-fg">
               <Spinner className="h-4 w-4" /> {L.resolving}
@@ -496,17 +489,23 @@ export function IntakePage() {
               <span className="font-semibold text-foreground">{client.full_name}</span>
               <Badge tone="brand">{client.client_code}</Badge>
               <span className="text-xs text-muted-fg">{L.resolved}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setClient(null);
+                  setCodeInput('');
+                  setNotFound(false);
+                  lastResolved.current = '';
+                }}
+                className="ml-auto text-xs font-medium text-brand-700 hover:underline"
+              >
+                {L.change}
+              </button>
             </motion.div>
           )}
 
           {!client && !resolving && (
             <div className="space-y-4">
-              {/* Search by name / phone — no OT number needed */}
-              <div className="flex items-center gap-3">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-xs uppercase tracking-wide text-muted-fg">{L.or}</span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
               <div>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
@@ -515,6 +514,7 @@ export function IntakePage() {
                     onChange={(e) => setClientSearch(e.target.value)}
                     placeholder={L.search_client}
                     className="pl-9"
+                    autoFocus
                   />
                 </div>
                 {clientSearch.trim() && (
@@ -640,6 +640,23 @@ export function IntakePage() {
           </CardBody>
         </Card>
 
+        {client && recents && recents.senders.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-1">
+            <span className="text-xs font-medium text-muted-fg">{L.prev_sender}:</span>
+            {recents.senders.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => fillParty('sender', p)}
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-brand hover:text-brand"
+              >
+                {p.name}
+                {p.city ? ` · ${p.city}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Sender */}
         <PartyFields
           prefix="sender"
@@ -649,6 +666,24 @@ export function IntakePage() {
           labels={partyLabels}
           withOffice={false}
         />
+
+        {client && recents && recents.receivers.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-1">
+            <span className="text-xs font-medium text-muted-fg">{L.prev_receiver}:</span>
+            {recents.receivers.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => fillParty('receiver', p)}
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-brand hover:text-brand"
+              >
+                {p.name}
+                {p.city ? ` · ${p.city}` : ''}
+                {p.econt_office_code ? ` · Еконт ${p.econt_office_code}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Receiver */}
         <PartyFields

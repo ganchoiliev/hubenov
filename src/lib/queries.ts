@@ -13,6 +13,7 @@ import type {
   TrackingEvent,
   AnyStatus,
   Currency,
+  PartySnapshot,
 } from '@/types/domain';
 import type { ShipmentInput } from '@/schemas';
 import { invoiceEmail, statusEmail } from './emailTemplates';
@@ -1499,4 +1500,39 @@ export function useRealtimeSync() {
       void supabase.removeChannel(channel);
     };
   }, [qc]);
+}
+
+/* ── Recent sender/receiver parties for a client (intake quick-pick) ──────── */
+export function useClientRecentParties(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['client-recent-parties', clientId],
+    enabled: !!clientId,
+    queryFn: async (): Promise<{ senders: PartySnapshot[]; receivers: PartySnapshot[] }> => {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('sender, receiver, created_at')
+        .eq('client_id', clientId!)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as { sender: PartySnapshot | null; receiver: PartySnapshot | null }[];
+      const dedupe = (parties: (PartySnapshot | null)[]): PartySnapshot[] => {
+        const seen = new Set<string>();
+        const out: PartySnapshot[] = [];
+        for (const p of parties) {
+          if (!p || !p.name) continue;
+          const key = [p.name, p.line1, p.city, p.postcode, p.econt_office_code].join('|').toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push(p);
+          if (out.length >= 3) break;
+        }
+        return out;
+      };
+      return {
+        senders: dedupe(rows.map((r) => r.sender)),
+        receivers: dedupe(rows.map((r) => r.receiver)),
+      };
+    },
+  });
 }
