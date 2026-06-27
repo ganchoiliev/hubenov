@@ -1508,30 +1508,36 @@ export function useClientRecentParties(clientId: string | undefined) {
     queryKey: ['client-recent-parties', clientId],
     enabled: !!clientId,
     queryFn: async (): Promise<{ senders: PartySnapshot[]; receivers: PartySnapshot[] }> => {
+      // Long-term recipient/sender book: derive from the client's whole history,
+      // ranked by how often each party is used (then recency). No extra table —
+      // shipment snapshots already carry name + phone + address + Econt office.
       const { data, error } = await supabase
         .from('shipments')
         .select('sender, receiver, created_at')
         .eq('client_id', clientId!)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(500);
       if (error) throw error;
       const rows = (data ?? []) as unknown as { sender: PartySnapshot | null; receiver: PartySnapshot | null }[];
-      const dedupe = (parties: (PartySnapshot | null)[]): PartySnapshot[] => {
-        const seen = new Set<string>();
-        const out: PartySnapshot[] = [];
+      const rank = (parties: (PartySnapshot | null)[], max: number): PartySnapshot[] => {
+        const map = new Map<string, { p: PartySnapshot; count: number; order: number }>();
+        let order = 0;
         for (const p of parties) {
-          if (!p || !p.name) continue;
-          const key = [p.name, p.line1, p.city, p.postcode, p.econt_office_code].join('|').toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          out.push(p);
-          if (out.length >= 3) break;
+          if (!p || !p.name?.trim()) continue;
+          const key = [p.name, p.line1, p.city, p.postcode, p.econt_office_code].join('|').toLowerCase().trim();
+          const hit = map.get(key);
+          if (hit) hit.count += 1;
+          // First time we see a key it's the most recent use (rows are desc).
+          else map.set(key, { p, count: 1, order: order++ });
         }
-        return out;
+        return [...map.values()]
+          .sort((a, b) => b.count - a.count || a.order - b.order)
+          .slice(0, max)
+          .map((x) => x.p);
       };
       return {
-        senders: dedupe(rows.map((r) => r.sender)),
-        receivers: dedupe(rows.map((r) => r.receiver)),
+        senders: rank(rows.map((r) => r.sender), 3),
+        receivers: rank(rows.map((r) => r.receiver), 8),
       };
     },
   });
