@@ -19,7 +19,6 @@ import { useTranslation } from 'react-i18next';
 import { AnimatePresence, m as motion } from 'framer-motion';
 import {
   ScanLine,
-  QrCode,
   CheckCircle2,
   XCircle,
   Printer,
@@ -31,7 +30,6 @@ import {
   Volume2,
   VolumeX,
   PackageCheck,
-  Tag,
   Info,
   RotateCcw,
   Camera,
@@ -53,7 +51,7 @@ import { timelineIndex, nextStatuses, statusLabel } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import type { Shipment, Currency, ParcelType } from '@/types/domain';
 
-type Mode = 'label' | 'receive' | 'lookup' | 'inbound';
+type Mode = 'receive' | 'lookup';
 const MODE_KEY = 'hubenov.scan.mode.v1';
 const SOUND_KEY = 'hubenov.scan.sound.v1';
 
@@ -112,7 +110,7 @@ export function ScanStationPage() {
   const [history, setHistory] = useState<ScanResult[]>([]);
   const [notFound, setNotFound] = useState<string | null>(null);
   const [count, setCount] = useState(0);
-  const [mode, setMode] = useState<Mode>(() => (localStorage.getItem(MODE_KEY) as Mode) || 'label');
+  const [mode, setMode] = useState<Mode>(() => (localStorage.getItem(MODE_KEY) === 'lookup' ? 'lookup' : 'receive'));
   const [sound, setSound] = useState(() => localStorage.getItem(SOUND_KEY) !== 'off');
   const [printerReady, setPrinterReady] = useState<boolean | null>(null);
   const [testing, setTesting] = useState(false);
@@ -168,12 +166,10 @@ export function ScanStationPage() {
   const L =
     locale === 'bg'
       ? {
-          modes: { label: 'Етикет', receive: 'Приемане', lookup: 'Търсене', inbound: 'Входящи' },
+          modes: { receive: 'Приемане', lookup: 'Търсене' },
           modeHint: {
-            label: 'Сканирай → печата етикет + приема в склада',
-            receive: 'Сканирай → само приема в склада (без печат)',
+            receive: 'Сканирай → приема в склада + печата етикет (нов код → създава пратка)',
             lookup: 'Сканирай → показва пратката (без действие)',
-            inbound: 'Сканирай чужд баркод → създай пратка + автоматичен етикет',
           },
           sound: 'Звук',
           scanned: 'Сканирани',
@@ -188,7 +184,7 @@ export function ScanStationPage() {
           tip1: 'Свържи USB/Bluetooth скенер — работи като клавиатура, нищо за настройка.',
           tip2: 'Или въведи номера ръчно и натисни Enter, или сканирай с камера.',
           tip3: 'Печат: задай принтер по подразбиране в браузъра; размерът на етикета е в Настройки.',
-          tip4: 'Режими: «Етикет» печата и приема; «Входящи» за чужди пратки; «Приемане» само приема; «Търсене» само показва.',
+          tip4: 'Режими: «Приемане» приема + печата (нов/чужд код → създава пратка); «Търсене» само показва.',
           idleTitle: 'Готов за сканиране',
           idleHint: 'Сканирай баркод или въведи ОТ/HB номер',
           example: 'напр.',
@@ -215,12 +211,10 @@ export function ScanStationPage() {
           alreadyHint: 'Етикетът е преотпечатан; статусът не е променян.',
         }
       : {
-          modes: { label: 'Label', receive: 'Receive', lookup: 'Lookup', inbound: 'Inbound' },
+          modes: { receive: 'Receive', lookup: 'Lookup' },
           modeHint: {
-            label: 'Scan → print label + receive into hub',
-            receive: 'Scan → receive into hub only (no print)',
+            receive: 'Scan → receive into hub + print label (new code → create parcel)',
             lookup: 'Scan → show the parcel (no action)',
-            inbound: 'Scan an external barcode → create parcel + auto label',
           },
           sound: 'Sound',
           scanned: 'Scanned',
@@ -235,7 +229,7 @@ export function ScanStationPage() {
           tip1: 'Plug in a USB/Bluetooth scanner — it acts as a keyboard, nothing to set up.',
           tip2: 'Or type the number by hand and press Enter, or scan with the camera.',
           tip3: 'Printing: set a default printer in the browser; label size is in Settings.',
-          tip4: 'Modes: "Label" prints + receives; "Inbound" for external parcels; "Receive" only receives; "Lookup" only shows.',
+          tip4: 'Modes: "Receive" receives + prints (new/external code → creates a parcel); "Lookup" only shows.',
           idleTitle: 'Ready to scan',
           idleHint: 'Scan a barcode or type an OT/HB number',
           example: 'e.g.',
@@ -377,13 +371,14 @@ export function ScanStationPage() {
     setNotFound(null);
     const started = performance.now();
     try {
-      if (mode === 'inbound') {
+      if (mode === 'receive') {
+        // Merged "Приемане": a known parcel → print label + receive into the hub;
+        // an unknown (Amazon/courier) code → create the parcel and auto-print.
         await handleInbound(value);
         return;
       }
-      // Extract the real code from whatever was scanned: our QR encodes a tracking
-      // URL (…/track?code=HB-0031), a 1D barcode is the bare AWB. Run every mode
-      // through the same parser so the camera/QR resolves like a hand-typed code.
+      // lookup — show the parcel only, no action. Our QR encodes a tracking URL
+      // (…/track?code=HB-0031); a 1D barcode is the bare AWB — parse both.
       const lookupCode = parseScanPayload(value).code ?? value;
       const shipment = await resolveShipmentByCode(lookupCode);
       if (!shipment) {
@@ -393,49 +388,18 @@ export function ScanStationPage() {
         toast.error(`${t('track.not_found')} (${lookupCode})`);
         return;
       }
-
-      let printed = false;
-      let queued = false;
-      let finalStatus = shipment.status;
-      const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
-
-      if (mode === 'label' || mode === 'receive') {
-        const printTask: Promise<{ ok: boolean; queued?: boolean } | null> =
-          mode === 'label' ? labelFor(shipment).catch(() => null) : Promise.resolve(null);
-        const statusTask: Promise<boolean> = needStatus
-          ? updateStatus
-              .mutateAsync({
-                shipment,
-                to: 'at_uk_hub',
-                note_bg: mode === 'label' ? 'Сканирана и етикетирана в склада' : 'Приета в склада',
-                note_en: mode === 'label' ? 'Scanned & labelled at hub' : 'Received at hub',
-                source: 'scan',
-              })
-              .then(() => true)
-              .catch(() => false) // offline / RLS / already moved — print still succeeded
-          : Promise.resolve(false);
-        const [printRes, statusOk] = await Promise.all([printTask, statusTask]);
-        if (statusOk) finalStatus = 'at_uk_hub';
-        if (printRes) {
-          printed = printRes.ok && !printRes.queued;
-          queued = !!printRes.queued;
-        }
-      }
-
       const result: ScanResult = {
-        shipment: { ...shipment, status: finalStatus },
+        shipment,
         ms: Math.round(performance.now() - started),
-        printed,
-        queued,
-        already: (mode === 'label' || mode === 'receive') && !needStatus,
+        printed: false,
+        queued: false,
+        already: false,
       };
       setLast(result);
       setHistory((h) => [result, ...h].slice(0, 8));
       setCount((c) => c + 1);
       if (sound) beep(true);
       triggerFlash(true);
-      if (mode === 'label') toast[queued ? 'info' : 'success'](queued ? t('operator.queued_offline') : t('operator.printed'));
-      else if (mode === 'receive') toast.success(L.received);
     } catch {
       if (sound) beep(false);
       triggerFlash(false);
@@ -558,8 +522,6 @@ export function ScanStationPage() {
       {/* Mode selector + session controls */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-border bg-card p-1">
-          {modeBtn('label', <Tag className="h-4 w-4" />)}
-          {modeBtn('inbound', <QrCode className="h-4 w-4" />)}
           {modeBtn('receive', <PackageCheck className="h-4 w-4" />)}
           {modeBtn('lookup', <Eye className="h-4 w-4" />)}
         </div>
@@ -710,15 +672,13 @@ export function ScanStationPage() {
                   <div className="flex items-center justify-between bg-success/10 px-6 py-3">
                     <span className="flex items-center gap-2 font-semibold text-success">
                       {last.queued ? <WifiOff className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                      {mode === 'label'
+                      {mode === 'receive'
                         ? last.queued
                           ? t('operator.queued_offline')
                           : t('operator.printed')
-                        : mode === 'receive'
-                          ? L.received
-                          : last.shipment.public_code}
+                        : last.shipment.public_code}
                     </span>
-                    {mode === 'label' && (
+                    {mode === 'receive' && (
                       <Badge tone={last.ms <= 2000 ? 'success' : 'warning'}>
                         <Clock className="h-3 w-3" /> {last.ms} ms
                       </Badge>
