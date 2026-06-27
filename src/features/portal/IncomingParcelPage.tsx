@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Inbox, Home, Building2, RotateCcw, PackageSearch } from 'lucide-react';
+import { Inbox, Home, Building2, RotateCcw, PackageSearch, CheckCircle2 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Field, Select } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
@@ -33,6 +33,7 @@ export function IncomingParcelPage() {
 
   const [form, setForm] = useState({ ...EMPTY });
   const [mode, setMode] = useState<'address' | 'office'>('address');
+  const [justRegistered, setJustRegistered] = useState<{ id: string; code: string } | null>(null);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -64,6 +65,9 @@ export function IncomingParcelPage() {
           submit: 'Регистрирай пратката',
           err: 'Моля, попълнете номер, тегло, получател и адрес/офис.',
           ok: 'Пратката е регистрирана:',
+          ok_title: 'Пратката е регистрирана успешно',
+          ok_view: 'Виж пратката',
+          ok_again: 'Регистрирай нова',
           list_title: 'Моите входящи пратки',
           list_empty_t: 'Все още няма входящи пратки',
           list_empty_d: 'Регистрирайте първата си пратка от формата по-горе.',
@@ -95,6 +99,9 @@ export function IncomingParcelPage() {
           submit: 'Register parcel',
           err: 'Please fill the tracking number, weight, recipient and address/office.',
           ok: 'Parcel registered:',
+          ok_title: 'Parcel registered successfully',
+          ok_view: 'View parcel',
+          ok_again: 'Register another',
           list_title: 'My incoming parcels',
           list_empty_t: 'No incoming parcels yet',
           list_empty_d: 'Register your first one in the form above.',
@@ -148,8 +155,10 @@ export function IncomingParcelPage() {
         notes: `${lang === 'bg' ? 'Входяща пратка' : 'Incoming parcel'}${form.shop.trim() ? ` · ${form.shop.trim()}` : ''}`,
       });
       toast.success(`${L.ok} ${created.public_code}`);
+      setJustRegistered({ id: created.id, code: created.public_code });
       setForm({ ...EMPTY });
       setMode('address');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       toast.error(L.err);
     }
@@ -163,6 +172,28 @@ export function IncomingParcelPage() {
         <Inbox className="mt-0.5 h-4 w-4 shrink-0" />
         <span>{L.how}</span>
       </div>
+
+      {justRegistered && (
+        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-emerald-800">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">{L.ok_title}</p>
+            <p className="mt-0.5 font-mono text-base font-bold">{justRegistered.code}</p>
+            <div className="mt-2 flex gap-4 text-sm">
+              <Link to={`/portal/shipments/${justRegistered.id}`} className="font-medium underline hover:no-underline">
+                {L.ok_view}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setJustRegistered(null)}
+                className="font-medium text-emerald-700/80 hover:text-emerald-900"
+              >
+                {L.ok_again}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-5">
         <Card>
