@@ -181,8 +181,11 @@ export function LoginPage() {
                             ))}
                           </Select>
                           <Input
+                            id="tel"
+                            name="tel"
                             type="tel"
                             inputMode="tel"
+                            autoComplete="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             placeholder={t('auth.phone_placeholder')}
@@ -206,6 +209,8 @@ export function LoginPage() {
                       <Field label={t('auth.code_label')}>
                         <Input
                           inputMode="numeric"
+                          autoComplete="one-time-code"
+                          name="one-time-code"
                           value={token}
                           onChange={(e) => setToken(e.target.value)}
                           placeholder={t('auth.code_placeholder')}
@@ -246,6 +251,8 @@ export function LoginPage() {
                       <Field label={t('auth.email_label')}>
                         <Input
                           type="email"
+                          name="email"
+                          autoComplete="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@email.com"
@@ -253,7 +260,13 @@ export function LoginPage() {
                         />
                       </Field>
                       <Field label={t('auth.password_label')}>
-                        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        <Input
+                          type="password"
+                          name="current-password"
+                          autoComplete="current-password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
                       </Field>
                       <Button onClick={emailLogin} loading={busy} className="w-full">
                         {t('auth.login_title')}
@@ -270,6 +283,8 @@ export function LoginPage() {
                       <Field label={t('auth.email_label')}>
                         <Input
                           type="email"
+                          name="email"
+                          autoComplete="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@email.com"
@@ -297,6 +312,8 @@ export function LoginPage() {
                       <Field label={t('auth.code_label')}>
                         <Input
                           inputMode="numeric"
+                          autoComplete="one-time-code"
+                          name="one-time-code"
                           value={token}
                           onChange={(e) => setToken(e.target.value)}
                           placeholder={t('auth.code_placeholder')}
