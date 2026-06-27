@@ -17,12 +17,11 @@ export class BrowserPdfAdapter implements PrintAdapter {
       return { ok: false, error: 'No window context' };
     }
 
-    // Offline-tolerant: queue and report back so the caller can sync (§8.7).
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      queueOffline(job);
-      return { ok: true, queued: true };
-    }
-
+    // Printing is LOCAL — the browser opens the print dialog from an in-memory
+    // PDF, so it needs no network. We never gate on navigator.onLine, which is
+    // unreliable and is falsely reported `false` on some machines (that bug was
+    // queuing every label instead of printing it). We only fall back to the
+    // queue if the local print call itself throws.
     const blob = new Blob([job.pdf as BlobPart], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 
@@ -42,7 +41,9 @@ export class BrowserPdfAdapter implements PrintAdapter {
           frame.contentWindow?.print();
           resolve({ ok: true });
         } catch (err) {
-          resolve({ ok: false, error: err instanceof Error ? err.message : 'print failed' });
+          // Genuine local print failure (rare) — keep the job as a fallback.
+          queueOffline(job);
+          resolve({ ok: true, queued: true, error: err instanceof Error ? err.message : 'print failed' });
         } finally {
           // Revoke after the print dialog has had time to read the blob.
           setTimeout(() => {
