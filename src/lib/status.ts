@@ -85,6 +85,17 @@ export const OPERATOR_STATUSES: AnyStatus[] = (Object.keys(STATUS_META) as AnySt
   (s) => s !== 'draft' && s !== 'collected_uk',
 );
 
+/** Set ONLY by the course (load) flow — never by hand. Manually marking a parcel
+ *  "Натоварена/Тръгна/Пристигна" would leave it loaded with no course, so these
+ *  are excluded from the operator's status menus. They come from the course:
+ *  add-to-course → on_load; course Тръгна/Пристигна → departed/arrived. */
+export const COURSE_DRIVEN: AnyStatus[] = ['on_load', 'departed_uk', 'arrived_bg_hub'];
+
+/** Statuses an operator may set by hand (course legs excluded). */
+export const OPERATOR_SETTABLE_STATUSES: AnyStatus[] = OPERATOR_STATUSES.filter(
+  (s) => !COURSE_DRIVEN.includes(s),
+);
+
 export function statusLabel(status: AnyStatus, locale: 'bg' | 'en'): string {
   const meta = STATUS_META[status];
   return locale === 'bg' ? meta.label_bg : meta.label_en;

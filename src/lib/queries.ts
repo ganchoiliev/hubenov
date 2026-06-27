@@ -1322,7 +1322,12 @@ export function useBulkAssignLoad() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { ids: string[]; loadId: string }) => {
-      const { error } = await supabase.from('shipments').update({ load_id: args.loadId }).in('id', args.ids);
+      // Adding to a course = the parcel is loaded. Set both, matching the in-load
+      // builder, so courses fill correctly and the status stays consistent.
+      const { error } = await supabase
+        .from('shipments')
+        .update({ load_id: args.loadId, status: 'on_load' })
+        .in('id', args.ids);
       if (error) throw error;
     },
     onSuccess: () => invalAll(qc, [['op-shipments'], ['shipments'], ['loads'], ['load-stats'], ['dashboard'], ['booked']]),

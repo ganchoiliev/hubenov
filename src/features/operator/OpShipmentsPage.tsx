@@ -14,8 +14,9 @@ import { useConfirm } from '@/components/ui/confirm';
 import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
 import { buildCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
-import { OPERATOR_STATUSES, nextStatuses, statusLabel } from '@/lib/status';
+import { OPERATOR_STATUSES, OPERATOR_SETTABLE_STATUSES, COURSE_DRIVEN, nextStatuses, statusLabel } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
+import { SIDE_STATUSES } from '@/types/domain';
 
 const ALL_STATUSES = OPERATOR_STATUSES;
 
@@ -108,7 +109,9 @@ function StatusChanger({
 }) {
   const toast = useToast();
   const update = useUpdateStatus();
-  const options = nextStatuses(shipment.status);
+  // Course legs (Натоварена/Тръгна/Пристигна) come only from the course, never by
+  // hand here — otherwise a parcel is "loaded" with no course.
+  const options = nextStatuses(shipment.status).filter((s) => !COURSE_DRIVEN.includes(s));
 
   if (options.length === 0) {
     return <span className="text-xs text-muted-fg">{noNextLabel}</span>;
@@ -123,20 +126,24 @@ function StatusChanger({
     }
   };
 
-  const next = options[0]!; // safe: guarded by options.length === 0 above
-  const alternatives = options.slice(1);
+  // Primary button = the happy-path forward step; side-exits go in "Друго…".
+  const isSide = (s: AnyStatus) => (SIDE_STATUSES as readonly string[]).includes(s);
+  const next = options.find((s) => !isSide(s)) ?? null;
+  const alternatives = options.filter((s) => s !== next);
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        size="sm"
-        loading={update.isPending}
-        disabled={update.isPending}
-        onClick={() => void apply(next)}
-        className="shrink-0 gap-1.5"
-      >
-        <ArrowRight className="h-4 w-4" /> {statusLabel(next, locale)}
-      </Button>
+      {next && (
+        <Button
+          size="sm"
+          loading={update.isPending}
+          disabled={update.isPending}
+          onClick={() => void apply(next)}
+          className="shrink-0 gap-1.5"
+        >
+          <ArrowRight className="h-4 w-4" /> {statusLabel(next, locale)}
+        </Button>
+      )}
       {alternatives.length > 0 && (
         <Dropdown
           ariaLabel={otherLabel}
@@ -490,7 +497,7 @@ export function OpShipmentsPage() {
               onChange={(v) => {
                 if (v) void doStatus(v as AnyStatus);
               }}
-              options={ALL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, locale) }))}
+              options={OPERATOR_SETTABLE_STATUSES.map((s) => ({ value: s, label: statusLabel(s, locale) }))}
               className="h-9 w-40 text-xs"
             />
             <Button size="sm" variant="outline" loading={printing} onClick={() => void doPrint()} className="gap-1.5">
