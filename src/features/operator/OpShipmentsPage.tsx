@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
+import { m as motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm';
 import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
@@ -459,67 +460,80 @@ export function OpShipmentsPage() {
         </>
       )}
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-3 shadow-lift lg:left-[calc(16rem+1rem)]">
-          <span className="px-1 text-sm font-semibold text-foreground">
-            {selected.size} {L.selected}
-          </span>
-          <Select
-            value=""
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v) void doAssign(v);
-            }}
-            className="h-9 w-40 text-xs"
-            aria-label={L.addToLoad}
-            disabled={bulkAssign.isPending}
+      {/* Bulk action bar — slides up on selection so it's clearly tied to it */}
+      <AnimatePresence>
+        {selected.size > 0 && (
+          <motion.div
+            key="bulk-bar"
+            initial={{ y: 28, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 28, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/95 p-2.5 pl-3 shadow-lift backdrop-blur lg:left-[calc(16rem+1rem)]"
           >
-            <option value="">{L.addToLoad}</option>
-            {(loads.data ?? [])
-              .filter((l) => l.status !== 'closed')
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.code}
+            <span className="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-sm font-bold text-white">
+              <ListChecks className="h-4 w-4" />
+              {selected.size} {L.selected}
+            </span>
+            <span className="mx-0.5 hidden h-6 w-px bg-border sm:block" aria-hidden />
+            <Select
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) void doAssign(v);
+              }}
+              className="h-9 w-40 text-xs"
+              aria-label={L.addToLoad}
+              disabled={bulkAssign.isPending}
+            >
+              <option value="">{L.addToLoad}</option>
+              {(loads.data ?? [])
+                .filter((l) => l.status !== 'closed')
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.code}
+                  </option>
+                ))}
+            </Select>
+            <Select
+              value=""
+              onChange={(e) => {
+                const v = e.target.value as AnyStatus | '';
+                if (v) void doStatus(v);
+              }}
+              className="h-9 w-40 text-xs"
+              aria-label={L.setStatus}
+            >
+              <option value="">{L.setStatus}</option>
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {statusLabel(s, locale)}
                 </option>
               ))}
-          </Select>
-          <Select
-            value=""
-            onChange={(e) => {
-              const v = e.target.value as AnyStatus | '';
-              if (v) void doStatus(v);
-            }}
-            className="h-9 w-40 text-xs"
-            aria-label={L.setStatus}
-          >
-            <option value="">{L.setStatus}</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {statusLabel(s, locale)}
-              </option>
-            ))}
-          </Select>
-          <Button size="sm" variant="outline" loading={printing} onClick={() => void doPrint()} className="gap-1.5">
-            <Printer className="h-4 w-4" /> {L.printLabels}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void doDelete()}
-            className="gap-1.5 text-danger hover:bg-danger/10"
-          >
-            <Trash2 className="h-4 w-4" /> {L.deleteSel}
-          </Button>
-          <button
-            onClick={clearSel}
-            className="ml-auto rounded-lg p-1.5 text-muted-fg transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={L.clear}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+            </Select>
+            <Button size="sm" variant="outline" loading={printing} onClick={() => void doPrint()} className="gap-1.5">
+              <Printer className="h-4 w-4" /> {L.printLabels}
+            </Button>
+            <span className="mx-0.5 hidden h-6 w-px bg-border sm:block" aria-hidden />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void doDelete()}
+              className="gap-1.5 text-danger hover:bg-danger/10"
+            >
+              <Trash2 className="h-4 w-4" /> {L.deleteSel}
+            </Button>
+            <button
+              onClick={clearSel}
+              className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-fg transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={L.clear}
+            >
+              <X className="h-4 w-4" />
+              <span className="hidden sm:inline">{L.clear}</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
