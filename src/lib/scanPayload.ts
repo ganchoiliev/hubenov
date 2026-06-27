@@ -32,6 +32,13 @@ export function parseScanPayload(raw: string): ParsedScan {
   const value = raw.trim();
   if (!value) return { raw: value, code: null };
 
+  // 0) A Hubenov code (HB-/OT-) anywhere in the payload wins. This covers our own
+  //    QR label, whose value is a tracking URL — even after the scanner upper-cases
+  //    everything, which would otherwise break case-sensitive URL query lookups
+  //    (e.g. `?code=` becomes `?CODE=` and `.get('code')` returns null).
+  const direct = value.match(CODE_RE)?.[1];
+  if (direct) return { raw: value, code: direct.toUpperCase() };
+
   // 1) URL — a Hubenov QR may be a tracking link; pull a code from query/path.
   if (/^https?:\/\//i.test(value)) {
     try {
