@@ -181,10 +181,10 @@ export function ScanStationPage() {
           received: 'Приета в склада',
           recent: 'Последни сканирания',
           tips: 'Как се работи',
-          tip1: 'Свържи USB/Bluetooth скенер — работи като клавиатура, нищо за настройка.',
-          tip2: 'Или въведи номера ръчно и натисни Enter, или сканирай с камера.',
-          tip3: 'Печат: задай принтер по подразбиране в браузъра; размерът на етикета е в Настройки.',
-          tip4: 'Режими: «Приемане» приема + печата (нов/чужд код → създава пратка); «Търсене» само показва.',
+          tip1: 'Сканирай с USB/Bluetooth скенер, въведи номер + Enter, или с Камера.',
+          tip2: '«Приемане»: приема в склада + печата етикет; нов/чужд код → създава пратка.',
+          tip3: '«Търсене»: само показва пратката, без промяна.',
+          tip4: 'Печат: задай термо принтера по подразбиране; за тих печат — бутонът „?" горе.',
           idleTitle: 'Готов за сканиране',
           idleHint: 'Сканирай баркод или въведи ОТ/HB номер',
           example: 'напр.',
@@ -226,10 +226,10 @@ export function ScanStationPage() {
           received: 'Received at hub',
           recent: 'Recent scans',
           tips: 'How it works',
-          tip1: 'Plug in a USB/Bluetooth scanner — it acts as a keyboard, nothing to set up.',
-          tip2: 'Or type the number by hand and press Enter, or scan with the camera.',
-          tip3: 'Printing: set a default printer in the browser; label size is in Settings.',
-          tip4: 'Modes: "Receive" receives + prints (new/external code → creates a parcel); "Lookup" only shows.',
+          tip1: 'Scan with a USB/Bluetooth scanner, type a number + Enter, or use the Camera.',
+          tip2: '"Receive": receives into the hub + prints a label; new/external code → creates a parcel.',
+          tip3: '"Lookup": just shows the parcel, no change.',
+          tip4: 'Printing: set the thermal printer as default; for silent printing — the "?" button above.',
           idleTitle: 'Ready to scan',
           idleHint: 'Scan a barcode or type an OT/HB number',
           example: 'e.g.',
@@ -781,12 +781,19 @@ export function ScanStationPage() {
               <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Info className="h-4 w-4 text-brand" /> {L.tips}
               </p>
-              <ul className="space-y-1.5 text-xs leading-relaxed text-muted-fg">
-                <li>• {L.tip1}</li>
-                <li>• {L.tip2}</li>
-                <li>• {L.tip3}</li>
-                <li>• {L.tip4}</li>
-              </ul>
+              <div className="space-y-2.5">
+                {[
+                  { Icon: ScanLine, text: L.tip1 },
+                  { Icon: PackageCheck, text: L.tip2 },
+                  { Icon: Eye, text: L.tip3 },
+                  { Icon: Printer, text: L.tip4 },
+                ].map((it, i) => (
+                  <div key={i} className="flex gap-2 text-xs leading-relaxed text-muted-fg">
+                    <it.Icon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                    <span>{it.text}</span>
+                  </div>
+                ))}
+              </div>
             </CardBody>
           </Card>
         </div>

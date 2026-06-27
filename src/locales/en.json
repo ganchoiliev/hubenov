@@ -112,8 +112,8 @@
   },
   "track": {
     "title": "Track a parcel",
-    "subtitle": "Enter a parcel number or OT code to see the status.",
-    "placeholder": "Parcel number or OT code (HB-…)",
+    "subtitle": "Enter a parcel number, OT code or tracking number (Amazon/courier) to see the status.",
+    "placeholder": "Parcel number, OT code or tracking number",
     "button": "Track",
     "not_found": "No parcel found with that number.",
     "privacy_note": "For privacy we show status only — never names or addresses.",
