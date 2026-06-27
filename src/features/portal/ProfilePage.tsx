@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
-import { Copy, MapPin, Plus, User, Building2, Home } from 'lucide-react';
+import { Copy, MapPin, Plus, User, Building2, Home, KeyRound } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -52,6 +52,16 @@ export function ProfilePage() {
           phone: 'Телефон',
           email: 'Имейл',
           email_optional: 'По желание - за фактури и известия. Входът е с телефонния номер.',
+          el_title: 'Вход с имейл и парола (по избор)',
+          el_hint: 'Добавете имейл и парола, за да може да влизате и с тях. Входът с телефон продължава да работи.',
+          el_email: 'Имейл',
+          el_password: 'Нова парола',
+          el_password2: 'Потвърди паролата',
+          el_save: 'Запази',
+          el_saved: 'Готово. Ако се изисква потвърждение, проверете имейла си.',
+          el_short: 'Паролата трябва да е поне 8 знака.',
+          el_mismatch: 'Паролите не съвпадат.',
+          el_need_email: 'Въведете валиден имейл.',
           locale: 'Език',
           copied: 'Копирано',
           add_address: 'Добави адрес',
@@ -77,6 +87,16 @@ export function ProfilePage() {
           phone: 'Phone',
           email: 'Email',
           email_optional: 'Optional - for invoices and notifications. You sign in with your phone number.',
+          el_title: 'Email + password sign-in (optional)',
+          el_hint: 'Add an email and password so you can also sign in with them. Phone sign-in keeps working.',
+          el_email: 'Email',
+          el_password: 'New password',
+          el_password2: 'Confirm password',
+          el_save: 'Save',
+          el_saved: 'Done. If confirmation is required, check your email.',
+          el_short: 'Password must be at least 8 characters.',
+          el_mismatch: 'Passwords do not match.',
+          el_need_email: 'Enter a valid email.',
           locale: 'Language',
           copied: 'Copied',
           add_address: 'Add address',
@@ -120,6 +140,12 @@ export function ProfilePage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
 
+  // Optional email + password sign-in (links credentials to THIS account).
+  const [elEmail, setElEmail] = useState('');
+  const [elPass, setElPass] = useState('');
+  const [elPass2, setElPass2] = useState('');
+  const [elBusy, setElBusy] = useState(false);
+
   // Sync the profile form once the profile is available.
   useEffect(() => {
     if (profile) {
@@ -154,6 +180,12 @@ export function ProfilePage() {
     if (profile?.id) void loadAddresses(profile.id);
   }, [profile?.id, loadAddresses]);
 
+  // Prefill the email-login field from the profile contact email (often set by
+  // the operator at intake), so the client only has to choose a password.
+  useEffect(() => {
+    if (profile?.email) setElEmail(profile.email);
+  }, [profile?.email]);
+
   const onSaveProfile: SubmitHandler<ProfileForm> = async (values) => {
     if (!profile) return;
     try {
@@ -174,6 +206,31 @@ export function ProfilePage() {
       }
     } catch {
       toast.error(t('common.error'));
+    }
+  };
+
+  // Attach an email + password to the SAME auth account (no new account, so no
+  // duplicate). Supabase emails a confirmation when the address is new.
+  const onSetupEmailLogin = async () => {
+    const em = elEmail.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast.error(L.el_need_email);
+    if (elPass.length < 8) return toast.error(L.el_short);
+    if (elPass !== elPass2) return toast.error(L.el_mismatch);
+    setElBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: em, password: elPass });
+      if (error) throw error;
+      if (profile && profile.email !== em) {
+        await supabase.from('profiles').update({ email: em }).eq('id', profile.id);
+        await refreshProfile();
+      }
+      setElPass('');
+      setElPass2('');
+      toast.success(L.el_saved);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setElBusy(false);
     }
   };
 
@@ -266,6 +323,51 @@ export function ProfilePage() {
                 </Button>
               </div>
             </form>
+          </CardBody>
+        </Card>
+
+        {/* Section A2 — optional email + password sign-in */}
+        <Card>
+          <CardBody>
+            <h2 className="mb-1.5 flex items-center gap-2 font-display text-lg font-bold text-foreground">
+              <KeyRound className="h-4.5 w-4.5 text-brand" /> {L.el_title}
+            </h2>
+            <p className="mb-5 text-sm text-muted-fg">{L.el_hint}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={L.el_email} htmlFor="el_email">
+                <Input
+                  id="el_email"
+                  type="email"
+                  autoComplete="email"
+                  value={elEmail}
+                  onChange={(e) => setElEmail(e.target.value)}
+                />
+              </Field>
+              <div className="hidden sm:block" />
+              <Field label={L.el_password} htmlFor="el_password">
+                <Input
+                  id="el_password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={elPass}
+                  onChange={(e) => setElPass(e.target.value)}
+                />
+              </Field>
+              <Field label={L.el_password2} htmlFor="el_password2">
+                <Input
+                  id="el_password2"
+                  type="password"
+                  autoComplete="new-password"
+                  value={elPass2}
+                  onChange={(e) => setElPass2(e.target.value)}
+                />
+              </Field>
+              <div className="sm:col-span-2 flex justify-end">
+                <Button onClick={onSetupEmailLogin} loading={elBusy} variant="outline">
+                  {L.el_save}
+                </Button>
+              </div>
+            </div>
           </CardBody>
         </Card>
 

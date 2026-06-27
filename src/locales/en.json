@@ -121,7 +121,7 @@
   "auth": {
     "login_title": "Sign in",
     "login_subtitle": "Sign in with your phone number — we'll text you a code.",
-    "login_subtitle_email": "Sign in with email — we'll send a code, or use a password.",
+    "login_subtitle_email": "Sign in with your email and password.",
     "phone_label": "Phone number",
     "phone_placeholder": "07700 900123",
     "send_code": "Send code",

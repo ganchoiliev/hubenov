@@ -121,7 +121,7 @@
   "auth": {
     "login_title": "Вход в профила",
     "login_subtitle": "Влезте с телефонния си номер — ще получите код по SMS.",
-    "login_subtitle_email": "Влезте с имейл — ще получите код или използвайте парола.",
+    "login_subtitle_email": "Влезте с имейл и парола.",
     "phone_label": "Телефонен номер",
     "phone_placeholder": "07700 900123",
     "send_code": "Изпрати код",
