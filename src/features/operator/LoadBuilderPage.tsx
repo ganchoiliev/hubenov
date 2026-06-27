@@ -15,11 +15,13 @@ import {
   Tags,
   FileText,
   Plus,
+  PackageMinus,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState, Stat } from '@/components/shared/common';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm';
 import { resolveShipmentByCode, notifyStatusEmails, useCompanySettings } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
@@ -30,6 +32,7 @@ export function LoadBuilderPage() {
   const { id } = useParams();
   const { t, i18n } = useTranslation();
   const toast = useToast();
+  const confirm = useConfirm();
   const { data: settings } = useCompanySettings();
   const [packing, setPacking] = useState<null | 'labels' | 'customs'>(null);
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
@@ -50,6 +53,14 @@ export function LoadBuilderPage() {
           added: 'Добавена в курса',
           available: 'Налични пратки за този курс',
           add: 'Добави',
+          addSelected: 'Добави избраните',
+          addAll: 'Добави всички',
+          selectAll: 'Избери всички',
+          unload: 'Разтовари',
+          unloaded: 'Разтоварена от курса',
+          unloadAll: 'Разтовари всички',
+          unloadAllTitle: 'Разтоварване на курса',
+          unloadAllBody: 'Да разтоваря ли всички пратки от този курс? Връщат се „В склад Манчестър".',
           saved: 'Запазено',
           departed: 'Курсът тръгна',
           arrived: 'Курсът пристигна',
@@ -76,6 +87,14 @@ export function LoadBuilderPage() {
           added: 'Added to load',
           available: 'Parcels ready for this load',
           add: 'Add',
+          addSelected: 'Add selected',
+          addAll: 'Add all',
+          selectAll: 'Select all',
+          unload: 'Unload',
+          unloaded: 'Removed from load',
+          unloadAll: 'Unload all',
+          unloadAllTitle: 'Unload the course',
+          unloadAllBody: 'Unload all parcels from this course? They go back to "At UK hub".',
           saved: 'Saved',
           departed: 'Load departed',
           arrived: 'Load arrived',
@@ -99,6 +118,7 @@ export function LoadBuilderPage() {
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [eligible, setEligible] = useState<Shipment[]>([]);
+  const [sel, setSel] = useState<Set<string>>(new Set());
   const scanRef = useRef<HTMLInputElement>(null);
 
   const reloadLoad = useCallback(async () => {
@@ -234,11 +254,89 @@ export function LoadBuilderPage() {
     }
   };
 
-  const addByClick = async (shipment: Shipment) => {
+  const toggleSel = (sid: string) =>
+    setSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
+      return next;
+    });
+
+  // Bulk add — one update for all picked parcels (load_id + on_load) + events.
+  const addMany = async (ships: Shipment[]) => {
+    if (!id || ships.length === 0 || busy) return;
+    setBusy(true);
     try {
-      await addShipment(shipment, 'manual');
+      const ids = ships.map((s) => s.id);
+      const { error } = await supabase
+        .from('shipments')
+        .update({ load_id: id, status: 'on_load' as AnyStatus })
+        .in('id', ids);
+      if (error) throw error;
+      await supabase
+        .from('tracking_events')
+        .insert(ids.map((sid) => ({ shipment_id: sid, leg: 'own', status: 'on_load', note_bg: 'Натоварена', note_en: 'Loaded', source: 'manual' })));
+      setSel(new Set());
+      toast.success(`${ids.length} · ${L.added}`);
+      await Promise.all([reloadShipments(), reloadEligible()]);
     } catch {
       toast.error(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Unload one parcel. If still just loaded, send it back to the hub.
+  const unload = async (s: Shipment) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const patch =
+        s.status === 'on_load' ? { load_id: null, status: 'at_uk_hub' as AnyStatus } : { load_id: null };
+      const { error } = await supabase.from('shipments').update(patch).eq('id', s.id);
+      if (error) throw error;
+      if (s.status === 'on_load') {
+        await supabase.from('tracking_events').insert({
+          shipment_id: s.id,
+          leg: 'own',
+          status: 'at_uk_hub',
+          note_bg: 'Разтоварена от курса',
+          note_en: 'Removed from load',
+          source: 'manual',
+        });
+      }
+      toast.success(`${s.public_code} · ${L.unloaded}`);
+      await Promise.all([reloadShipments(), reloadEligible()]);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Empty the whole course (e.g. loaded onto the wrong one).
+  const unloadAll = async () => {
+    if (shipments.length === 0 || busy) return;
+    const ok = await confirm({ title: L.unloadAllTitle, body: L.unloadAllBody, confirmLabel: L.unloadAll, danger: true });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const allIds = shipments.map((s) => s.id);
+      const onLoad = shipments.filter((s) => s.status === 'on_load').map((s) => s.id);
+      const { error } = await supabase.from('shipments').update({ load_id: null }).in('id', allIds);
+      if (error) throw error;
+      if (onLoad.length > 0) {
+        await supabase.from('shipments').update({ status: 'at_uk_hub' as AnyStatus }).in('id', onLoad);
+        await supabase
+          .from('tracking_events')
+          .insert(onLoad.map((sid) => ({ shipment_id: sid, leg: 'own', status: 'at_uk_hub', note_bg: 'Разтоварена от курса', note_en: 'Removed from load', source: 'manual' })));
+      }
+      toast.success(L.unloaded);
+      await Promise.all([reloadShipments(), reloadEligible()]);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -617,25 +715,49 @@ export function LoadBuilderPage() {
             <p className="mb-3 text-sm font-semibold text-muted-fg">
               {L.available} ({eligible.length})
             </p>
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSel((prev) => (prev.size === eligible.length ? new Set() : new Set(eligible.map((s) => s.id))))}
+                className="text-xs font-medium text-brand hover:underline"
+              >
+                {L.selectAll}
+              </button>
+            </div>
             <div className="space-y-2">
-              {eligible.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => void addByClick(s)}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                >
-                  <div className="min-w-0">
-                    <span className="font-mono text-sm font-semibold text-foreground">{s.public_code}</span>
-                    <span className="ml-2 text-xs text-muted-fg">
-                      {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
-                    </span>
-                  </div>
-                  <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
-                    <Plus className="h-4 w-4" /> {L.add}
-                  </span>
-                </button>
-              ))}
+              {eligible.map((s) => {
+                const on = sel.has(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleSel(s.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${on ? 'border-brand bg-brand-50' : 'border-border hover:bg-muted'}`}
+                  >
+                    <span className={`h-5 w-5 shrink-0 rounded border ${on ? 'border-brand bg-brand' : 'border-input'}`} />
+                    <div className="min-w-0">
+                      <span className="font-mono text-sm font-semibold text-foreground">{s.public_code}</span>
+                      <span className="ml-2 text-xs text-muted-fg">
+                        {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                className="gap-1.5"
+                loading={busy}
+                disabled={sel.size === 0}
+                onClick={() => void addMany(eligible.filter((s) => sel.has(s.id)))}
+              >
+                <Plus className="h-4 w-4" /> {L.addSelected}
+                {sel.size > 0 ? ` (${sel.size})` : ''}
+              </Button>
+              <Button variant="outline" className="gap-1.5" loading={busy} onClick={() => void addMany(eligible)}>
+                {L.addAll} ({eligible.length})
+              </Button>
             </div>
           </CardBody>
         </Card>
@@ -648,9 +770,22 @@ export function LoadBuilderPage() {
       </div>
 
       {/* Shipment list */}
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-fg">
-        <Package className="h-4 w-4" /> {t('operator.shipments_on_load')} ({shipments.length})
-      </h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-fg">
+          <Package className="h-4 w-4" /> {t('operator.shipments_on_load')} ({shipments.length})
+        </h2>
+        {shipments.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-fg hover:text-danger"
+            loading={busy}
+            onClick={() => void unloadAll()}
+          >
+            <PackageMinus className="h-4 w-4" /> {L.unloadAll}
+          </Button>
+        )}
+      </div>
 
       {shipments.length === 0 ? (
         <EmptyState
@@ -667,19 +802,25 @@ export function LoadBuilderPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.03, 0.2) }}
             >
-              <Link to={`/op/shipments/${s.id}`}>
-                <Card className="transition-shadow hover:shadow-lift">
-                  <CardBody className="flex items-center justify-between gap-4 py-4">
-                    <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold text-foreground">{s.public_code}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-fg">
-                        {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
-                      </p>
-                    </div>
-                    <StatusBadge status={s.status} />
-                  </CardBody>
-                </Card>
-              </Link>
+              <Card className="transition-shadow hover:shadow-lift">
+                <CardBody className="flex items-center justify-between gap-3 py-4">
+                  <Link to={`/op/shipments/${s.id}`} className="min-w-0 flex-1">
+                    <p className="font-mono text-sm font-semibold text-foreground">{s.public_code}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-fg">
+                      {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
+                    </p>
+                  </Link>
+                  <StatusBadge status={s.status} />
+                  <button
+                    type="button"
+                    onClick={() => void unload(s)}
+                    aria-label={L.unload}
+                    className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-fg transition-colors hover:bg-danger/10 hover:text-danger"
+                  >
+                    <PackageMinus className="h-4 w-4" /> {L.unload}
+                  </button>
+                </CardBody>
+              </Card>
             </motion.div>
           ))}
         </div>
