@@ -372,6 +372,20 @@ export function IntakePage() {
   // forwarded online order being created for the client on receipt.
   const [forwardFlag, setForwardFlag] = useState(false);
   const autoPrintRef = useRef(false);
+
+  // Forward-scan create: auto-fill the receiver from the client's last parcel
+  // (their saved Econt office + address), so the operator only weighs and confirms.
+  const autoFilledRef = useRef(false);
+  useEffect(() => {
+    if (!forwardFlag || autoFilledRef.current || !client) return;
+    const last = recents?.receivers?.[0];
+    if (last) {
+      fillParty('receiver', last);
+      autoFilledRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forwardFlag, client, recents]);
+
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const successRef = useRef<HTMLDivElement>(null);
