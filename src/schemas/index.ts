@@ -24,13 +24,15 @@ export const quoteInputSchema = z.object({
 });
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
 
+/** Sender: name + phone required; the street address is optional (the client is
+ *  usually dropping off in person, and forwarded parcels have no real sender). */
 export const partySchema = z.object({
   name: z.string().min(2),
   phone: z.string().min(6),
-  line1: z.string().min(2),
+  line1: z.string().optional().nullable(),
   line2: z.string().optional().nullable(),
-  city: z.string().min(2),
-  postcode: z.string().min(2),
+  city: z.string().optional().nullable(),
+  postcode: z.string().optional().nullable(),
   country: countrySchema,
   econt_office_code: z.string().optional().nullable(),
 });

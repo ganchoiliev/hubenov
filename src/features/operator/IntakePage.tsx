@@ -744,6 +744,8 @@ export function IntakePage() {
           errors={errors}
           labels={partyLabels}
           withOffice={false}
+          optionalAddress
+          optionalLabel={L.addr_optional}
           phoneHint={phoneHintFor(dirCountries.sender)}
         />
 
