@@ -744,6 +744,7 @@ export function useSendInvoiceEmail() {
       invoice: Invoice;
       toEmail: string;
       clientName: string;
+      clientCode?: string | null;
       locale: 'bg' | 'en';
     }): Promise<{ ok: boolean; simulated?: boolean }> => {
       // Linked shipment code + company details for the attached PDF (best-effort).
@@ -772,6 +773,7 @@ export function useSendInvoiceEmail() {
         currency: args.invoice.currency,
         status: args.invoice.status,
         clientName: args.clientName,
+        clientCode: args.clientCode ?? null,
         clientEmail: args.toEmail,
         items: args.invoice.items,
         company: { name: s?.company_name, eori: s?.eori, returnAddress: s?.return_address },

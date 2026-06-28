@@ -437,6 +437,7 @@ function InvoicesPanel({
         invoice: inv,
         toEmail: profile.email,
         clientName: profile.full_name,
+        clientCode: profile.client_code,
         locale: lang,
       });
       toast.success(res.simulated ? T.simulated : T.sent);
@@ -524,6 +525,7 @@ function InvoicesPanel({
         currency: inv.currency,
         status: inv.status,
         clientName: profile.full_name,
+        clientCode: profile.client_code,
         clientEmail: profile.email,
         items: inv.items,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
@@ -611,7 +613,14 @@ function InvoicesPanel({
             <Card key={inv.id}>
               <CardBody className="py-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-mono text-sm">{inv.number}</span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="font-mono text-sm">{inv.number}</span>
+                    {inv.shipment_id && shipments.find((sx) => sx.id === inv.shipment_id)?.public_code && (
+                      <span className="text-xs text-muted-fg">
+                        {lang === 'bg' ? 'Пратка' : 'Parcel'}: {shipments.find((sx) => sx.id === inv.shipment_id)?.public_code}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="mr-1 font-semibold">{formatMoney(inv.amount, inv.currency, locale)}</span>
                     <Badge tone={TONE[inv.status]}>{t(`portal.invoice_${inv.status}`)}</Badge>

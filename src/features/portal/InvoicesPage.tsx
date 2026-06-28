@@ -82,6 +82,7 @@ export function InvoicesPage() {
         currency: inv.currency,
         status: inv.status,
         clientName: profile?.full_name ?? '',
+        clientCode: profile?.client_code ?? null,
         clientEmail: profile?.email ?? null,
         items: inv.items,
         company: {},

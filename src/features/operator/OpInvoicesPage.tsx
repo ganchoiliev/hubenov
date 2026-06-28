@@ -39,7 +39,8 @@ import type { Invoice, InvoiceItem, InvoiceStatus, Currency, PartySnapshot } fro
 type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
 
 type InvoiceRow = Invoice & {
-  client?: { full_name: string | null; email: string | null; preferred_locale: string | null } | null;
+  client?: { full_name: string | null; email: string | null; preferred_locale: string | null; client_code: string | null } | null;
+  shipment?: { public_code: string | null } | null;
 };
 
 const STATUSES: InvoiceStatus[] = ['unpaid', 'partial', 'paid', 'void'];
@@ -63,6 +64,7 @@ export function OpInvoicesPage() {
       ? {
           payment_recorded: 'Payment recorded',
           client: 'Client',
+          parcel: 'Parcel',
           amount: 'Amount',
           currency: 'Currency',
           status: 'Status',
@@ -98,6 +100,7 @@ export function OpInvoicesPage() {
       : {
           payment_recorded: 'Плащането е записано',
           client: 'Клиент',
+          parcel: 'Пратка',
           amount: 'Сума',
           currency: 'Валута',
           status: 'Статус',
@@ -147,7 +150,9 @@ export function OpInvoicesPage() {
       // Embed the client (one FK invoices.client_id → profiles) for name/email.
       const { data, error } = await supabase
         .from('invoices')
-        .select('*, client:profiles!client_id(full_name, email, preferred_locale)')
+        .select(
+          '*, client:profiles!client_id(full_name, email, preferred_locale, client_code), shipment:shipments!shipment_id(public_code)',
+        )
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as InvoiceRow[];
@@ -210,6 +215,7 @@ export function OpInvoicesPage() {
         invoice: inv,
         toEmail: inv.client.email,
         clientName: inv.client.full_name ?? '',
+        clientCode: inv.client.client_code ?? null,
         locale: docLang,
       });
       toast.success(res.simulated ? L.simulated : L.sent);
@@ -270,6 +276,7 @@ export function OpInvoicesPage() {
         currency: inv.currency,
         status: inv.status,
         clientName: inv.client?.full_name ?? '',
+        clientCode: inv.client?.client_code ?? null,
         clientEmail: inv.client?.email ?? null,
         items: inv.items,
         company: { name: settings?.company_name, eori: settings?.eori, returnAddress: settings?.return_address },
@@ -357,7 +364,9 @@ export function OpInvoicesPage() {
                         <Badge tone={INVOICE_TONE[inv.status]}>{t(`portal.invoice_${inv.status}`)}</Badge>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-muted-fg">
-                        {L.client}: {inv.client?.full_name || inv.client_id.slice(0, 8)} · {formatDate(inv.created_at, locale)}
+                        {L.client}: {inv.client?.full_name || inv.client_id.slice(0, 8)}
+                        {inv.client?.client_code ? ` (${inv.client.client_code})` : ''}
+                        {inv.shipment?.public_code ? ` · ${L.parcel}: ${inv.shipment.public_code}` : ''} · {formatDate(inv.created_at, locale)}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

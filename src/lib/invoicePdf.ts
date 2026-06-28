@@ -22,6 +22,8 @@ export interface InvoicePdfData {
   currency: Currency;
   status: InvoiceStatus;
   clientName: string;
+  /** Client OT code (HB-XXXX) — printed in brackets after the name. */
+  clientCode?: string | null;
   clientEmail?: string | null;
   /** Optional line-item breakdown. When non-empty, each row is printed and the
    *  total is their sum; otherwise a single transport-service line is printed. */
@@ -125,7 +127,7 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<Uint8Array> {
   y -= 24;
   text(t.billTo, M, y, 8, bold, muted);
   y -= 16;
-  text(d.clientName || '-', M, y, 12, bold);
+  text(d.clientCode ? `${d.clientName || '-'} (${d.clientCode})` : d.clientName || '-', M, y, 12, bold);
   if (d.clientEmail) {
     y -= 14;
     text(d.clientEmail, M, y, 9, font, muted);
