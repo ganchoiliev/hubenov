@@ -277,6 +277,10 @@ export function IntakePage() {
     const v = c.trim().toUpperCase();
     setCodeInput(v);
     void resolveClient(v);
+    // Scanned an OT code at the station with no pre-registered parcel → create a
+    // forward parcel for this client, and auto-print its label on save.
+    if (searchParams.get('forward') === '1') setForwardFlag(true);
+    if (searchParams.get('autoprint') === '1') autoPrintRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -364,6 +368,9 @@ export function IntakePage() {
 
   const { data: settings } = useCompanySettings();
   const [inboundRef, setInboundRef] = useState<string | null>(null);
+  // Set when an OT code was scanned with no pre-registered parcel: this intake is a
+  // forwarded online order being created for the client on receipt.
+  const [forwardFlag, setForwardFlag] = useState(false);
   const autoPrintRef = useRef(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -422,7 +429,7 @@ export function IntakePage() {
           client_id: client.id,
           created_by: operatorId,
           status: 'collected_uk',
-          kind: inboundRef ? 'forward' : 'send',
+          kind: inboundRef || forwardFlag ? 'forward' : 'send',
           inbound_ref: inboundRef,
         } as never)
         .select('*')
@@ -509,13 +516,19 @@ export function IntakePage() {
     <div className="mx-auto max-w-3xl">
       <PageHeading title={t('operator.intake_title')} />
 
-      {inboundRef && (
+      {(inboundRef || forwardFlag) && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-50 px-4 py-2.5 text-sm text-brand-700">
           <ScanLine className="h-4 w-4 shrink-0" />
           <span>
-            {locale === 'bg' ? 'Входяща пратка · реф.' : 'Inbound parcel · ref'}{' '}
-            <span className="font-mono font-semibold">{inboundRef}</span>
-            {' · '}
+            {inboundRef ? (
+              <>
+                {locale === 'bg' ? 'Входяща пратка · реф.' : 'Inbound parcel · ref'}{' '}
+                <span className="font-mono font-semibold">{inboundRef}</span>
+                {' · '}
+              </>
+            ) : (
+              <>{locale === 'bg' ? 'Онлайн пратка · ' : 'Online parcel · '}</>
+            )}
             {locale === 'bg' ? 'етикетът ще се отпечата автоматично' : 'label auto-prints on save'}
           </span>
         </div>

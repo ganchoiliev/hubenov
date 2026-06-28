@@ -214,7 +214,7 @@ export function ScanStationPage() {
           expectedTitle: 'Очаквани пратки',
           expectedHint: 'Изберете коя пратка пристигна — приема се в склада и етикетът се печата.',
           receiveBtn: 'Приеми + печат',
-          noExpected: 'Този клиент няма очаквани пратки.',
+          creatingForClient: 'Нова пратка за {name} — попълни и запиши.',
         }
       : {
           modes: { receive: 'Receive', lookup: 'Lookup' },
@@ -263,7 +263,7 @@ export function ScanStationPage() {
           expectedTitle: 'Expected parcels',
           expectedHint: 'Pick which parcel arrived — it is received into the hub and the label prints.',
           receiveBtn: 'Receive + print',
-          noExpected: 'This client has no expected parcels.',
+          creatingForClient: 'New parcel for {name} — fill in and save.',
         };
 
   const setModePersist = (m: Mode) => {
@@ -399,10 +399,12 @@ export function ScanStationPage() {
         triggerFlash(true);
         return;
       }
-      setNotFound(client.client_code);
-      if (sound) beep(false);
-      triggerFlash(false);
-      toast.error(L.noExpected);
+      // Known client but nothing pre-registered → create a forward parcel for them
+      // (intake opens prefilled with the client; the label auto-prints on save).
+      if (sound) beep(true);
+      triggerFlash(true);
+      toast.info(L.creatingForClient.replace('{name}', client.full_name || client.client_code));
+      navigate(`/op/intake?code=${encodeURIComponent(client.client_code)}&forward=1&autoprint=1`);
       return;
     }
     // 3) Unknown → create it in intake, prefilled + auto-print on save.
