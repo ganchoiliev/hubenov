@@ -19,6 +19,7 @@ import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
 import { Section } from '@/components/shared/common';
+import { ShopLogos } from '@/components/shared/ShopLogos';
 import { company } from '@/lib/env';
 
 const VALUES = [
@@ -287,6 +288,23 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Shops you can order from ───────────────────────────────────── */}
+      <Section className="!py-14">
+        <motion.div {...reveal}>
+          <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
+            {lang === 'bg' ? 'Пазарувай от UK магазини' : 'Shop from UK stores'}
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-muted-fg">
+            {lang === 'bg'
+              ? 'Поръчай от тези и хиляди други UK магазини — ние ги доставяме до България. Натисни лого, за да отвориш магазина.'
+              : 'Order from these and thousands of other UK shops — we deliver them to Bulgaria. Tap a logo to open the shop.'}
+          </p>
+          <div className="mt-8">
+            <ShopLogos />
+          </div>
+        </motion.div>
+      </Section>
 
       {/* ── Testimonials ────────────────────────────────────────────────── */}
       <section className="border-y border-border bg-muted/40">

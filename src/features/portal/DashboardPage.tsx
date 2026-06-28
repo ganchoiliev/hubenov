@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useMyShipments } from '@/lib/queries';
 import { isTerminal } from '@/lib/status';
 import { HUB_ADDRESS, hubRecipientName } from '@/config/hub';
+import { ShopLogos } from '@/components/shared/ShopLogos';
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -93,6 +94,16 @@ export function DashboardPage() {
           </Card>
         </Link>
       )}
+
+      {/* Popular UK shops — tap a logo to open and order */}
+      <Card className="mt-5">
+        <CardBody>
+          <p className="mb-3 text-sm font-bold text-foreground">
+            {lang === 'bg' ? 'Пазарувай от UK магазини' : 'Shop from UK stores'}
+          </p>
+          <ShopLogos limit={8} compact />
+        </CardBody>
+      </Card>
 
       <div className="mb-3 mt-8 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-muted-fg">
