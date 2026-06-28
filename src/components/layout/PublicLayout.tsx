@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link, useLocation, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Phone, MapPin, Menu, X } from 'lucide-react';
+import { Phone, MapPin, Menu, X, ArrowUpRight } from 'lucide-react';
 import { Suspense, useState, useEffect } from 'react';
 import { Logo } from '@/components/brand/Logo';
 import { LanguageSwitch, ThemeToggle } from '@/components/controls';
@@ -183,6 +183,20 @@ export function PublicLayout() {
           </p>
           <p>
             © {new Date().getFullYear()} {t('brand.name')}. {t('footer.rights')}
+          </p>
+          <p className="flex items-center justify-center gap-1.5 pt-1.5">
+            <span>{lang === 'en' ? 'Web design & development by' : 'Уеб дизайн и разработка от'}</span>
+            <a
+              href="https://gosmartr.co.uk/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-0.5 font-semibold"
+            >
+              <span className="bg-gradient-to-r from-brand to-emerald-500 bg-clip-text text-transparent transition-opacity group-hover:opacity-80">
+                GoSmartR
+              </span>
+              <ArrowUpRight className="h-3 w-3 -translate-y-px text-brand opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </a>
           </p>
         </div>
       </footer>
