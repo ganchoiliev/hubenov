@@ -31,8 +31,8 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
     ? {
         title: 'Вашият адрес за поръчки от UK',
         intro: 'Поръчайте от Amazon, eBay и други UK магазини на този адрес. Щом колетът пристигне при нас, го изпращаме до вас в България.',
-        recipientLabel: 'Име на получател (с вашия код)',
-        copyName: 'Копирай',
+        blockLabel: 'Адрес за доставка — копирайте го изцяло',
+        copyName: 'Само името',
         copyAll: 'Копирай адреса',
         copied: 'Копирано',
         howTitle: 'Как да поръчате',
@@ -46,8 +46,8 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
     : {
         title: 'Your UK shopping address',
         intro: 'Order from Amazon, eBay and other UK shops to this address. When the parcel reaches us, we forward it to you in Bulgaria.',
-        recipientLabel: 'Recipient name (with your code)',
-        copyName: 'Copy',
+        blockLabel: 'Ship-to address — copy it all',
+        copyName: 'Name only',
         copyAll: 'Copy address',
         copied: 'Copied',
         howTitle: 'How to order',
@@ -68,41 +68,26 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
         </div>
         <p className="text-sm leading-relaxed text-muted-fg">{T.intro}</p>
 
-        {/* Recipient name — the critical line that carries the code */}
-        <div className="rounded-xl border border-brand/30 bg-card p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-fg">{T.recipientLabel}</p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <span className="font-mono text-base font-bold text-foreground">{recipient}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="shrink-0 gap-1.5"
-              onClick={() => copy(recipient, 'name', T.copied)}
-            >
-              {copied === 'name' ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />} {T.copyName}
-            </Button>
+        {/* One ship-to block: the recipient name (with the code) sits on top, so a
+            single "Copy address" grabs name + code + address together. */}
+        <div className="rounded-xl border border-brand/30 bg-card p-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-fg">{T.blockLabel}</p>
+          <div className="mt-1.5 space-y-0.5 text-sm leading-relaxed text-foreground">
+            <p className="font-mono text-base font-bold">{recipient}</p>
+            <p>c/o {HUB_ADDRESS.careOf}</p>
+            <p>{HUB_ADDRESS.line1}</p>
+            <p>{HUB_ADDRESS.line2}</p>
+            <p>
+              {HUB_ADDRESS.city} {HUB_ADDRESS.postcode}
+            </p>
+            <p>{HUB_ADDRESS.country}</p>
           </div>
-        </div>
-
-        {/* Full address block */}
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-sm leading-relaxed text-foreground">
-              <p>c/o {HUB_ADDRESS.careOf}</p>
-              <p>{HUB_ADDRESS.line1}</p>
-              <p>{HUB_ADDRESS.line2}</p>
-              <p>
-                {HUB_ADDRESS.city} {HUB_ADDRESS.postcode}
-              </p>
-              <p>{HUB_ADDRESS.country}</p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="shrink-0 gap-1.5"
-              onClick={() => copy(fullBlock, 'all', T.copied)}
-            >
-              {copied === 'all' ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />} {T.copyAll}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" className="gap-1.5" onClick={() => copy(fullBlock, 'all', T.copied)}>
+              {copied === 'all' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {T.copyAll}
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => copy(recipient, 'name', T.copied)}>
+              {copied === 'name' ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />} {T.copyName}
             </Button>
           </div>
         </div>
