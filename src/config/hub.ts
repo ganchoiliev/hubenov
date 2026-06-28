@@ -18,7 +18,9 @@ export const HUB_ADDRESS = {
 /** The recipient-name line a client should use at checkout: "Name (HB-XXXX)". */
 export function hubRecipientName(fullName: string, clientCode: string): string {
   const name = fullName.trim();
-  return name ? `${name} (${clientCode})` : clientCode;
+  // No parentheses: some checkouts (Amazon) reject "( )" in the name field, so the
+  // code rides as a plain suffix — "Gosho HB-SY35".
+  return name ? `${name} ${clientCode}` : clientCode;
 }
 
 /** One-line-per-row address block for copy/paste, with the client's code on top. */

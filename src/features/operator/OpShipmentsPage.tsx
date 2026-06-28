@@ -114,6 +114,7 @@ function StatusChanger({
 }) {
   const toast = useToast();
   const update = useUpdateStatus();
+  const confirm = useConfirm();
   // Only "Натоварена" comes solely from the course (it links a van); Тръгна/Пристигна
   // are now operator-settable, so the per-row control offers them where valid.
   const options = nextStatuses(shipment.status).filter((s) => !COURSE_DRIVEN.includes(s));
@@ -122,7 +123,32 @@ function StatusChanger({
     return <span className="text-xs text-muted-fg">{noNextLabel}</span>;
   }
 
+  const cancelCopy =
+    locale === 'bg'
+      ? {
+          title: 'Отказване на пратка',
+          body: 'Пратката ще се маркира като отказана и клиентът ще получи известие. Да продължа?',
+          confirm: 'Откажи пратката',
+          cancel: 'Назад',
+        }
+      : {
+          title: 'Cancel parcel',
+          body: 'The parcel will be marked cancelled and the client notified. Proceed?',
+          confirm: 'Cancel parcel',
+          cancel: 'Back',
+        };
+
   const apply = async (to: AnyStatus) => {
+    if (to === 'cancelled') {
+      const ok = await confirm({
+        title: cancelCopy.title,
+        body: cancelCopy.body,
+        confirmLabel: cancelCopy.confirm,
+        cancelLabel: cancelCopy.cancel,
+        danger: true,
+      });
+      if (!ok) return;
+    }
     try {
       await update.mutateAsync({ shipment, to, source: 'manual' });
       toast.success(`${shipment.public_code} · ${statusLabel(to, locale)}`);
@@ -134,7 +160,13 @@ function StatusChanger({
   // Primary button = the happy-path forward step; side-exits go in "Друго…".
   const isSide = (s: AnyStatus) => (SIDE_STATUSES as readonly string[]).includes(s);
   const next = options.find((s) => !isSide(s)) ?? null;
-  const alternatives = options.filter((s) => s !== next);
+  const baseAlternatives = options.filter((s) => s !== next);
+  // One-click cancel: always offer Отказана on an active parcel (terminal states
+  // return early above). Distinct from delete — it keeps the record + notifies.
+  const alternatives =
+    baseAlternatives.includes('cancelled') || next === 'cancelled'
+      ? baseAlternatives
+      : [...baseAlternatives, 'cancelled' as AnyStatus];
 
   return (
     <div className="flex items-center gap-2">
