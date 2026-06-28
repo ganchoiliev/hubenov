@@ -42,6 +42,7 @@ interface ResolvedClient {
   id: string;
   full_name: string;
   client_code: string;
+  phone?: string | null;
 }
 
 const PARCEL_TYPES: ParcelType[] = ['parcel', 'document', 'pallet', 'food', 'other'];
@@ -202,8 +203,8 @@ export function IntakePage() {
       )
       .slice(0, 6);
   }, [allClients, clientSearch]);
-  const pickClient = (c: { id: string; full_name: string; client_code: string }) => {
-    setClient({ id: c.id, full_name: c.full_name, client_code: c.client_code });
+  const pickClient = (c: { id: string; full_name: string; client_code: string; phone?: string | null }) => {
+    setClient({ id: c.id, full_name: c.full_name, client_code: c.client_code, phone: c.phone ?? null });
     setNotFound(false);
     setClientSearch('');
     setCodeInput(c.client_code);
@@ -220,7 +221,7 @@ export function IntakePage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id,full_name,client_code')
+        .select('id,full_name,client_code,phone')
         .eq('client_code', code)
         .maybeSingle();
       if (error) throw error;
@@ -255,7 +256,7 @@ export function IntakePage() {
           email: newClient.email.trim() || null,
           preferred_locale: 'bg',
         } as never)
-        .select('id,full_name,client_code')
+        .select('id,full_name,client_code,phone')
         .single();
       if (error) throw error;
       setClient(data as ResolvedClient);
@@ -361,9 +362,13 @@ export function IntakePage() {
     else setValue('receiver', v, { shouldDirty: true });
   };
 
-  // Prefill the sender from the loaded/created client (they're the account holder).
+  // Prefill the sender from the loaded/created client (they're the account holder):
+  // name + phone default to the client's, since the sender is the client ~always.
+  // Editable — the operator can change either before saving.
   useEffect(() => {
-    if (client) setValue('sender.name', client.full_name);
+    if (!client) return;
+    setValue('sender.name', client.full_name);
+    if (client.phone) setValue('sender.phone', client.phone);
   }, [client, setValue]);
 
   const { data: settings } = useCompanySettings();
