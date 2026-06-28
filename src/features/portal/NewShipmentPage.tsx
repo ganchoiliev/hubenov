@@ -16,6 +16,10 @@ import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
 import { calculateQuote } from '@/lib/pricing';
 import { PLACEHOLDER_RATES } from '@/lib/rates';
 import { formatMoney, cn } from '@/lib/utils';
+import { toE164 } from '@/lib/phone';
+
+/** The phone country code is the party's country: BG → +359, UK → +44. */
+const dialFor = (country: string) => (country === 'BG' ? '+359' : '+44');
 
 const STEPS = ['wizard.step_route', 'wizard.step_sender', 'wizard.step_receiver', 'wizard.step_parcel', 'wizard.step_review'] as const;
 
@@ -137,9 +141,16 @@ export function NewShipmentPage() {
 
   const onSubmit = async (data: ShipmentInput) => {
     if (!profile) return;
+    // Normalize phones to E.164 anchored to each party's country (no picker needed):
+    // a BG receiver → +359 for Econt, a UK sender → +44. Explicit codes are kept.
+    const normalized: ShipmentInput = {
+      ...data,
+      sender: { ...data.sender, phone: toE164(dialFor(data.sender.country), data.sender.phone) },
+      receiver: { ...data.receiver, phone: toE164(dialFor(data.receiver.country), data.receiver.phone) },
+    };
     try {
       const shipment = await createShipment.mutateAsync({
-        ...data,
+        ...normalized,
         client_id: profile.id,
         created_by: profile.id,
       });
@@ -423,8 +434,20 @@ function ReceiverStep({
         <Field label={t('wizard.name')} error={e?.name?.message}>
           <Input {...register('receiver.name' as any)} />
         </Field>
-        <Field label={t('wizard.phone')} error={e?.phone?.message}>
-          <Input {...register('receiver.phone' as any)} />
+        <Field
+          label={t('wizard.phone')}
+          error={e?.phone?.message}
+          hint={
+            isBg
+              ? lang === 'bg'
+                ? 'Български номер (+359)'
+                : 'Bulgarian number (+359)'
+              : lang === 'bg'
+                ? 'UK номер (+44)'
+                : 'UK number (+44)'
+          }
+        >
+          <Input placeholder={isBg ? '+359 88…' : '+44 7…'} {...register('receiver.phone' as any)} />
         </Field>
       </div>
 

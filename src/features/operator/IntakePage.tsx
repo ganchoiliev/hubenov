@@ -21,6 +21,7 @@ import {
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
 import { EcontOfficePicker } from '@/components/shared/EcontOfficePicker';
+import { toE164 } from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import {
@@ -397,11 +398,16 @@ export function IntakePage() {
           direction: data.direction,
           parcel_type: data.parcel_type,
           is_gift: data.is_gift,
-          sender: { ...data.sender, country: sender },
+          sender: {
+            ...data.sender,
+            country: sender,
+            phone: toE164(sender === 'BG' ? '+359' : '+44', data.sender.phone),
+          },
           receiver: {
             ...data.receiver,
             country: receiver,
             econt_office_code: data.receiver.econt_office_code || null,
+            phone: toE164(receiver === 'BG' ? '+359' : '+44', data.receiver.phone),
           },
           weight_kg: data.weight_kg,
           length_cm: data.length_cm,
@@ -487,6 +493,17 @@ export function IntakePage() {
     postcode: t('wizard.postcode'),
     econt_office: L.econt_office,
   };
+
+  // Phone country code follows each party's country (no picker): BG → +359, UK → +44.
+  const dirCountries = countriesFor(direction);
+  const phoneHintFor = (c: 'GB' | 'BG') =>
+    c === 'BG'
+      ? locale === 'bg'
+        ? 'Български номер (+359)'
+        : 'Bulgarian number (+359)'
+      : locale === 'bg'
+        ? 'UK номер (+44)'
+        : 'UK number (+44)';
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -700,6 +717,7 @@ export function IntakePage() {
           errors={errors}
           labels={partyLabels}
           withOffice={false}
+          phoneHint={phoneHintFor(dirCountries.sender)}
         />
 
         {client && recents && recents.receivers.length > 0 && (
@@ -731,6 +749,7 @@ export function IntakePage() {
           optionalAddress
           addressNote={L.receiver_note}
           optionalLabel={L.addr_optional}
+          phoneHint={phoneHintFor(dirCountries.receiver)}
         />
 
         {/* Econt office — the delivery destination. Picking one fills the receiver
@@ -870,6 +889,7 @@ function PartyFields({
   optionalAddress = false,
   addressNote,
   optionalLabel,
+  phoneHint,
 }: {
   prefix: PartyPrefix;
   title: string;
@@ -880,6 +900,7 @@ function PartyFields({
   optionalAddress?: boolean;
   addressNote?: string;
   optionalLabel?: string;
+  phoneHint?: string;
 }) {
   const e = errors[prefix];
   const wizardName = (id: string) => `${prefix}-${id}`;
@@ -893,7 +914,7 @@ function PartyFields({
           <Field label={labels.name} error={e?.name?.message} htmlFor={wizardName('name')}>
             <Input id={wizardName('name')} autoComplete="hb-no-name" {...register(`${prefix}.name`)} />
           </Field>
-          <Field label={labels.phone} error={e?.phone?.message} htmlFor={wizardName('phone')}>
+          <Field label={labels.phone} error={e?.phone?.message} hint={phoneHint} htmlFor={wizardName('phone')}>
             <Input id={wizardName('phone')} autoComplete="hb-no-tel" {...register(`${prefix}.phone`)} />
           </Field>
         </div>

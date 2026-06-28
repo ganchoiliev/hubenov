@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { useRegisterIncoming, useMyIncoming } from '@/lib/queries';
 import { cn, formatDate } from '@/lib/utils';
+import { toE164 } from '@/lib/phone';
 import type { Currency } from '@/types/domain';
 
 const CURRENCIES: Currency[] = ['GBP', 'EUR', 'BGN'];
@@ -142,7 +143,7 @@ export function IncomingParcelPage() {
         sender: { name: profile.full_name ?? '', phone: '', line1: form.shop.trim(), city: 'Manchester', postcode: '', country: 'GB' },
         receiver: {
           name: form.rname.trim(),
-          phone: form.rphone.trim(),
+          phone: toE164('+359', form.rphone.trim()),
           line1: mode === 'address' ? form.raddr.trim() : '',
           city: mode === 'address' ? form.rcity.trim() : '',
           postcode: mode === 'address' ? form.rpost.trim() : '',
