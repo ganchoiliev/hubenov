@@ -29,6 +29,11 @@ export function formatDate(
   return new Intl.DateTimeFormat(locale, opts).format(d);
 }
 
+/** Format a date *with* the time — for intake/creation stamps (parcels, profiles). */
+export function formatDateTime(date: Date | string, locale: string = 'bg-BG'): string {
+  return formatDate(date, locale, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 /** Sleep helper (used by adapters / optimistic UX). */
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));

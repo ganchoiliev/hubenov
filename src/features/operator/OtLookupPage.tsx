@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion, AnimatePresence } from 'framer-motion';
-import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search, Download, Ban, Trash2 } from 'lucide-react';
+import { UserSearch, Phone, Mail, Package, Receipt, Pencil, Plus, Send, PackagePlus, Search, Download, Ban, Trash2, Clock } from 'lucide-react';
 import { Button, Card, CardBody, Input, Spinner, Badge, Select, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
@@ -20,7 +20,7 @@ import {
 } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { otCodeSchema } from '@/schemas';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, formatDateTime } from '@/lib/utils';
 import { transliterate } from '@/lib/translit';
 import type { Database } from '@/types/database.types';
 import type { Profile, Invoice, InvoiceStatus, Shipment, Currency, PartySnapshot } from '@/types/domain';
@@ -169,6 +169,9 @@ export function OtLookupPage() {
                             <p className="text-xs text-muted-fg">
                               {s.receiver.name} · {s.receiver.city} · {s.weight_kg} {t('common.kg')}
                             </p>
+                            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-fg">
+                              <Clock className="h-3 w-3 shrink-0" /> {formatDateTime(s.created_at, locale)}
+                            </p>
                           </div>
                           <StatusBadge status={s.status} />
                         </CardBody>
@@ -195,6 +198,8 @@ export function OtLookupPage() {
 }
 
 function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }) {
+  const { t } = useTranslation();
+  const dateLocale = lang === 'en' ? 'en-GB' : 'bg-BG';
   const toast = useToast();
   const update = useUpdateProfile();
   const [editing, setEditing] = useState(false);
@@ -268,6 +273,9 @@ function CustomerCard({ profile, lang }: { profile: Profile; lang: 'bg' | 'en' }
                 {profile.notify_email === false && <Badge tone="neutral">{T.notifyOff}</Badge>}
               </div>
               <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-muted-fg">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" /> {t('common.created')}: {formatDateTime(profile.created_at, dateLocale)}
+                </span>
                 {profile.phone && (
                   <span className="flex items-center gap-1.5">
                     <Phone className="h-3.5 w-3.5" /> {profile.phone}

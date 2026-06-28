@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag, Clock } from 'lucide-react';
 import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { getParcelOrigin } from '@/lib/parcelOrigin';
+import { formatDateTime } from '@/lib/utils';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -169,6 +170,7 @@ function StatusChanger({
 export function OpShipmentsPage() {
   const { t, i18n } = useTranslation();
   const locale: 'bg' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
+  const dateLocale = locale === 'en' ? 'en-GB' : 'bg-BG';
   const L = COPY[locale];
 
   const toast = useToast();
@@ -442,6 +444,9 @@ export function OpShipmentsPage() {
                             {s.weight_kg} {t('common.kg')}
                           </span>
                           <OnlineBadge shipment={s} />
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-fg">
+                          <Clock className="h-3 w-3 shrink-0" /> {formatDateTime(s.created_at, dateLocale)}
                         </p>
                       </div>
 

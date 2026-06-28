@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound, Printer } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Gift, FileText, Plus, Trash2, Download, AlertTriangle, Truck, ExternalLink, Save, Pencil, Hash, UserRound, Printer, Clock } from 'lucide-react';
 import { Card, CardBody, Badge, Spinner, Button, Input, Switch, Field } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { OnlineBadge } from '@/components/shared/OnlineBadge';
@@ -16,7 +16,7 @@ import { HubenovQr } from '@/components/shared/HubenovQr';
 import { supabase } from '@/lib/supabase';
 import { calculateQuote } from '@/lib/pricing';
 import { PLACEHOLDER_RATES } from '@/lib/rates';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, formatDateTime } from '@/lib/utils';
 import { assessCustoms } from '@/lib/customs';
 import type { PartySnapshot, Shipment, CustomsItem, Currency } from '@/types/domain';
 
@@ -170,6 +170,11 @@ export function ShipmentDetailPage() {
 
           <Card>
             <CardBody className="space-y-2.5 text-sm">
+              <Row
+                icon={<Clock className="h-4 w-4" />}
+                label={t('common.created')}
+                value={formatDateTime(shipment.created_at, locale)}
+              />
               {shipment.inbound_ref && (
                 <Row icon={<Hash className="h-4 w-4" />} label={t('track.inbound_no')} value={shipment.inbound_ref} />
               )}
