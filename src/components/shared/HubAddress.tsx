@@ -26,7 +26,6 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
     window.setTimeout(() => setCopied((k) => (k === key ? null : k)), 1500);
   };
 
-  const addrLine = `${HUB_ADDRESS.line1}, ${HUB_ADDRESS.line2}, ${HUB_ADDRESS.city} ${HUB_ADDRESS.postcode}`;
   const T = bg
     ? {
         title: 'Вашият адрес за поръчки от UK',
@@ -37,11 +36,11 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
         copied: 'Копирано',
         howTitle: 'Как да поръчате',
         steps: [
-          `Като име на получател въведете името си и кода в скоби: „${recipient}".`,
-          `Като адрес въведете: ${addrLine}, ${HUB_ADDRESS.country}.`,
+          `Като име на получател напишете името и кода си: „${recipient}" (бутон „Само името").`,
+          `Като адрес поставете адреса отгоре (бутон „Копирай адреса").`,
           'Готово — щом пратката пристигне при нас, я изпращаме до България.',
         ],
-        warn: `Важно: кодът ${clientCode} трябва да присъства в името/адреса на пратката, за да я разпознаем веднага.`,
+        warn: `Важно: кодът ${clientCode} трябва да присъства в името на получателя, за да разпознаем пратката веднага.`,
       }
     : {
         title: 'Your UK shopping address',
@@ -52,11 +51,11 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
         copied: 'Copied',
         howTitle: 'How to order',
         steps: [
-          `Set the recipient name to your name plus your code in brackets: "${recipient}".`,
-          `Set the address to: ${addrLine}, ${HUB_ADDRESS.country}.`,
+          `Set the recipient name to your name and code: "${recipient}" (the "Name only" button).`,
+          `Paste the address above (the "Copy address" button).`,
           'Done — when the parcel reaches us, we send it on to Bulgaria.',
         ],
-        warn: `Important: your code ${clientCode} must appear in the parcel name/address so we recognise it instantly.`,
+        warn: `Important: your code ${clientCode} must appear in the recipient name so we recognise the parcel instantly.`,
       };
 
   return (
@@ -97,10 +96,13 @@ export function HubAddress({ fullName, clientCode }: { fullName: string; clientC
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             <Info className="h-4 w-4 text-warning" /> {T.howTitle}
           </p>
-          <ol className="mt-2 space-y-1.5 text-sm text-foreground/80">
+          <ol className="mt-3 space-y-2.5">
             {T.steps.map((s, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="font-semibold text-brand-700">{i + 1}.</span> {s}
+              <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-foreground/80">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-brand-fg">
+                  {i + 1}
+                </span>
+                <span>{s}</span>
               </li>
             ))}
           </ol>
