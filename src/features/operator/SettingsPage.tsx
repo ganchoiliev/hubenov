@@ -404,10 +404,6 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
     `if not exist %CHROME% set CHROME="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"\r\n` +
     `start "" %CHROME% --kiosk-printing --user-data-dir="%LOCALAPPDATA%\\HubenovStation" "${origin}/op/scan"\r\n`;
 
-  const command =
-    `#!/bin/bash\n` +
-    `open -na "Google Chrome" --args --kiosk-printing --user-data-dir="$HOME/Library/Application Support/HubenovStation" "${origin}/op/scan"\n`;
-
   const download = (filename: string, text: string) => {
     const blob = new Blob([text], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
@@ -424,10 +420,11 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
     lang === 'bg'
       ? {
           title: 'Станция за печат',
-          intro: 'Автоматичен печат без диалог — всеки сканиран етикет излиза директно на принтера по подразбиране.',
+          intro:
+            'Автоматичен печат без диалог — всеки сканиран етикет излиза директно на принтера по подразбиране. Две опции, и двете за Windows:',
+          kioskTitle: 'Вариант 1 — Kiosk Chrome (без инсталация)',
           win: 'Свали стартер (Windows)',
-          mac: 'Mac версия',
-          steps: 'Стъпки (Windows):',
+          steps: 'Стъпки:',
           s: [
             'Задай принтера за етикети като „по подразбиране" (Settings → Bluetooth & devices → Printers).',
             'Натисни „Свали стартер (Windows)" и запази файла (ако браузърът предупреди — „Keep").',
@@ -435,23 +432,26 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
             'Двойно щракване. При първо стартиране: „More info" → „Run anyway".',
             'Влез веднъж и сканирай — етикетите се печатат автоматично.',
           ],
-          macSteps: 'Стъпки (Mac):',
-          ms: [
-            'Задай принтера по подразбиране (Системни настройки → Принтери).',
-            'Натисни „Mac версия" и запази файла.',
-            'Отвори Терминал и въведи: chmod +x ~/Downloads/Доставки-Хубенов-Печат.command',
-            'Премести файла на работния плот и двойно щракни (десен бутон → Open при първо стартиране).',
+          qzTitle: 'Вариант 2 — QZ Tray (тих печат) · препоръчано за термопринтер',
+          qzIntro:
+            'По-надеждно: печата тихо във всеки таб (без kiosk прозорец) и е стандартът за термопринтери.',
+          qzSteps: 'Стъпки:',
+          qz: [
+            'Изтегли и инсталирай QZ Tray (бутона долу) на компютъра с принтера. Върви във фон и тръгва сам при включване — иконата е долу вдясно в лентата (System Tray, до часовника).',
+            'Задай принтера за етикети като „по подразбиране" (Settings → Bluetooth & devices → Printers) и сложи правилния размер етикет в свойствата му (напр. 100×150 mm).',
+            'Във „Фирмени настройки" (горе) → Метод на печат → избери „QZ Tray (тих печат)" → Запази.',
+            'При първия печат QZ показва прозорец „Allow/Trust" за hubenov.delivery — чекни „Remember" и потвърди. След това печата тихо.',
+            'Тествай от „Сканиране и печат" — етикетът трябва да излезе без диалог.',
           ],
-          qzTitle: 'Алтернатива: QZ Tray (тих печат)',
-          qzNote: 'Без kiosk Chrome — инсталирай QZ Tray и избери „QZ" като метод за печат във „Фирмени настройки".',
           qzLink: 'Изтегли QZ Tray',
         }
       : {
           title: 'Print station',
-          intro: 'Silent printing — every scanned label prints straight to the default printer, no dialog.',
+          intro:
+            'Silent printing — every scanned label prints straight to the default printer, no dialog. Two options, both for Windows:',
+          kioskTitle: 'Option 1 — Kiosk Chrome (no install)',
           win: 'Download launcher (Windows)',
-          mac: 'Mac version',
-          steps: 'Steps (Windows):',
+          steps: 'Steps:',
           s: [
             'Set the label printer as default (Settings → Bluetooth & devices → Printers).',
             'Click "Download launcher (Windows)" and keep the file (if warned — "Keep").',
@@ -459,15 +459,17 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
             'Double-click it. First run: "More info" → "Run anyway".',
             'Log in once and scan — labels print automatically.',
           ],
-          macSteps: 'Steps (Mac):',
-          ms: [
-            'Set the label printer as default (System Settings → Printers).',
-            'Click "Mac version" and save the file.',
-            'Open Terminal and run: chmod +x ~/Downloads/Доставки-Хубенов-Печат.command',
-            'Move it to the Desktop and double-click (right-click → Open on first run).',
+          qzTitle: 'Option 2 — QZ Tray (silent) · recommended for thermal printers',
+          qzIntro:
+            'More robust: prints silently in any tab (no kiosk window) and is the standard for thermal/label printers.',
+          qzSteps: 'Steps:',
+          qz: [
+            'Download and install QZ Tray (button below) on the computer with the printer. It runs in the background and starts on boot — the icon sits bottom-right in the System Tray (by the clock).',
+            'Set the label printer as default (Settings → Bluetooth & devices → Printers) and set the correct label size in its properties (e.g. 100×150 mm).',
+            'In Company settings (above) → Print method → choose "QZ Tray (silent)" → Save.',
+            'On the first print QZ shows an "Allow/Trust" prompt for hubenov.delivery — tick "Remember" and confirm. After that it prints silently.',
+            'Test from "Scan & print" — the label should come out with no dialog.',
           ],
-          qzTitle: 'Alternative: QZ Tray (silent)',
-          qzNote: 'No kiosk Chrome — install QZ Tray and set Print method = QZ in Company settings above.',
           qzLink: 'Download QZ Tray',
         };
 
@@ -480,49 +482,47 @@ function PrintStationCard({ lang }: { lang: 'bg' | 'en' }) {
       </CardHeader>
       <CardBody className="space-y-4 pt-4">
         <p className="text-sm text-muted-fg">{T.intro}</p>
-        <div className="flex flex-wrap gap-2">
+
+        {/* Option 1 — Kiosk Chrome (Windows launcher) */}
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <p className="text-sm font-semibold text-foreground">{T.kioskTitle}</p>
           <Button className="gap-2" onClick={() => download('Hubenov-Print-Station.bat', bat)}>
             <Download className="h-4 w-4" /> {T.win}
           </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => download('Доставки-Хубенов-Печат.command', command)}
-          >
-            <Download className="h-4 w-4" /> {T.mac}
-          </Button>
+          <div>
+            <p className="mb-1.5 text-sm font-semibold text-foreground">{T.steps}</p>
+            <ol className="space-y-1.5 text-sm text-muted-fg">
+              {T.s.map((step, i) => (
+                <li key={i}>
+                  {i + 1}. {step}
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
-        <div>
-          <p className="mb-1.5 text-sm font-semibold text-foreground">{T.steps}</p>
-          <ol className="space-y-1.5 text-sm text-muted-fg">
-            {T.s.map((step, i) => (
-              <li key={i}>
-                {i + 1}. {step}
-              </li>
-            ))}
-          </ol>
-        </div>
-        <div>
-          <p className="mb-1.5 text-sm font-semibold text-foreground">{T.macSteps}</p>
-          <ol className="space-y-1.5 text-sm text-muted-fg">
-            {T.ms.map((step, i) => (
-              <li key={i}>
-                {i + 1}. {step}
-              </li>
-            ))}
-          </ol>
-        </div>
-        <div className="rounded-xl border border-border bg-muted/40 p-3">
+
+        {/* Option 2 — QZ Tray (recommended for thermal) */}
+        <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-3">
           <p className="text-sm font-semibold text-foreground">{T.qzTitle}</p>
-          <p className="mt-1 text-xs text-muted-fg">{T.qzNote}</p>
+          <p className="text-xs text-muted-fg">{T.qzIntro}</p>
           <a
             href="https://qz.io/download/"
             target="_blank"
             rel="noreferrer"
-            className="mt-1.5 inline-block text-xs text-brand"
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
           >
-            {T.qzLink} ↗
+            <Download className="h-4 w-4" /> {T.qzLink} ↗
           </a>
+          <div>
+            <p className="mb-1.5 text-sm font-semibold text-foreground">{T.qzSteps}</p>
+            <ol className="space-y-1.5 text-sm text-muted-fg">
+              {T.qz.map((step, i) => (
+                <li key={i}>
+                  {i + 1}. {step}
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </CardBody>
     </Card>
