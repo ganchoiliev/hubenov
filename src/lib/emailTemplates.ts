@@ -99,10 +99,12 @@ export interface StatusEmailOpts {
   trackUrl: string;
 }
 
-// Only client-meaningful milestones notify — internal ops states (collected_uk,
-// at_uk_hub, on_load, draft) are intentionally omitted so clients aren't spammed.
+// Client-meaningful milestones notify. Internal-only states (collected_uk,
+// on_load, draft) are omitted so clients aren't spammed. at_uk_hub notifies too:
+// for forwarded orders, "received at our Manchester hub" is the key confirmation.
 const STATUS_LINE: Partial<Record<AnyStatus, { bg: string; en: string }>> = {
   booked: { bg: 'е заявена и очаква изпращане', en: 'is booked and awaiting dispatch' },
+  at_uk_hub: { bg: 'е в нашия склад в Манчестър', en: 'is at our Manchester hub' },
   departed_uk: { bg: 'тръгна от Великобритания', en: 'has departed the UK' },
   arrived_bg_hub: { bg: 'пристигна в България', en: 'has arrived in Bulgaria' },
   handed_to_econt: { bg: 'е предадена на Еконт за доставка', en: 'was handed to Econt for delivery' },

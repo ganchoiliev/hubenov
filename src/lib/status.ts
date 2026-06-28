@@ -91,10 +91,23 @@ export const OPERATOR_STATUSES: AnyStatus[] = (Object.keys(STATUS_META) as AnySt
  *  add-to-course → on_load; course Тръгна/Пристигна → departed/arrived. */
 export const COURSE_DRIVEN: AnyStatus[] = ['on_load', 'departed_uk', 'arrived_bg_hub'];
 
-/** Statuses an operator may set by hand (course legs excluded). */
-export const OPERATOR_SETTABLE_STATUSES: AnyStatus[] = OPERATOR_STATUSES.filter(
-  (s) => !COURSE_DRIVEN.includes(s),
-);
+/**
+ * The quick/bulk status menu the operator sets by hand. Trimmed to the
+ * forward-flow milestones that each send the customer a notification, so the
+ * menu stays simple and every manual change tells the client something:
+ *   В склад Манчестър → Предадена на Еконт → За доставка → Доставена (+ Проблем / Върната).
+ * Course legs (Натоварена/Тръгна/Пристигна) are set on the load and notify there.
+ * `booked` is the initial state; `cancelled` stays available per-row via the
+ * state machine (so it can't be fired by accident from the bulk menu).
+ */
+export const OPERATOR_SETTABLE_STATUSES: AnyStatus[] = [
+  'at_uk_hub',
+  'handed_to_econt',
+  'out_for_delivery',
+  'delivered',
+  'exception',
+  'returned',
+];
 
 export function statusLabel(status: AnyStatus, locale: 'bg' | 'en'): string {
   const meta = STATUS_META[status];
