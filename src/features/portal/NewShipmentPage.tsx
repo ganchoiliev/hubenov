@@ -27,7 +27,8 @@ export function NewShipmentPage() {
   const { profile } = useAuth();
   const createShipment = useCreateShipment();
   const [step, setStep] = useState(0);
-  const [deliveryMode, setDeliveryMode] = useState<'address' | 'office'>('address');
+  // Econt-office delivery is the norm; default to it (address mode stays available).
+  const [deliveryMode, setDeliveryMode] = useState<'address' | 'office'>('office');
   const [agreed, setAgreed] = useState(false);
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const stepDescriptions =
@@ -110,6 +111,25 @@ export function NewShipmentPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ok = await trigger(fields as any);
       if (!ok) return;
+    }
+    // Receiver step: the address is optional in the schema (Econt-office delivery
+    // needs only name + phone + office), so enforce a destination per mode here.
+    if (step === 2) {
+      const r = watch('receiver');
+      const isBg = r.country === 'BG';
+      const destMsg =
+        lang === 'bg'
+          ? { office: 'Изберете офис на Еконт.', addr: 'Попълнете адрес, град и пощенски код.' }
+          : { office: 'Pick an Econt office.', addr: 'Fill address, city and postcode.' };
+      if (isBg && deliveryMode === 'office') {
+        if (!r.econt_office_code) {
+          toast.error(destMsg.office);
+          return;
+        }
+      } else if (!(r.line1?.trim() && r.city?.trim() && r.postcode?.trim())) {
+        toast.error(destMsg.addr);
+        return;
+      }
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };

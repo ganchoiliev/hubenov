@@ -96,7 +96,11 @@ export function IntakePage() {
           declared_hint: 'Стойност на стоката за митница/застраховка — не е цената за доставка.',
           currency: 'Валута',
           line1: 'Адрес',
-          econt_office: 'Офис на Еконт (по избор)',
+          econt_office: 'Офис на Еконт',
+          econt_hint: 'Доставяме до офис на Еконт. Изберете офис — име, телефон и офис стигат.',
+          addr_optional: 'по желание',
+          receiver_note: 'Доставка до офис на Еконт — адресът е по желание.',
+          need_dest: 'Изберете офис на Еконт или попълнете адрес на получателя.',
           need_client: 'Заредете клиент, за да създадете пратка.',
           new_client: 'Нов клиент (без профил)',
           new_client_hint: 'Няма такъв клиент? Създайте го — веднага получава ОТ номер за проследяване.',
@@ -149,7 +153,11 @@ export function IntakePage() {
           declared_hint: 'Value of the goods for customs/insurance — not the delivery price.',
           currency: 'Currency',
           line1: 'Address',
-          econt_office: 'Econt office (optional)',
+          econt_office: 'Econt office',
+          econt_hint: 'We deliver to an Econt office. Pick one — name, phone and office are enough.',
+          addr_optional: 'optional',
+          receiver_note: 'Delivered to an Econt office — the street address is optional.',
+          need_dest: 'Pick an Econt office or fill the receiver address.',
           need_client: 'Resolve a client to create a shipment.',
           new_client: 'New client (no account)',
           new_client_hint: 'No such client? Create them — they get an OT number for tracking instantly.',
@@ -376,6 +384,11 @@ export function IntakePage() {
 
   const onSubmit: SubmitHandler<ShipmentInput> = async (data) => {
     if (!client || !operatorId) return;
+    // Every parcel needs a destination: an Econt office (the norm) or an address.
+    if (!(data.receiver.econt_office_code || (data.receiver.line1 && data.receiver.city))) {
+      toast.error(L.need_dest);
+      return;
+    }
     try {
       const { sender, receiver } = countriesFor(data.direction);
       const { data: row, error } = await supabase
@@ -715,17 +728,24 @@ export function IntakePage() {
           errors={errors}
           labels={partyLabels}
           withOffice={false}
+          optionalAddress
+          addressNote={L.receiver_note}
+          optionalLabel={L.addr_optional}
         />
 
-        {/* Econt office (optional) — searchable by city/postcode, Cyrillic + Latin */}
+        {/* Econt office — the delivery destination. Picking one fills the receiver
+            address from the office, so name + phone + office is enough. */}
         <Card>
           <CardBody className="space-y-3">
             <h3 className="font-display text-sm font-bold text-foreground">{L.econt_office}</h3>
+            <p className="-mt-1 text-xs text-muted-fg">{L.econt_hint}</p>
             <EcontOfficePicker
               selected={watch('receiver.econt_office_code') || null}
               onPick={(o) => {
                 setValue('receiver.econt_office_code', o.code);
-                if (!(watch('receiver.city') ?? '').trim()) setValue('receiver.city', o.city);
+                setValue('receiver.city', o.city);
+                setValue('receiver.line1', o.address || `Офис ${o.name}`);
+                setValue('receiver.postcode', o.code);
               }}
               onClear={() => setValue('receiver.econt_office_code', '')}
             />
@@ -847,6 +867,9 @@ function PartyFields({
   errors,
   labels,
   withOffice,
+  optionalAddress = false,
+  addressNote,
+  optionalLabel,
 }: {
   prefix: PartyPrefix;
   title: string;
@@ -854,13 +877,18 @@ function PartyFields({
   errors: FieldErrors<ShipmentInput>;
   labels: PartyLabels;
   withOffice: boolean;
+  optionalAddress?: boolean;
+  addressNote?: string;
+  optionalLabel?: string;
 }) {
   const e = errors[prefix];
   const wizardName = (id: string) => `${prefix}-${id}`;
+  const addr = (l: string) => (optionalAddress && optionalLabel ? `${l} (${optionalLabel})` : l);
   return (
     <Card>
       <CardBody className="space-y-4">
         <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+        {addressNote && <p className="-mt-1 text-xs text-muted-fg">{addressNote}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={labels.name} error={e?.name?.message} htmlFor={wizardName('name')}>
             <Input id={wizardName('name')} autoComplete="hb-no-name" {...register(`${prefix}.name`)} />
@@ -869,14 +897,14 @@ function PartyFields({
             <Input id={wizardName('phone')} autoComplete="hb-no-tel" {...register(`${prefix}.phone`)} />
           </Field>
         </div>
-        <Field label={labels.line1} error={e?.line1?.message} htmlFor={wizardName('line1')}>
+        <Field label={addr(labels.line1)} error={e?.line1?.message} htmlFor={wizardName('line1')}>
           <Input id={wizardName('line1')} autoComplete="hb-no-addr" {...register(`${prefix}.line1`)} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={labels.city} error={e?.city?.message} htmlFor={wizardName('city')}>
+          <Field label={addr(labels.city)} error={e?.city?.message} htmlFor={wizardName('city')}>
             <Input id={wizardName('city')} autoComplete="hb-no-city" {...register(`${prefix}.city`)} />
           </Field>
-          <Field label={labels.postcode} error={e?.postcode?.message} htmlFor={wizardName('postcode')}>
+          <Field label={addr(labels.postcode)} error={e?.postcode?.message} htmlFor={wizardName('postcode')}>
             <Input id={wizardName('postcode')} autoComplete="hb-no-zip" {...register(`${prefix}.postcode`)} />
           </Field>
         </div>

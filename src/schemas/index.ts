@@ -35,6 +35,23 @@ export const partySchema = z.object({
   econt_office_code: z.string().optional().nullable(),
 });
 
+/**
+ * Receiver: Hubenov delivers to an Econt office, so the street address is
+ * optional. Name + phone + Econt office is enough. A full address is only needed
+ * for door delivery (e.g. BG -> UK, where Econt does not operate). The forms
+ * enforce "office OR address" so a destination always exists.
+ */
+export const receiverPartySchema = z.object({
+  name: z.string().min(2),
+  phone: z.string().min(6),
+  line1: z.string().optional().nullable(),
+  line2: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  postcode: z.string().optional().nullable(),
+  country: countrySchema,
+  econt_office_code: z.string().optional().nullable(),
+});
+
 const emptyToZero = (v: unknown) =>
   v === '' || v === null || (typeof v === 'number' && Number.isNaN(v)) ? 0 : v;
 /** Dimensions are optional at intake — operators only measure light/bulky parcels
@@ -45,7 +62,7 @@ export const shipmentInputSchema = z.object({
   direction: directionSchema,
   parcel_type: parcelTypeSchema.default('parcel'),
   sender: partySchema,
-  receiver: partySchema,
+  receiver: receiverPartySchema,
   weight_kg: z.number().positive().max(1000),
   length_cm: optionalDim,
   width_cm: optionalDim,
