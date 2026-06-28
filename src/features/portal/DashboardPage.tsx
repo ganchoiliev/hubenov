@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
-import { PackagePlus, Copy, ArrowRight } from 'lucide-react';
+import { PackagePlus, Copy, ArrowRight, MapPin } from 'lucide-react';
 import { Button, Card, CardBody, Badge, Skeleton } from '@/components/ui';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PageHeading, EmptyState } from '@/components/shared/common';
@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/lib/auth';
 import { useMyShipments } from '@/lib/queries';
 import { isTerminal } from '@/lib/status';
+import { HUB_ADDRESS, hubRecipientName } from '@/config/hub';
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -67,6 +68,31 @@ export function DashboardPage() {
         <StatCard label={lang === 'bg' ? 'Доставени' : 'Delivered'} value={delivered} />
         <StatCard label={lang === 'bg' ? 'Общо' : 'Total'} value={total} />
       </div>
+
+      {/* Shop-from-UK address — links to the full address + instructions */}
+      {profile?.client_code && (
+        <Link to="/portal/incoming" className="mt-5 block">
+          <Card className="border-brand/30 bg-brand-50/30 transition-shadow hover:shadow-lift">
+            <CardBody className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <MapPin className="h-4 w-4 text-brand" />
+                  {lang === 'bg' ? 'Вашият адрес за поръчки от UK' : 'Your UK shopping address'}
+                </p>
+                <p className="mt-1 truncate font-mono text-sm text-foreground">
+                  {hubRecipientName(profile.full_name ?? '', profile.client_code)} · {HUB_ADDRESS.city} {HUB_ADDRESS.postcode}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-fg">
+                  {lang === 'bg'
+                    ? 'Поръчайте от Amazon/eBay до нас — вижте адреса и стъпките.'
+                    : 'Order from Amazon/eBay to us — see the address and steps.'}
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0 text-brand" />
+            </CardBody>
+          </Card>
+        </Link>
+      )}
 
       <div className="mb-3 mt-8 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-muted-fg">

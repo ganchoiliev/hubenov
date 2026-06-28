@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth';
 import { useRegisterIncoming, useMyIncoming } from '@/lib/queries';
 import { cn, formatDate } from '@/lib/utils';
 import { toE164 } from '@/lib/phone';
+import { HubAddress } from '@/components/shared/HubAddress';
 import type { Currency } from '@/types/domain';
 
 const CURRENCIES: Currency[] = ['GBP', 'EUR', 'BGN'];
@@ -33,7 +34,7 @@ export function IncomingParcelPage() {
   const { data: incoming } = useMyIncoming(profile?.id);
 
   const [form, setForm] = useState({ ...EMPTY });
-  const [mode, setMode] = useState<'address' | 'office'>('address');
+  const [mode, setMode] = useState<'address' | 'office'>('office');
   const [justRegistered, setJustRegistered] = useState<{ id: string; code: string } | null>(null);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -43,12 +44,12 @@ export function IncomingParcelPage() {
       ? {
           title: 'Очаквам пратка',
           subtitle: 'Поръчали сте от Amazon или UK магазин до нашия адрес? Регистрирайте я и я доставяме до България.',
-          how: 'Използвайте нашия адрес в Манчестър при поръчка, въведете номера за проследяване тук, и щом колетът пристигне — го изпращаме до вас.',
-          tracking: 'Номер за проследяване (Amazon/куриер)',
+          how: 'Поръчайте от UK магазин на адреса по-долу (с вашия код). Регистрирането с номер за проследяване е по желание.',
+          tracking: 'Номер за проследяване (Amazon/куриер) — по избор',
           tracking_ph: 'напр. TBA1234567890',
           shop: 'Магазин (по избор)',
           shop_ph: 'напр. Amazon, eBay, ASOS',
-          weight: 'Очаквано тегло (кг)',
+          weight: 'Очаквано тегло (кг) — по избор',
           weight_hint: 'Ориентировъчно — претегляме точно при пристигане.',
           est: 'Ориентировъчна цена',
           deliver: 'Доставка в България',
@@ -64,7 +65,7 @@ export function IncomingParcelPage() {
           declared: 'Стойност на стоката (по избор)',
           currency: 'Валута',
           submit: 'Регистрирай пратката',
-          err: 'Моля, попълнете номер, тегло, получател и адрес/офис.',
+          err: 'Моля, попълнете получател и адрес/офис на Еконт.',
           ok: 'Пратката е регистрирана:',
           ok_title: 'Пратката е регистрирана успешно',
           ok_view: 'Виж пратката',
@@ -77,12 +78,12 @@ export function IncomingParcelPage() {
       : {
           title: 'Incoming parcel',
           subtitle: 'Ordered from Amazon or a UK shop to our address? Register it and we deliver it to Bulgaria.',
-          how: 'Use our Manchester address at checkout, enter the tracking number here, and the moment the parcel arrives we forward it to you.',
-          tracking: 'Tracking number (Amazon/courier)',
+          how: 'Order from a UK shop to the address below (with your code). Registering with a tracking number is optional.',
+          tracking: 'Tracking number (Amazon/courier) — optional',
           tracking_ph: 'e.g. TBA1234567890',
           shop: 'Shop (optional)',
           shop_ph: 'e.g. Amazon, eBay, ASOS',
-          weight: 'Estimated weight (kg)',
+          weight: 'Estimated weight (kg) — optional',
           weight_hint: 'A rough estimate — we weigh it exactly on arrival.',
           est: 'Estimated price',
           deliver: 'Delivery in Bulgaria',
@@ -98,7 +99,7 @@ export function IncomingParcelPage() {
           declared: 'Goods value (optional)',
           currency: 'Currency',
           submit: 'Register parcel',
-          err: 'Please fill the tracking number, weight, recipient and address/office.',
+          err: 'Please fill the recipient and an Econt office/address.',
           ok: 'Parcel registered:',
           ok_title: 'Parcel registered successfully',
           ok_view: 'View parcel',
@@ -130,8 +131,9 @@ export function IncomingParcelPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
-    const ok =
-      form.tracking.trim() && weightNum > 0 && form.rname.trim() && form.rphone.trim() && (mode === 'address' ? form.rcity.trim() : form.office);
+    // Tracking № and weight are optional now (the HB code on the box is the
+    // identifier). Only recipient + a destination (Econt office or address) needed.
+    const ok = form.rname.trim() && form.rphone.trim() && (mode === 'address' ? form.rcity.trim() : form.office);
     if (!ok) {
       toast.error(L.err);
       return;
@@ -139,7 +141,7 @@ export function IncomingParcelPage() {
     try {
       const created = await register.mutateAsync({
         client_id: profile.id,
-        inbound_ref: form.tracking.trim().toUpperCase(),
+        inbound_ref: form.tracking.trim().toUpperCase() || null,
         sender: { name: profile.full_name ?? '', phone: '', line1: form.shop.trim(), city: 'Manchester', postcode: '', country: 'GB' },
         receiver: {
           name: form.rname.trim(),
@@ -150,7 +152,7 @@ export function IncomingParcelPage() {
           country: 'BG',
           econt_office_code: mode === 'office' ? form.office || null : null,
         },
-        weight_kg: weightNum,
+        weight_kg: weightNum > 0 ? weightNum : 1,
         declared_value: Number(form.declared.replace(',', '.')) || 0,
         currency: form.currency,
         notes: `${lang === 'bg' ? 'Входяща пратка' : 'Incoming parcel'}${form.shop.trim() ? ` · ${form.shop.trim()}` : ''}`,
@@ -173,6 +175,12 @@ export function IncomingParcelPage() {
         <Inbox className="mt-0.5 h-4 w-4 shrink-0" />
         <span>{L.how}</span>
       </div>
+
+      {profile?.client_code && (
+        <div className="mb-5">
+          <HubAddress fullName={profile.full_name ?? ''} clientCode={profile.client_code} />
+        </div>
+      )}
 
       {justRegistered && (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-emerald-800">
@@ -200,7 +208,7 @@ export function IncomingParcelPage() {
         <Card>
           <CardBody className="space-y-4">
             <Field label={L.tracking} htmlFor="trk">
-              <Input id="trk" value={form.tracking} onChange={set('tracking')} placeholder={L.tracking_ph} className="font-mono" required />
+              <Input id="trk" value={form.tracking} onChange={set('tracking')} placeholder={L.tracking_ph} className="font-mono" />
             </Field>
             <Field label={L.shop} htmlFor="shop">
               <Input id="shop" value={form.shop} onChange={set('shop')} placeholder={L.shop_ph} />
@@ -221,7 +229,7 @@ export function IncomingParcelPage() {
               ))}
             </div>
             <Field label={L.weight} htmlFor="wt" hint={L.weight_hint}>
-              <Input id="wt" inputMode="decimal" value={form.weight} onChange={set('weight')} placeholder="0.0" required />
+              <Input id="wt" inputMode="decimal" value={form.weight} onChange={set('weight')} placeholder="0.0" />
             </Field>
             {est && (
               <p className="text-sm text-muted-fg">

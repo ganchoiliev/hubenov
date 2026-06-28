@@ -130,6 +130,32 @@ export async function getClientCode(clientId: string): Promise<string | null> {
   return (data as { client_code: string } | null)?.client_code ?? null;
 }
 
+/** Operator: resolve a client by their OT code (HB-XXXX) — for receive-by-account. */
+export async function resolveClientByCode(
+  code: string,
+): Promise<{ id: string; full_name: string; client_code: string } | null> {
+  const c = code.trim().toUpperCase();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, client_code')
+    .eq('client_code', c)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { id: string; full_name: string; client_code: string } | null) ?? null;
+}
+
+/** Operator: a client's expected (declared, not-yet-received) forward parcels. */
+export async function expectedParcelsForClient(clientId: string): Promise<Shipment[]> {
+  const { data, error } = await supabase
+    .from('shipments')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('status', 'booked')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as Shipment[]).filter((s) => s.kind === 'forward');
+}
+
 /** Operator: resolve a client's OT code from their id, e.g. to deep-link from a
  *  shipment to the owning client's record (/op/lookup?code=…). */
 export function useClientCode(clientId: string | undefined) {
@@ -339,7 +365,7 @@ export function useRegisterIncoming() {
   return useMutation({
     mutationFn: async (input: {
       client_id: string;
-      inbound_ref: string;
+      inbound_ref: string | null;
       sender: IncomingParty;
       receiver: IncomingParty;
       weight_kg: number;

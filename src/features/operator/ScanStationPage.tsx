@@ -42,7 +42,7 @@ import { Card, CardBody, Input, Badge, Button } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/toast';
-import { resolveShipmentByCode, getClientCode, useUpdateStatus, useCompanySettings } from '@/lib/queries';
+import { resolveShipmentByCode, resolveClientByCode, expectedParcelsForClient, getClientCode, useUpdateStatus, useCompanySettings } from '@/lib/queries';
 import { parseScanPayload } from '@/lib/scanPayload';
 import { buildLabelPdf } from '@/lib/label';
 import { getPrinter } from '@/providers/print';
@@ -110,6 +110,8 @@ export function ScanStationPage() {
   const [history, setHistory] = useState<ScanResult[]>([]);
   const [notFound, setNotFound] = useState<string | null>(null);
   const [count, setCount] = useState(0);
+  // When an OT code (HB-XXXX) is scanned/typed: that client's expected parcels.
+  const [expected, setExpected] = useState<{ client: { full_name: string; client_code: string }; parcels: Shipment[] } | null>(null);
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem(MODE_KEY) === 'lookup' ? 'lookup' : 'receive'));
   const [sound, setSound] = useState(() => localStorage.getItem(SOUND_KEY) !== 'off');
   const [printerReady, setPrinterReady] = useState<boolean | null>(null);
@@ -209,6 +211,10 @@ export function ScanStationPage() {
           close: 'Затвори',
           already: 'Вече е в склада',
           alreadyHint: 'Етикетът е преотпечатан; статусът не е променян.',
+          expectedTitle: 'Очаквани пратки',
+          expectedHint: 'Изберете коя пратка пристигна — приема се в склада и етикетът се печата.',
+          receiveBtn: 'Приеми + печат',
+          noExpected: 'Този клиент няма очаквани пратки.',
         }
       : {
           modes: { receive: 'Receive', lookup: 'Lookup' },
@@ -254,6 +260,10 @@ export function ScanStationPage() {
           close: 'Close',
           already: 'Already at hub',
           alreadyHint: 'Label reprinted; status was not changed.',
+          expectedTitle: 'Expected parcels',
+          expectedHint: 'Pick which parcel arrived — it is received into the hub and the label prints.',
+          receiveBtn: 'Receive + print',
+          noExpected: 'This client has no expected parcels.',
         };
 
   const setModePersist = (m: Mode) => {
@@ -319,43 +329,83 @@ export function ScanStationPage() {
   // ── Scan engine ────────────────────────────────────────────────────────────
   const DEDUP_MS = 2500;
 
+  // Receive a known parcel: print its label + advance to "at UK hub".
+  const receiveAndPrint = async (shipment: Shipment, started: number) => {
+    const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
+    const [printRes, statusOk] = await Promise.all([
+      labelFor(shipment).catch(() => null),
+      needStatus
+        ? updateStatus
+            .mutateAsync({
+              shipment,
+              to: 'at_uk_hub',
+              note_bg: 'Входяща пратка приета',
+              note_en: 'Inbound parcel received',
+              source: 'scan',
+            })
+            .then(() => true)
+            .catch(() => false)
+        : Promise.resolve(false),
+    ]);
+    const result: ScanResult = {
+      shipment: { ...shipment, status: statusOk ? 'at_uk_hub' : shipment.status },
+      ms: Math.round(performance.now() - started),
+      printed: !!printRes && printRes.ok && !printRes.queued,
+      queued: !!printRes?.queued,
+      already: !needStatus,
+    };
+    setLast(result);
+    setHistory((h) => [result, ...h].slice(0, 8));
+    setCount((c) => c + 1);
+    if (sound) beep(true);
+    triggerFlash(true);
+    toast[result.queued ? 'info' : 'success'](result.queued ? t('operator.queued_offline') : t('operator.printed'));
+  };
+
+  // Receive a specific parcel chosen from the OT-code expected list.
+  const receiveExpected = async (shipment: Shipment) => {
+    await receiveAndPrint(shipment, performance.now());
+    setExpected((prev) => {
+      if (!prev) return null;
+      const parcels = prev.parcels.filter((p) => p.id !== shipment.id);
+      return parcels.length ? { ...prev, parcels } : null;
+    });
+  };
+
   const handleInbound = async (value: string) => {
     const parsed = parseScanPayload(value);
     const started = performance.now();
+    // 1) Exact match on a parcel code (our AWB/public code, or the carrier № if it
+    //    happens to line up) → receive + print straight away.
     const shipment = parsed.code ? await resolveShipmentByCode(parsed.code) : null;
     if (shipment) {
-      const needStatus = timelineIndex(shipment.status) < timelineIndex('at_uk_hub');
-      const [printRes, statusOk] = await Promise.all([
-        labelFor(shipment).catch(() => null),
-        needStatus
-          ? updateStatus
-              .mutateAsync({
-                shipment,
-                to: 'at_uk_hub',
-                note_bg: 'Входяща пратка приета',
-                note_en: 'Inbound parcel received',
-                source: 'scan',
-              })
-              .then(() => true)
-              .catch(() => false)
-          : Promise.resolve(false),
-      ]);
-      const result: ScanResult = {
-        shipment: { ...shipment, status: statusOk ? 'at_uk_hub' : shipment.status },
-        ms: Math.round(performance.now() - started),
-        printed: !!printRes && printRes.ok && !printRes.queued,
-        queued: !!printRes?.queued,
-        already: !needStatus,
-      };
-      setLast(result);
-      setHistory((h) => [result, ...h].slice(0, 8));
-      setCount((c) => c + 1);
-      if (sound) beep(true);
-      triggerFlash(true);
-      toast[result.queued ? 'info' : 'success'](result.queued ? t('operator.queued_offline') : t('operator.printed'));
+      await receiveAndPrint(shipment, started);
       return;
     }
-    // Unknown → create it in intake, prefilled + auto-print on save.
+    // 2) An OT code (HB-XXXX) on the box → that client's expected parcels. This is
+    //    the reliable path: the code is printed in the address, independent of the
+    //    carrier barcode. One expected parcel → auto-receive; several → pick one.
+    const client = parsed.code ? await resolveClientByCode(parsed.code).catch(() => null) : null;
+    if (client) {
+      const parcels = await expectedParcelsForClient(client.id).catch(() => [] as Shipment[]);
+      const only = parcels[0];
+      if (parcels.length === 1 && only) {
+        await receiveAndPrint(only, started);
+        return;
+      }
+      if (parcels.length > 1) {
+        setExpected({ client, parcels });
+        if (sound) beep(true);
+        triggerFlash(true);
+        return;
+      }
+      setNotFound(client.client_code);
+      if (sound) beep(false);
+      triggerFlash(false);
+      toast.error(L.noExpected);
+      return;
+    }
+    // 3) Unknown → create it in intake, prefilled + auto-print on save.
     if (sound) beep(true);
     triggerFlash(true);
     const params = new URLSearchParams({ inbound: parsed.raw, autoprint: '1' });
@@ -639,6 +689,47 @@ export function ScanStationPage() {
           </form>
         </CardBody>
       </Card>
+
+      {/* Expected parcels for a scanned OT code (HB-XXXX) — the reliable receive path */}
+      {expected && (
+        <Card className="mt-4 border-brand/40">
+          <CardBody className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex flex-wrap items-center gap-2 font-display text-sm font-bold text-foreground">
+                <PackageCheck className="h-4 w-4 text-brand" />
+                {L.expectedTitle}: {expected.client.full_name}{' '}
+                <span className="font-mono text-brand-700">{expected.client.client_code}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setExpected(null)}
+                aria-label={L.close}
+                className="rounded-lg p-1.5 text-muted-fg transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-fg">{L.expectedHint}</p>
+            <div className="space-y-2">
+              {expected.parcels.map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-semibold text-foreground">{p.public_code}</p>
+                    <p className="truncate text-xs text-muted-fg">
+                      {p.receiver.name} · {p.receiver.city}
+                      {p.contents ? ` · ${p.contents}` : ''}
+                      {p.inbound_ref ? ` · ${p.inbound_ref}` : ''}
+                    </p>
+                  </div>
+                  <Button size="sm" className="shrink-0 gap-1.5" onClick={() => void receiveExpected(p)}>
+                    <PackageCheck className="h-4 w-4" /> {L.receiveBtn}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Screen-reader announcement of each scan result */}
       <p className="sr-only" aria-live="polite">
