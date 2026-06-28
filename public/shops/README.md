@@ -1,10 +1,17 @@
 # Shop logos
 
-Drop the shop logo image files here. The grid (`src/components/shared/ShopLogos.tsx`)
-reads the list from `src/config/shops.ts`. If a file is missing, the grid shows the
-shop **name** as text instead — so the site never looks broken before logos are added.
+By default the grid shows a styled **branded wordmark** for each shop (name + brand
+accent), so it looks designed with no image files at all.
 
-## Expected files (exact names)
+To show a real logo for a shop, do BOTH:
+1. Drop the image file here (e.g. `amazon.png`).
+2. In `src/config/shops.ts`, set that shop's `logo` field, e.g. `logo: '/shops/amazon.png'`.
+
+The grid then shows the image instead of the wordmark (and falls back to the
+wordmark automatically if the file is ever missing). Use official brand/press-kit
+assets — do NOT use AI-generated imitations of brand logos (inaccurate + infringing).
+
+## Suggested filenames
 
 Use PNG (transparent background preferred), roughly 240×120px, ~max 40px tall when shown:
 
