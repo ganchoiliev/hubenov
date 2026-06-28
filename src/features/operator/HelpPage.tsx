@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   Plus,
   Tag,
+  ShoppingBag,
+  HelpCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui';
@@ -106,6 +108,73 @@ export function HelpPage() {
     { icon: CheckCircle2, label: tx('Доставена', 'Delivered') },
   ];
 
+  // Task-first quick answers — operators think "how do I…", not feature names.
+  const quickTasks: { q: string; a: string }[] = [
+    {
+      q: tx('Клиент е на гише с кашон', 'A client is at the counter with a box'),
+      a: tx(
+        'Приемане на пратка → намери клиента или „Нов клиент" → попълни данни и цена → Създай → „Към сканиране" → печат на етикет.',
+        'Parcel intake → find the client or "New client" → fill details and price → Create → "To scanning" → print the label.',
+      ),
+    },
+    {
+      q: tx('Пристигна онлайн пратка (Amazon/eBay)', 'An online parcel arrived (Amazon/eBay)'),
+      a: tx(
+        'Сканиране и печат → сканирай баркода/QR на кашона → етикетът се печата сам и пратката е приета.',
+        'Scan & print → scan the box barcode/QR → the label prints automatically and the parcel is received.',
+      ),
+    },
+    {
+      q: tx('Принтирай етикет повторно', 'Re-print a label'),
+      a: tx(
+        'Отвори пратката → бутон „Принтай етикет" горе вдясно.',
+        'Open the parcel → "Print label" button at the top right.',
+      ),
+    },
+    {
+      q: tx('Натовари буса за България', 'Load the van for Bulgaria'),
+      a: tx(
+        'Курсове → „Нов курс" → добави готовите пратки → „Dispatch pack" за всички документи → „Тръгна".',
+        'Loads → "New load" → add the ready parcels → "Dispatch pack" for all docs → "Departed".',
+      ),
+    },
+    {
+      q: tx('Клиент пита къде е пратката му', 'A client asks where their parcel is'),
+      a: tx(
+        'Търсене по ОТ номер (или ⌘K за бързо търсене) → виж статуса и историята.',
+        'OT lookup (or ⌘K for quick search) → see the status and history.',
+      ),
+    },
+    {
+      q: tx('Вземи наложен платеж', 'Take cash on delivery'),
+      a: tx(
+        'Еконт събира сумата при доставка; следи „Наложен платеж за прибиране" в операторския пулт.',
+        'Econt collects it on delivery; track "COD to collect" on the operator console.',
+      ),
+    },
+    {
+      q: tx('Принтерът не печата', 'The printer is not printing'),
+      a: tx(
+        'Провери „Настройки" → метод на печат и дали принтерът е по подразбиране. За тих печат отвори станцията през стартера за печат.',
+        'Check "Settings" → print method and that the printer is the default. For silent printing, open the station via the print launcher.',
+      ),
+    },
+  ];
+
+  // Plain-language meaning of each status, so a new operator can read the board.
+  const statusLegend: { label: string; meaning: string }[] = [
+    { label: tx('Заявена', 'Booked'), meaning: tx('Заявена, още не е приета физически.', 'Booked, not physically received yet.') },
+    { label: tx('Приета (UK)', 'Collected (UK)'), meaning: tx('Приехме я при нас в Англия.', 'We received it in the UK.') },
+    { label: tx('В склад Манчестър', 'At UK hub'), meaning: tx('Чака следващия курс.', 'Waiting for the next load.') },
+    { label: tx('Натоварена', 'On load'), meaning: tx('Качена на буса (през курс).', 'Loaded on the van (via a load).') },
+    { label: tx('Тръгна', 'Departed UK'), meaning: tx('Бусът е тръгнал към България.', 'The van has left for Bulgaria.') },
+    { label: tx('Пристигна в БГ', 'Arrived in BG'), meaning: tx('В българския хъб.', 'At the Bulgarian hub.') },
+    { label: tx('Предадена на Еконт', 'Handed to Econt'), meaning: tx('Еконт я поема за доставка.', 'Econt takes it for delivery.') },
+    { label: tx('За доставка', 'Out for delivery'), meaning: tx('На път към получателя.', 'On the way to the receiver.') },
+    { label: tx('Доставена', 'Delivered'), meaning: tx('Готово.', 'Done.') },
+    { label: tx('Изключение', 'Exception'), meaning: tx('Проблем — виж бележките по пратката.', 'A problem — check the parcel notes.') },
+  ];
+
   const operatorSections: Section[] = [
     {
       id: 'console',
@@ -168,6 +237,27 @@ export function HelpPage() {
         tx('При доставка вземи подпис на екрана.', 'On delivery, capture a signature on screen.'),
       ],
       warn: tx('Печатът иска настроен принтер — виж „Настройки" за метод на печат (PDF или QZ Tray).', 'Printing needs a configured printer — see "Settings" for print method (PDF or QZ Tray).'),
+    },
+    {
+      id: 'online',
+      icon: ShoppingBag,
+      title: tx('Онлайн пратки', 'Online parcels'),
+      intro: tx(
+        'Когато клиент поръча от UK магазин (Amazon, eBay…) до нашия адрес в Манчестър и ние я препращаме до България. Разпознаваш ги по лилавия етикет с името на магазина.',
+        'When a client orders from a UK shop (Amazon, eBay…) to our Manchester address and we forward it to Bulgaria. You spot them by the purple badge with the shop name.',
+      ),
+      demo: [
+        { icon: ShoppingBag, label: tx('Поръчка', 'Order') },
+        { icon: Boxes, label: tx('Пристига в склада', 'Arrives at hub') },
+        { icon: ScanLine, label: tx('Сканирай', 'Scan') },
+        { icon: Truck, label: tx('Препрати', 'Forward') },
+      ],
+      steps: [
+        tx('Клиентът регистрира входящата пратка с номера за проследяване (Amazon/куриер) от своя профил.', 'The client registers the incoming parcel with its tracking number (Amazon/courier) from their account.'),
+        tx('Когато кашонът пристигне, го сканирай в „Сканиране" — системата го разпознава по номера и печата етикет автоматично.', 'When the box arrives, scan it in "Scan" — the system matches it by the number and prints a label automatically.'),
+        tx('В списъка „Пратки" натисни „Онлайн пратки", за да видиш само тези поръчки.', 'In "Shipments" press "Online parcels" to see only these orders.'),
+      ],
+      tip: tx('Можеш да търсиш направо по номера от Amazon (напр. TBA…) в полето за търсене.', 'You can search directly by the Amazon number (e.g. TBA…) in the search box.'),
     },
     {
       id: 'loads',
@@ -376,6 +466,24 @@ export function HelpPage() {
         </CardBody>
       </Card>
 
+      {/* Common tasks — the fastest answer to "how do I…" */}
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5 text-brand" />
+            <h2 className="font-display text-base font-bold text-foreground">{tx('Чести задачи', 'Common tasks')}</h2>
+          </div>
+          <ul className="divide-y divide-border">
+            {quickTasks.map((qt, i) => (
+              <li key={i} className="py-2.5 first:pt-0 last:pb-0">
+                <p className="text-sm font-semibold text-foreground">{qt.q}</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-muted-fg">{qt.a}</p>
+              </li>
+            ))}
+          </ul>
+        </CardBody>
+      </Card>
+
       {/* Jump links */}
       <div className="flex flex-wrap gap-2">
         {[...operatorSections, ...ownerSections].map((s) => (
@@ -393,6 +501,26 @@ export function HelpPage() {
         {tx('Ежедневие на оператора', 'Operator daily work')}
       </h2>
       <div className="space-y-4">{operatorSections.map(renderSection)}</div>
+
+      {/* Status legend — what each status on the board actually means */}
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-brand" />
+            <h3 className="font-display text-base font-bold text-foreground">
+              {tx('Какво значат статусите', 'What the statuses mean')}
+            </h3>
+          </div>
+          <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+            {statusLegend.map((s, i) => (
+              <div key={i}>
+                <dt className="text-sm font-semibold text-foreground">{s.label}</dt>
+                <dd className="text-xs leading-relaxed text-muted-fg">{s.meaning}</dd>
+              </div>
+            ))}
+          </dl>
+        </CardBody>
+      </Card>
 
       <h2 className="pt-2 font-display text-sm font-bold uppercase tracking-wide text-muted-fg">
         {tx('За собственика', 'For the owner')}

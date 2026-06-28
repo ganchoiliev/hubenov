@@ -199,7 +199,9 @@ export function ShipmentDetailPage() {
 
       {inOperator && <EditParcelPanel shipment={shipment} />}
       <EcontPanel shipment={shipment} inOperator={inOperator} />
-      <HubenovQr code={shipment.public_code} />
+      {/* Box QR is a client action (print → stick on the box). Operators scan it
+          in at the station, so it only clutters their view — show it client-side. */}
+      {!inOperator && <HubenovQr code={shipment.public_code} />}
       {inOperator && <CustomsPanel shipment={shipment} />}
     </div>
   );
