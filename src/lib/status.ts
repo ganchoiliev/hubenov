@@ -85,23 +85,26 @@ export const OPERATOR_STATUSES: AnyStatus[] = (Object.keys(STATUS_META) as AnySt
   (s) => s !== 'draft' && s !== 'collected_uk',
 );
 
-/** Set ONLY by the course (load) flow — never by hand. Manually marking a parcel
- *  "Натоварена/Тръгна/Пристигна" would leave it loaded with no course, so these
- *  are excluded from the operator's status menus. They come from the course:
- *  add-to-course → on_load; course Тръгна/Пристигна → departed/arrived. */
-export const COURSE_DRIVEN: AnyStatus[] = ['on_load', 'departed_uk', 'arrived_bg_hub'];
+/** Only "Натоварена" (on_load) is course-bound: it means "assigned to a specific
+ *  van", so it is set by "Добави в курс" (which links the load) — never as a free
+ *  status, or a parcel would read "loaded" with no course. Тръгна/Пристигна are
+ *  normal timeline milestones and ARE operator-settable from the status menu; the
+ *  course's Тръгна/Пристигна actions still advance a whole van at once. */
+export const COURSE_DRIVEN: AnyStatus[] = ['on_load'];
 
 /**
- * The quick/bulk status menu the operator sets by hand. Trimmed to the
- * forward-flow milestones that each send the customer a notification, so the
- * menu stays simple and every manual change tells the client something:
- *   В склад Манчестър → Предадена на Еконт → За доставка → Доставена (+ Проблем / Върната).
- * Course legs (Натоварена/Тръгна/Пристигна) are set on the load and notify there.
- * `booked` is the initial state; `cancelled` stays available per-row via the
- * state machine (so it can't be fired by accident from the bulk menu).
+ * The quick/bulk status menu the operator sets by hand — the full forward flow in
+ * one place, each step sending the customer a notification:
+ *   В склад Манчестър → Тръгна от UK → Пристигна в БГ → Предадена на Еконт →
+ *   За доставка → Доставена (+ Проблем / Върната).
+ * Only "Натоварена" is absent — it is set by "Добави в курс" (it links a van).
+ * `booked` is the initial state; `cancelled` stays per-row so it can't be bulk-
+ * fired by accident.
  */
 export const OPERATOR_SETTABLE_STATUSES: AnyStatus[] = [
   'at_uk_hub',
+  'departed_uk',
+  'arrived_bg_hub',
   'handed_to_econt',
   'out_for_delivery',
   'delivered',

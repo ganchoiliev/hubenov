@@ -114,8 +114,8 @@ function StatusChanger({
 }) {
   const toast = useToast();
   const update = useUpdateStatus();
-  // Course legs (Натоварена/Тръгна/Пристигна) come only from the course, never by
-  // hand here — otherwise a parcel is "loaded" with no course.
+  // Only "Натоварена" comes solely from the course (it links a van); Тръгна/Пристигна
+  // are now operator-settable, so the per-row control offers them where valid.
   const options = nextStatuses(shipment.status).filter((s) => !COURSE_DRIVEN.includes(s));
 
   if (options.length === 0) {
