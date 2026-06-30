@@ -620,11 +620,6 @@ export function LoadBuilderPage() {
             >
               <FileText className="h-4 w-4" /> {L.printCustoms}
             </Button>
-            <Link to={`/op/loads/${id}/run`}>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Truck className="h-4 w-4" /> {L.runSheet}
-              </Button>
-            </Link>
           </div>
         }
       />

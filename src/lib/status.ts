@@ -40,7 +40,9 @@ const TRANSITIONS: Record<AnyStatus, AnyStatus[]> = {
   draft: ['booked', 'cancelled'],
   booked: ['at_uk_hub', 'cancelled', 'exception'],
   collected_uk: ['at_uk_hub', 'exception'],
-  at_uk_hub: ['on_load', 'exception'],
+  // Straight to departed_uk so the whole flow runs from Пратки without a course;
+  // on_load (assigning a van) stays an optional path for operators who use courses.
+  at_uk_hub: ['on_load', 'departed_uk', 'exception'],
   on_load: ['departed_uk', 'at_uk_hub', 'exception'],
   departed_uk: ['arrived_bg_hub', 'exception'],
   arrived_bg_hub: ['handed_to_econt', 'exception'],
