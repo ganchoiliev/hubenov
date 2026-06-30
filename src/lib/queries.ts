@@ -1437,8 +1437,10 @@ export function useBulkDeleteShipments() {
   });
 }
 
-/** Edit a parcel's weight/dimensions/value/price after intake; the linked
- *  not-yet-paid invoice is re-synced to the new price in the same call. */
+/** Edit a parcel's weight/dimensions/value/price after intake. The linked
+ *  not-yet-paid invoice is re-synced to the new price — and if none exists yet
+ *  (online/forward parcels are booked without a price), it is created here, so
+ *  the operator only has to weigh + price the received box for it to be invoiced. */
 export function useUpdateParcel() {
   const qc = useQueryClient();
   return useMutation({
@@ -1455,7 +1457,38 @@ export function useUpdateParcel() {
       const { error } = await supabase.from('shipments').update(patch).eq('id', id);
       if (error) throw error;
       if (patch.price != null) {
-        await supabase.from('invoices').update({ amount: patch.price }).eq('shipment_id', id).neq('status', 'paid');
+        // Keep the invoice in sync with the price. Best-effort: the parcel edit
+        // already succeeded, so an invoicing hiccup must not fail the save.
+        try {
+          const { data: existing } = await supabase
+            .from('invoices')
+            .select('id, status')
+            .eq('shipment_id', id)
+            .maybeSingle();
+          const inv = existing as { id: string; status: string } | null;
+          if (inv) {
+            // Don't touch a paid invoice; otherwise re-sync the amount.
+            if (inv.status !== 'paid') {
+              await supabase.from('invoices').update({ amount: patch.price }).eq('id', inv.id);
+            }
+          } else if (patch.price > 0) {
+            // No invoice yet (online/forward parcel booked without a price) —
+            // create it now. The 0010 trigger fills the number; 0013 keeps it 1/shipment.
+            const { data: ship } = await supabase
+              .from('shipments')
+              .select('client_id, currency')
+              .eq('id', id)
+              .single();
+            const s = ship as { client_id: string | null; currency: Currency } | null;
+            if (s?.client_id) {
+              await supabase
+                .from('invoices')
+                .insert({ client_id: s.client_id, amount: patch.price, currency: s.currency ?? 'GBP', shipment_id: id } as never);
+            }
+          }
+        } catch {
+          /* price saved on the parcel; the invoice can be created manually if this fails */
+        }
       }
     },
     onSuccess: () =>
