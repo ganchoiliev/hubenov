@@ -120,8 +120,8 @@ export function HelpPage() {
     {
       q: tx('Пристигна онлайн пратка (Amazon/eBay)', 'An online parcel arrived (Amazon/eBay)'),
       a: tx(
-        'Сканиране и печат → сканирай баркода/QR на кашона → етикетът се печата сам и пратката е приета.',
-        'Scan & print → scan the box barcode/QR → the label prints automatically and the parcel is received.',
+        'Сканиране и печат → въведи ОТ кода (HB-XXXX) от адреса на кашона → свързва се с клиента, приема се и печата етикет. После отвори пратката, претегли и сложи цена → прави фактурата.',
+        'Scan & print → type the OT code (HB-XXXX) from the box address → it links to the client, is received and prints a label. Then open the parcel, weigh it and set a price → it makes the invoice.',
       ),
     },
     {
@@ -231,7 +231,7 @@ export function HelpPage() {
         { icon: CheckCircle2, label: tx('Нов статус', 'New status') },
       ],
       steps: [
-        tx('Сканирай AWB баркода (или входящ QR) — пратката изскача веднага.', 'Scan the AWB barcode (or inbound QR) — the parcel pops up at once.'),
+        tx('Сканирай нашия AWB баркод, или въведи ОТ кода (HB-XXXX) на ръка — пратката/клиентът изскача веднага.', 'Scan our AWB barcode, or type the OT code (HB-XXXX) by hand — the parcel/client pops up at once.'),
         tx('Печатай етикета. При входяща пратка етикетът се печата автоматично.', 'Print the label. For an inbound parcel the label prints automatically.'),
         tx('Смени статуса (напр. „В склад Манчестър") с един бутон.', 'Advance the status (e.g. "At UK hub") with one button.'),
         tx('При доставка вземи подпис на екрана.', 'On delivery, capture a signature on screen.'),
@@ -253,8 +253,9 @@ export function HelpPage() {
         { icon: Truck, label: tx('Препрати', 'Forward') },
       ],
       steps: [
-        tx('Клиентът регистрира входящата пратка с номера за проследяване (Amazon/куриер) от своя профил.', 'The client registers the incoming parcel with its tracking number (Amazon/courier) from their account.'),
-        tx('Когато кашонът пристигне, го сканирай в „Сканиране" — системата го разпознава по номера и печата етикет автоматично.', 'When the box arrives, scan it in "Scan" — the system matches it by the number and prints a label automatically.'),
+        tx('Клиентът поръчва до нашия адрес с кода си в името: „Име HB-XXXX". Регистрирането на пратката от профила (с номер за проследяване) е по желание.', 'The client orders to our address with their code in the name: "Name HB-XXXX". Registering the parcel from their account (with a tracking number) is optional.'),
+        tx('Когато кашонът пристигне, въведи ОТ кода в „Сканиране" — свързва се с клиента, приема се и печата етикет. Баркодът на Amazon обикновено не съвпада; кодът е сигурният ключ.', 'When the box arrives, type the OT code in "Scan" — it links to the client, is received and prints a label. The Amazon barcode usually does not match; the code is the reliable key.'),
+        tx('Онлайн пратките идват без цена. Отвори пратката, претегли и сложи „Цена за доставка" (предлага се по теглото) → фактурата се създава.', 'Online parcels arrive without a price. Open the parcel, weigh it and set the "Delivery price" (suggested from the weight) → the invoice is created.'),
         tx('В списъка „Пратки" натисни „Онлайн пратки", за да видиш само тези поръчки.', 'In "Shipments" press "Online parcels" to see only these orders.'),
       ],
       tip: tx('Можеш да търсиш направо по номера от Amazon (напр. TBA…) в полето за търсене.', 'You can search directly by the Amazon number (e.g. TBA…) in the search box.'),
@@ -264,8 +265,8 @@ export function HelpPage() {
       icon: Truck,
       title: tx('Курсове', 'Loads'),
       intro: tx(
-        'Курсът е седмичният бус Манчестър → България. Групираш готовите пратки, маркираш тръгване/пристигане и печаташ всички етикети и митнически документи наведнъж.',
-        'A load is the weekly Manchester → Bulgaria van. Group the ready parcels, mark departure/arrival and bulk-print every label and customs doc at once.',
+        'Курсът е седмичният бус Манчестър → България. По желание е: можеш да движиш всички статуси и направо от „Пратки" без курс. Курсът е удобен за групиране — добавяш пратки, маркираш тръгване/пристигане и печаташ всички документи наведнъж.',
+        'A load is the weekly Manchester → Bulgaria van. It is optional: you can move every status straight from "Shipments" without a load. A load is handy for grouping — add parcels, mark departure/arrival and bulk-print every doc at once.',
       ),
       demo: [
         { icon: Plus, label: tx('Нов курс', 'New load') },
@@ -278,7 +279,7 @@ export function HelpPage() {
         tx('Добави готовите пратки (в склад Манчестър) с цъкване от списъка.', 'Add ready parcels (at UK hub) by clicking them from the list.'),
         tx('„Dispatch pack" печата всички етикети + митническите фактури за курса наведнъж.', '"Dispatch pack" prints all labels + customs invoices for the load at once.'),
         tx('Маркирай „Тръгна" / „Пристигна" — статусите на всички пратки се движат заедно.', 'Mark "Departed" / "Arrived" — every parcel\'s status moves together.'),
-        tx('„Списък за шофьора" е мобилен манифест за маркиране на доставени.', '"Driver run-sheet" is a mobile manifest to mark deliveries.'),
+        tx('Зареждай бързо: въведи/сканирай нашите етикети в „Сканирай в курса" — всяка пратка влиза в курса и става „Натоварена".', 'Load fast: type/scan our labels into "Scan into load" — each parcel joins the load and becomes "On load".'),
       ],
     },
     {
@@ -295,9 +296,10 @@ export function HelpPage() {
         { icon: Printer, label: tx('Печат', 'Print') },
       ],
       steps: [
-        tx('Филтрирай по статус или търси по номер/получател.', 'Filter by status or search by number/receiver.'),
-        tx('Маркирай няколко и действай групово: придвижи статус, добави в курс, печатай.', 'Select several and act in bulk: advance status, add to load, print.'),
-        tx('Отвори пратка за детайли и редакция на тегло/цена (преоценява фактурата).', 'Open a parcel for details and edit weight/price (re-quotes the invoice).'),
+        tx('Табове горе: Активни / Доставени / Всички. По подразбиране „Активни", за да не закачаш доставените при „Избери всички".', 'Tabs at the top: Active / Delivered / All. Default "Active", so "select all" never includes delivered parcels.'),
+        tx('Филтрирай по статус или търси по номер/получател/ОТ код.', 'Filter by status or search by number/receiver/OT code.'),
+        tx('Маркирай няколко и действай групово: придвижи статус (праща известие), добави в курс, печатай.', 'Select several and act in bulk: advance status (sends a notification), add to load, print.'),
+        tx('Отвори пратка за детайли и редакция на тегло/цена (преоценява или създава фактурата).', 'Open a parcel for details and edit weight/price (re-quotes or creates the invoice).'),
       ],
     },
     {
