@@ -13,6 +13,7 @@ import { ToastProvider } from './components/ui/toast';
 import { ConfirmProvider } from './components/ui/confirm';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider } from './lib/auth';
+import { Analytics } from '@vercel/analytics/react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,5 +49,6 @@ ReactDOM.createRoot(rootEl).render(
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
+    <Analytics />
   </React.StrictMode>,
 );
