@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { m as motion } from 'framer-motion';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import {
   Truck,
   User,
@@ -25,7 +25,7 @@ import { useConfirm } from '@/components/ui/confirm';
 import { resolveShipmentByCode, notifyStatusEmails, useCompanySettings } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
-import { pdfSafe } from '@/lib/translit';
+import { embedUnicodeFonts } from '@/lib/pdfFont';
 import type { AnyStatus, Load, Shipment } from '@/types/domain';
 
 export function LoadBuilderPage() {
@@ -412,94 +412,75 @@ export function LoadBuilderPage() {
     if (!load) return;
     try {
       const doc = await PDFDocument.create();
-      const page = doc.addPage([595.28, 841.89]); // A4 portrait, points
-      const font = await doc.embedFont(StandardFonts.Helvetica);
-      const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-      const { height, width } = page.getSize();
+      const { font, bold } = await embedUnicodeFonts(doc);
+      const PAGE: [number, number] = [595.28, 841.89]; // A4 portrait, points
+      const pageHeight = PAGE[1];
+      let page = doc.addPage(PAGE);
+      const { width } = page.getSize();
       const margin = 48;
       const ink = rgb(0.12, 0.1, 0.08);
       const grey = rgb(0.45, 0.42, 0.4);
 
-      let y = height - margin;
+      let y = pageHeight - margin;
+      // `page` is reassigned on overflow; these closures always draw on the current page.
       const text = (s: string, x: number, size: number, f = font, color = ink) =>
-        page.drawText(pdfSafe(s), { x, y, size, font: f, color });
+        page.drawText(s, { x, y, size, font: f, color });
 
-      text(L.manifest, margin, 18, bold);
-      y -= 26;
-      text(`${pdfSafe(load.code)}  ·  ${formatDate(new Date(), dateLocale)}`, margin, 11, font, grey);
-      y -= 22;
-      text(`${L.colReceiver === 'Receiver' ? 'Vehicle' : 'МПС'}: ${load.vehicle_reg ?? '-'}`, margin, 11, font);
-      y -= 16;
-      text(
-        `${L.colReceiver === 'Receiver' ? 'Driver' : 'Шофьор'}: ${load.driver_name ?? '-'}`,
-        margin,
-        11,
-        font,
-      );
-      y -= 24;
-
-      // Table header
-      page.drawLine({
-        start: { x: margin, y },
-        end: { x: width - margin, y },
-        thickness: 1,
-        color: grey,
-      });
-      y -= 16;
       const cNo = margin;
       const cCode = margin + 36;
       const cRecv = margin + 150;
       const cWeight = width - margin - 70;
-      text(L.colNo, cNo, 10, bold);
-      text(L.colCode, cCode, 10, bold);
-      text(L.colReceiver, cRecv, 10, bold);
-      text(L.colWeight, cWeight, 10, bold);
-      y -= 8;
-      page.drawLine({
-        start: { x: margin, y },
-        end: { x: width - margin, y },
-        thickness: 0.5,
-        color: grey,
-      });
-      y -= 18;
+
+      // Column header — redrawn at the top of every page.
+      const tableHeader = () => {
+        page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: grey });
+        y -= 16;
+        text(L.colNo, cNo, 10, bold);
+        text(L.colCode, cCode, 10, bold);
+        text(L.colReceiver, cRecv, 10, bold);
+        text(L.colWeight, cWeight, 10, bold);
+        y -= 8;
+        page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: grey });
+        y -= 18;
+      };
+
+      // Title block (first page only)
+      text(L.manifest, margin, 18, bold);
+      y -= 26;
+      text(`${load.code}  ·  ${formatDate(new Date(), dateLocale)}`, margin, 11, font, grey);
+      y -= 22;
+      text(`${L.colReceiver === 'Receiver' ? 'Vehicle' : 'МПС'}: ${load.vehicle_reg ?? '-'}`, margin, 11, font);
+      y -= 16;
+      text(`${L.colReceiver === 'Receiver' ? 'Driver' : 'Шофьор'}: ${load.driver_name ?? '-'}`, margin, 11, font);
+      y -= 24;
+
+      tableHeader();
 
       shipments.forEach((s, i) => {
-        if (y < margin + 40) {
-          const np = doc.addPage([595.28, 841.89]);
-          y = np.getSize().height - margin;
-          np.drawText(pdfSafe(`${(i + 1).toString()}. ${s.public_code}`), {
-            x: margin,
-            y,
-            size: 10,
-            font,
-            color: ink,
-          });
-          return;
+        if (y < margin + 30) {
+          page = doc.addPage(PAGE);
+          y = pageHeight - margin;
+          tableHeader();
         }
         const row = (s2: string, x: number) =>
-          page.drawText(pdfSafe(s2), { x, y, size: 10, font, color: ink });
+          page.drawText(s2, { x, y, size: 10, font, color: ink });
+        const city = s.receiver.city ? `, ${s.receiver.city}` : '';
         row(`${i + 1}`, cNo);
         row(s.public_code, cCode);
-        row(`${s.receiver.name}, ${s.receiver.city}`, cRecv);
-        row(`${s.weight_kg}`, cWeight);
+        row(`${s.receiver.name || '-'}${city}`, cRecv);
+        row(`${s.weight_kg ?? ''}`, cWeight);
         y -= 16;
       });
 
+      if (y < margin + 36) {
+        page = doc.addPage(PAGE);
+        y = pageHeight - margin;
+      }
       y -= 8;
-      page.drawLine({
-        start: { x: margin, y },
-        end: { x: width - margin, y },
-        thickness: 0.5,
-        color: grey,
-      });
+      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: grey });
       y -= 18;
       const totalKg = shipments.reduce((sum, s) => sum + (s.weight_kg ?? 0), 0);
-      text(
-        `${L.parcels}: ${shipments.length}    ${L.totalWeight}: ${totalKg.toFixed(2)} kg`,
-        margin,
-        10,
-        bold,
-      );
+      text(`${L.parcels}: ${shipments.length}    ${L.totalWeight}: ${totalKg.toFixed(2)} kg`, margin, 10, bold);
 
       const bytes = await doc.save();
       const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
