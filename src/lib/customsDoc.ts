@@ -124,9 +124,14 @@ export async function buildCustomsPdf(d: CustomsPdfData): Promise<Uint8Array> {
   y -= 12;
   text('are of the stated origin and value.', M, y, 9, font, muted);
   y -= 40;
+  // Auto-signed: print the exporter's name + date on the lines so the document
+  // is ready to use without a manual signature (a typed name + date is accepted
+  // on a commercial-invoice declaration).
+  text(d.exporter.name, M, y + 4, 11, bold);
+  text(fmtDate(d.dateISO), A4.w - M - 160, y + 4, 11, bold);
   page.drawLine({ start: { x: M, y }, end: { x: M + 200, y }, thickness: 0.8, color: lineCol });
   page.drawLine({ start: { x: A4.w - M - 160, y }, end: { x: A4.w - M, y }, thickness: 0.8, color: lineCol });
-  text('Signature', M, y - 12, 8, font, muted);
+  text('Signature (electronic)', M, y - 12, 8, font, muted);
   text('Date', A4.w - M - 160, y - 12, 8, font, muted);
 
   text('HUBENOV DELIVERIES - hubenov.delivery', M, M, 8, font, muted);
