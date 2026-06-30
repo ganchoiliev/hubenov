@@ -6,7 +6,6 @@ import {
   PackagePlus,
   Package,
   Receipt,
-  MessageSquare,
   User,
   ScanLine,
   UserSearch,
@@ -95,7 +94,6 @@ export const PORTAL_NAV: NavItem[] = [
   { to: '/portal/incoming', labelKey: 'portal.incoming', icon: Inbox },
   { to: '/portal/shipments', labelKey: 'portal.my_shipments', icon: Package },
   { to: '/portal/invoices', labelKey: 'portal.invoices', icon: Receipt },
-  { to: '/portal/messages', labelKey: 'portal.messages', icon: MessageSquare, badge: 'messages' },
   { to: '/portal/profile', labelKey: 'portal.profile', icon: User },
 ];
 
@@ -108,7 +106,6 @@ export const OPERATOR_NAV: NavItem[] = [
   { to: '/op/loads', labelKey: 'operator.loads', icon: Truck },
   { to: '/op/shipments', labelKey: 'operator.shipments', icon: Boxes },
   { to: '/op/invoices', labelKey: 'operator.invoices', icon: Receipt },
-  { to: '/op/messages', labelKey: 'operator.messages', icon: MessageSquare, badge: 'messages' },
   { to: '/op/audit', labelKey: 'operator.audit', icon: History },
   { to: '/op/settings', labelKey: 'operator.settings', icon: Settings },
   { to: '/op/help', labelKey: 'operator.help', icon: HelpCircle },
