@@ -25,6 +25,7 @@ import { useConfirm } from '@/components/ui/confirm';
 import { resolveShipmentByCode, notifyStatusEmails, useCompanySettings } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
+import { isTerminal } from '@/lib/status';
 import { embedUnicodeFonts } from '@/lib/pdfFont';
 import type { AnyStatus, Load, Shipment } from '@/types/domain';
 
@@ -51,6 +52,9 @@ export function LoadBuilderPage() {
           loaded: 'Натоварена',
           notFound: 'Пратката не е намерена',
           added: 'Добавена в курса',
+          alreadyHere: 'вече е в този курс',
+          cantLoad: 'не може да се товари (доставена/отказана)',
+          otherLoad: 'е в друг курс — първо я разтовари оттам',
           available: 'Налични пратки за този курс',
           add: 'Добави',
           addSelected: 'Добави избраните',
@@ -85,6 +89,9 @@ export function LoadBuilderPage() {
           loaded: 'Loaded',
           notFound: 'Shipment not found',
           added: 'Added to load',
+          alreadyHere: 'already in this load',
+          cantLoad: 'cannot be loaded (delivered/cancelled)',
+          otherLoad: 'is on another load — unload it there first',
           available: 'Parcels ready for this load',
           add: 'Add',
           addSelected: 'Add selected',
@@ -242,6 +249,23 @@ export function LoadBuilderPage() {
       const shipment = await resolveShipmentByCode(code);
       if (!shipment) {
         toast.error(L.notFound);
+        setScan('');
+        return;
+      }
+      // Guard mis-scans before loading.
+      if (shipment.load_id === id) {
+        toast.info(`${shipment.public_code} · ${L.alreadyHere}`);
+        setScan('');
+        return;
+      }
+      if (isTerminal(shipment.status)) {
+        toast.error(`${shipment.public_code} · ${L.cantLoad}`);
+        setScan('');
+        return;
+      }
+      if (shipment.load_id) {
+        toast.error(`${shipment.public_code} · ${L.otherLoad}`);
+        setScan('');
         return;
       }
       await addShipment(shipment, 'scan');
