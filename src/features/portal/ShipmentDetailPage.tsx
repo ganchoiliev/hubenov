@@ -220,6 +220,9 @@ function EditParcelPanel({ shipment }: { shipment: Shipment }) {
   const [h, setH] = useState(String(shipment.height_cm));
   const [dv, setDv] = useState(String(shipment.declared_value));
   const [price, setPrice] = useState(shipment.price != null ? String(shipment.price) : '');
+  // Once the operator types a price we stop auto-suggesting. Parcels that arrive
+  // without a price (online/forward) start "untouched" so the suggestion fills in.
+  const [priceTouched, setPriceTouched] = useState(shipment.price != null);
 
   const L =
     lang === 'bg'
@@ -234,7 +237,7 @@ function EditParcelPanel({ shipment }: { shipment: Shipment }) {
           save: 'Запази',
           cancel: 'Отказ',
           saved: 'Пратката е обновена',
-          note: 'Промяната обновява и свързаната неплатена фактура.',
+          note: 'Цената създава или обновява фактурата на пратката.',
         }
       : {
           title: 'Edit parcel',
@@ -247,7 +250,7 @@ function EditParcelPanel({ shipment }: { shipment: Shipment }) {
           save: 'Save',
           cancel: 'Cancel',
           saved: 'Parcel updated',
-          note: 'This also updates the linked unpaid invoice.',
+          note: 'The price creates or updates the parcel invoice.',
         };
 
   const num = (s: string) => {
@@ -274,6 +277,12 @@ function EditParcelPanel({ shipment }: { shipment: Shipment }) {
       return null;
     }
   }, [w, l, wd, h, shipment.direction, shipment.is_gift, shipment.currency]);
+
+  // Auto-fill the delivery price from the weight until it's set by hand, so
+  // online/forward parcels (booked without a price) get one with no extra typing.
+  useEffect(() => {
+    if (!priceTouched && quote) setPrice(String(quote.total));
+  }, [quote, priceTouched]);
 
   const onSave = async () => {
     try {
@@ -330,7 +339,7 @@ function EditParcelPanel({ shipment }: { shipment: Shipment }) {
             <div className="flex items-end gap-3">
               <div className="flex-1">
                 <Field label={L.price} htmlFor="ep-price">
-                  <Input id="ep-price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
+                  <Input id="ep-price" inputMode="decimal" value={price} onChange={(e) => { setPrice(e.target.value); setPriceTouched(true); }} placeholder="0.00" />
                 </Field>
               </div>
               {quote && (
