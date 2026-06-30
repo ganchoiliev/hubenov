@@ -4,7 +4,7 @@
  * the courier tracking № as inbound_ref, so the operator's Inbound scan matches it
  * on arrival and the label auto-prints. The list below tracks each one's status.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Inbox, Home, Building2, RotateCcw, PackageSearch, CheckCircle2 } from 'lucide-react';
@@ -36,8 +36,15 @@ export function IncomingParcelPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [mode, setMode] = useState<'address' | 'office'>('office');
   const [justRegistered, setJustRegistered] = useState<{ id: string; code: string } | null>(null);
+  const successRef = useRef<HTMLDivElement>(null);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // After a successful registration, bring the green confirmation into view —
+  // not the page top, where it sits below the big address card and gets missed.
+  useEffect(() => {
+    if (justRegistered) successRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [justRegistered]);
 
   const L =
     lang === 'bg'
@@ -161,7 +168,6 @@ export function IncomingParcelPage() {
       setJustRegistered({ id: created.id, code: created.public_code });
       setForm({ ...EMPTY });
       setMode('address');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       toast.error(L.err);
     }
@@ -183,7 +189,7 @@ export function IncomingParcelPage() {
       )}
 
       {justRegistered && (
-        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-emerald-800">
+        <div ref={successRef} className="mb-4 flex scroll-mt-24 items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-emerald-800">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
           <div className="flex-1">
             <p className="text-sm font-semibold">{L.ok_title}</p>
