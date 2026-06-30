@@ -6,7 +6,7 @@
 import { m as motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Check, Circle, AlertTriangle } from 'lucide-react';
-import { MAIN_TIMELINE, statusLabel, timelineIndex, isSideStatus } from '@/lib/status';
+import { MAIN_TIMELINE, statusLabel, mainTimelineIndex, isSideStatus } from '@/lib/status';
 import { formatDate } from '@/lib/utils';
 import type { AnyStatus } from '@/types/domain';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,7 @@ export function Timeline({
 }) {
   const { i18n } = useTranslation();
   const locale = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
-  const currentIdx = timelineIndex(current);
+  const currentIdx = mainTimelineIndex(current);
   const side = isSideStatus(current);
 
   const eventByStatus = new Map<string, TimelineEvent>();
@@ -89,7 +89,7 @@ export function Timeline({
               >
                 {statusLabel(status, locale)}
               </p>
-              {ev && (
+              {ev && (done || active) && (
                 <p className="mt-0.5 text-xs text-muted-fg">
                   {(locale === 'bg' ? ev.note_bg : ev.note_en) || ''}
                   {ev.location ? ` · ${ev.location}` : ''}

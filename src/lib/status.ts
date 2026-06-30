@@ -79,6 +79,14 @@ export const MAIN_TIMELINE: ShipmentStatus[] = SHIPMENT_STATUSES.filter(
   (s) => s !== 'draft' && s !== 'collected_uk',
 );
 
+/** Index of a status within MAIN_TIMELINE — the value the Timeline component must
+ *  use. `draft`/`collected_uk` fold into their displayed step; side states → -1.
+ *  (timelineIndex counts the hidden statuses, so it runs ahead of MAIN_TIMELINE.) */
+export function mainTimelineIndex(status: AnyStatus): number {
+  const displayed = status === 'draft' ? 'booked' : status === 'collected_uk' ? 'at_uk_hub' : status;
+  return (MAIN_TIMELINE as readonly string[]).indexOf(displayed);
+}
+
 /** Statuses an operator can set by hand. Excludes `draft` (auto/initial) and
  *  `collected_uk` (merged into `at_uk_hub`), so the status menu stays simple. */
 export const OPERATOR_STATUSES: AnyStatus[] = (Object.keys(STATUS_META) as AnyStatus[]).filter(
