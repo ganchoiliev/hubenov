@@ -1134,6 +1134,8 @@ export function useDashboardPeriod(fromISO: string, toISO: string) {
 export interface BookedRow {
   id: string;
   public_code: string;
+  client_name: string;
+  client_code: string;
   receiver_name: string;
   receiver_city: string;
   created_at: string;
@@ -1145,14 +1147,34 @@ export function useBookedShipments() {
     queryFn: async (): Promise<BookedRow[]> => {
       const { data, error } = await supabase
         .from('shipments')
-        .select('id, public_code, receiver, created_at, inbound_ref')
+        .select(
+          'id, public_code, receiver, created_at, inbound_ref, client:profiles!shipments_client_id_fkey(full_name, client_code)',
+        )
         .eq('status', 'booked')
         .order('created_at', { ascending: false })
         .limit(15);
       if (error) throw error;
-      return ((data ?? []) as unknown as { id: string; public_code: string; receiver: { name?: string; city?: string } | null; created_at: string; inbound_ref: string | null }[]).map(
-        (r) => ({ id: r.id, public_code: r.public_code, receiver_name: r.receiver?.name ?? '', receiver_city: r.receiver?.city ?? '', created_at: r.created_at, inbound_ref: r.inbound_ref }),
-      );
+      type Embed = { full_name?: string | null; client_code?: string | null };
+      return ((data ?? []) as unknown as {
+        id: string;
+        public_code: string;
+        receiver: { name?: string; city?: string } | null;
+        created_at: string;
+        inbound_ref: string | null;
+        client: Embed | Embed[] | null;
+      }[]).map((r) => {
+        const c = Array.isArray(r.client) ? r.client[0] : r.client;
+        return {
+          id: r.id,
+          public_code: r.public_code,
+          client_name: c?.full_name ?? '',
+          client_code: c?.client_code ?? '',
+          receiver_name: r.receiver?.name ?? '',
+          receiver_city: r.receiver?.city ?? '',
+          created_at: r.created_at,
+          inbound_ref: r.inbound_ref,
+        };
+      });
     },
   });
 }

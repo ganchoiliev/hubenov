@@ -110,6 +110,7 @@ export function OperatorHomePage() {
           newClientsLbl: 'Нови клиенти (7 дни)',
           newClientsNone: 'Няма нови клиенти',
           incomingTag: 'Входяща',
+          recip: 'Получател',
         }
       : {
           cod: 'COD to collect',
@@ -153,6 +154,7 @@ export function OperatorHomePage() {
           newClientsLbl: 'New clients (7d)',
           newClientsNone: 'No new clients',
           incomingTag: 'Incoming',
+          recip: 'Recipient',
         };
 
   const fmtRec = (rec: Record<string, number>): string => {
@@ -318,9 +320,19 @@ export function OperatorHomePage() {
                         to={`/op/shipments/${b.id}`}
                         className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                       >
-                        <span className="flex min-w-0 items-baseline gap-2">
-                          <span className="font-mono font-semibold text-foreground">{b.public_code}</span>
-                          <span className="truncate text-muted-fg">{[b.receiver_name, b.receiver_city].filter(Boolean).join(' · ')}</span>
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="flex items-baseline gap-2">
+                            <span className="font-mono font-semibold text-foreground">{b.public_code}</span>
+                            <span className="truncate text-foreground">{b.client_name || b.receiver_name || '—'}</span>
+                            {b.client_code && (
+                              <span className="shrink-0 font-mono text-xs text-muted-fg">{b.client_code}</span>
+                            )}
+                          </span>
+                          {(b.receiver_name || b.receiver_city) && (
+                            <span className="truncate text-xs text-muted-fg">
+                              {L.recip}: {[b.receiver_name, b.receiver_city].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
                         </span>
                         {b.inbound_ref ? (
                           <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{L.incomingTag}</span>
