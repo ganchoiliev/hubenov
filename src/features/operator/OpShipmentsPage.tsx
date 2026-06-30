@@ -8,7 +8,7 @@ import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { getParcelOrigin } from '@/lib/parcelOrigin';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, cn } from '@/lib/utils';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ import { useConfirm } from '@/components/ui/confirm';
 import { useUpdateStatus, useDeleteShipment, useLoads, useBulkAssignLoad, useBulkDeleteShipments } from '@/lib/queries';
 import { buildCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
-import { OPERATOR_STATUSES, OPERATOR_SETTABLE_STATUSES, COURSE_DRIVEN, nextStatuses, statusLabel } from '@/lib/status';
+import { OPERATOR_STATUSES, OPERATOR_SETTABLE_STATUSES, COURSE_DRIVEN, nextStatuses, statusLabel, isTerminal } from '@/lib/status';
 import type { AnyStatus, Shipment } from '@/types/domain';
 import { SIDE_STATUSES } from '@/types/domain';
 
@@ -28,6 +28,9 @@ const COPY = {
     subtitle: 'Управление на всички пратки',
     search_placeholder: 'Търси по номер, баркод или получател…',
     filter_all: 'Всички статуси',
+    tab_active: 'Активни',
+    tab_delivered: 'Доставени',
+    tab_all: 'Всички',
     none: 'Няма пратки за този филтър.',
     apply: 'Приложи',
     other: 'Друго…',
@@ -61,6 +64,9 @@ const COPY = {
     subtitle: 'Manage all shipments',
     search_placeholder: 'Search by code, barcode or receiver…',
     filter_all: 'All statuses',
+    tab_active: 'Active',
+    tab_delivered: 'Delivered',
+    tab_all: 'All',
     none: 'No shipments match this filter.',
     apply: 'Apply',
     other: 'Other…',
@@ -210,6 +216,7 @@ export function OpShipmentsPage() {
   const del = useDeleteShipment();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AnyStatus | 'all'>('all');
+  const [view, setView] = useState<'active' | 'delivered' | 'all'>('active');
   const [onlineOnly, setOnlineOnly] = useState(false);
 
   const onDelete = async (s: Shipment) => {
@@ -263,6 +270,10 @@ export function OpShipmentsPage() {
     const shipments = data ?? [];
     const q = query.trim().toLowerCase();
     return shipments.filter((s) => {
+      // Active = still in motion (not delivered/returned/cancelled); keeps the
+      // default list + "select all" clear of finished parcels.
+      if (view === 'active' && isTerminal(s.status)) return false;
+      if (view === 'delivered' && s.status !== 'delivered') return false;
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
       if (onlineOnly && !getParcelOrigin(s).isOnline) return false;
       if (!q) return true;
@@ -273,7 +284,13 @@ export function OpShipmentsPage() {
         s.receiver.name.toLowerCase().includes(q)
       );
     });
-  }, [data, query, statusFilter, onlineOnly]);
+  }, [data, query, statusFilter, onlineOnly, view]);
+
+  const viewCounts = {
+    all: (data ?? []).length,
+    active: (data ?? []).filter((s) => !isTerminal(s.status)).length,
+    delivered: (data ?? []).filter((s) => s.status === 'delivered').length,
+  };
 
   const allSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
   const toggleAll = () =>
@@ -415,6 +432,28 @@ export function OpShipmentsPage() {
         <Button variant="outline" onClick={onExport} disabled={filtered.length === 0} className="gap-2 sm:shrink-0">
           <Download className="h-4 w-4" /> {L.exportCsv}
         </Button>
+      </div>
+
+      <div className="mb-4 inline-flex rounded-xl border border-border p-1">
+        {(
+          [
+            { v: 'active', label: L.tab_active, n: viewCounts.active },
+            { v: 'delivered', label: L.tab_delivered, n: viewCounts.delivered },
+            { v: 'all', label: L.tab_all, n: viewCounts.all },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.v}
+            type="button"
+            onClick={() => setView(tab.v)}
+            className={cn(
+              'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              view === tab.v ? 'bg-brand text-brand-fg' : 'text-muted-fg hover:text-foreground',
+            )}
+          >
+            {tab.label} <span className="tabular-nums opacity-70">{tab.n}</span>
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
