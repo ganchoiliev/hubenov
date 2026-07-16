@@ -85,128 +85,80 @@ export function HomePage() {
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {/* Editorial split hero. Text NEVER sits on the film: on md+ a solid
-          deep-emerald panel (left) carries the content at guaranteed contrast
-          while the film runs full-height on the right, edge to edge and fully
-          visible. On phones the film is a clean 16:9 band with the content
-          below it. One content renderer serves both (ink vs light variant);
-          the video mounts only on the active breakpoint (videoSrc already
-          tracks the md media query), so phones never fetch the desktop file. */}
+      {/* Cinema-stack hero. One structure on every screen: the film runs
+          full-width with NOTHING on it (100% visible, no scrims, no overlay
+          collisions), and the content sits directly below it on the page
+          background at native contrast. Desktop is the scaled-up version of
+          the mobile layout; on wide screens the film's height is capped and
+          object-cover trims the frame edges instead of covering it with UI. */}
       <section className="relative isolate overflow-hidden">
-        {(() => {
-          const heroContent = (ink: boolean) => (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="max-w-xl"
+        <div className="relative aspect-video max-h-[70vh] min-h-[260px] w-full overflow-hidden">
+          {/* Poster/backdrop with a gradient fallback. */}
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
+            style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          />
+          {videoSrc && (
+            <video
+              key={videoSrc}
+              className="absolute inset-0 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              poster="/images/hero-van.webp"
+              aria-hidden="true"
             >
-              <span
-                className={
-                  ink
-                    ? 'inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100'
-                    : 'inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700'
-                }
-              >
-                <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
-              </span>
-              <h1
-                className={`mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight lg:text-5xl ${
-                  ink ? 'text-white' : 'text-foreground'
-                }`}
-              >
-                {t('home.hero_title')}
-              </h1>
-              <p className={`mt-4 text-lg ${ink ? 'text-emerald-50/90' : 'text-muted-fg'}`}>
-                {t('home.hero_subtitle')}
-              </p>
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+          )}
+          {/* Soft blend into the page at the film's bottom edge. */}
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent md:h-16" />
+        </div>
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link to="/quote" className="block sm:w-auto">
-                  <Button
-                    size="lg"
-                    className={`w-full gap-2 sm:w-auto ${ink ? 'bg-white text-emerald-950 hover:bg-emerald-50' : ''}`}
-                  >
-                    {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link to="/track" className="block sm:w-auto">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className={`w-full gap-2 sm:w-auto ${
-                      ink ? 'border-emerald-300/40 bg-white/5 text-emerald-50 hover:bg-white/10' : ''
-                    }`}
-                  >
-                    <Search className="h-4 w-4" /> {t('home.cta_track')}
-                  </Button>
-                </Link>
-              </div>
+        <div className="container pb-12 pt-7 md:pb-16 md:pt-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-2xl"
+          >
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
+            </span>
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl">
+              {t('home.hero_title')}
+            </h1>
+            <p className="mt-4 max-w-xl text-lg text-muted-fg">{t('home.hero_subtitle')}</p>
 
-              <div
-                className={`mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium ${
-                  ink ? 'text-emerald-50/85' : 'text-foreground/80'
-                }`}
-              >
-                {[
-                  lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
-                  lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
-                  lang === 'bg' ? 'Приемане в Манчестър' : 'Drop-off in Manchester',
-                  lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
-                ].map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5">
-                    <Check className={`h-4 w-4 shrink-0 ${ink ? 'text-emerald-400' : 'text-emerald-500'}`} /> {s}
-                  </span>
-                ))}
-              </div>
-            </motion.div>
-          );
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link to="/quote" className="block sm:w-auto">
+                <Button size="lg" className="w-full gap-2 sm:w-auto">
+                  {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link to="/track" className="block sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full gap-2 sm:w-auto">
+                  <Search className="h-4 w-4" /> {t('home.cta_track')}
+                </Button>
+              </Link>
+            </div>
 
-          const film = (
-            <>
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-                style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-              />
-              {videoSrc && (
-                <video
-                  key={videoSrc}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="auto"
-                  poster="/images/hero-van.webp"
-                  aria-hidden="true"
-                >
-                  <source src={videoSrc} type="video/mp4" />
-                </video>
-              )}
-            </>
-          );
-
-          return (
-            <>
-              {/* Phones: film band on top, content below on the page background. */}
-              <div className="md:hidden">
-                <div className="relative aspect-video w-full overflow-hidden">
-                  {film}
-                  <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
-                </div>
-                <div className="container pb-12 pt-7">{heroContent(false)}</div>
-              </div>
-
-              {/* md+: solid ink panel left, film full-height right. */}
-              <div className="hidden md:grid md:min-h-[560px] md:grid-cols-12 lg:min-h-[640px] 2xl:min-h-[700px]">
-                <div className="relative flex items-center bg-emerald-950 md:col-span-6 lg:col-span-5">
-                  <div className="w-full py-16 pl-8 pr-10 lg:pl-14 lg:pr-14 xl:pl-20">{heroContent(true)}</div>
-                </div>
-                <div className="relative md:col-span-6 lg:col-span-7">{film}</div>
-              </div>
-            </>
-          );
-        })()}
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80">
+              {[
+                lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
+                lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
+                lang === 'bg' ? 'Приемане в Манчестър' : 'Drop-off in Manchester',
+                lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
+              ].map((s) => (
+                <span key={s} className="inline-flex items-center gap-1.5">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500" /> {s}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
       </section>
 
       {/* ── Next departure + route ─────────────────────────────────────── */}
