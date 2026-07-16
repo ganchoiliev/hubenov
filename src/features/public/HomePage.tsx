@@ -85,22 +85,23 @@ export function HomePage() {
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {/* Full-bleed film hero. The collision problem is solved IN the film:
-          every scene is composed with the truck in the right half and clean
-          negative space on the left, where the text lives (how commercials
-          reserve room for title supers). Mobile keeps the film as a clean
-          16:9 band with the content below it. */}
+      {/* Cinema-stack hero. One structure on every screen: the film runs
+          full-width with NOTHING on it (100% visible, no scrims, no overlay
+          collisions), and the content sits directly below it on the page
+          background at native contrast. Desktop is the scaled-up version of
+          the mobile layout; on wide screens the film's height is capped and
+          object-cover trims the frame edges instead of covering it with UI. */}
       <section className="relative isolate overflow-hidden">
-        <div className="relative aspect-video w-full overflow-hidden md:static md:aspect-auto md:overflow-visible">
+        <div className="relative aspect-video max-h-[70vh] min-h-[260px] w-full overflow-hidden">
           {/* Poster/backdrop with a gradient fallback. */}
           <div
-            className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
+            className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
             style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
           />
           {videoSrc && (
             <video
               key={videoSrc}
-              className="absolute inset-0 -z-20 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
               autoPlay
               muted
               loop
@@ -112,30 +113,24 @@ export function HomePage() {
               <source src={videoSrc} type="video/mp4" />
             </video>
           )}
-          {/* Desktop scrims: soft left column for the text + gentle floor. */}
-          <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-slate-950/65 via-slate-950/25 to-transparent md:block" />
-          <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-40 bg-gradient-to-t from-slate-950/50 to-transparent md:block" />
-          {/* Mobile: blend the band's bottom edge into the page. */}
-          <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent md:hidden" />
+          {/* Soft blend into the page at the film's bottom edge. */}
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent md:h-16" />
         </div>
-        <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-28 bg-gradient-to-t from-background to-transparent md:block" />
 
-        <div className="container pb-12 pt-7 md:py-24 lg:py-28">
+        <div className="container pb-12 pt-7 md:pb-16 md:pt-10">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="max-w-2xl"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 md:border-white/20 md:bg-white/10 md:text-white">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
               <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
             </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl md:text-white md:[text-shadow:0_2px_24px_rgba(2,6,23,0.55)]">
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl">
               {t('home.hero_title')}
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-fg md:text-white/90 md:[text-shadow:0_1px_12px_rgba(2,6,23,0.5)]">
-              {t('home.hero_subtitle')}
-            </p>
+            <p className="mt-4 max-w-xl text-lg text-muted-fg">{t('home.hero_subtitle')}</p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link to="/quote" className="block sm:w-auto">
@@ -144,17 +139,13 @@ export function HomePage() {
                 </Button>
               </Link>
               <Link to="/track" className="block sm:w-auto">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full gap-2 sm:w-auto md:border-white/60 md:bg-white/15 md:text-white md:shadow-lg md:backdrop-blur-md md:hover:bg-white/25"
-                >
+                <Button size="lg" variant="outline" className="w-full gap-2 sm:w-auto">
                   <Search className="h-4 w-4" /> {t('home.cta_track')}
                 </Button>
               </Link>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80 md:text-white/85">
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80">
               {[
                 lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
@@ -162,7 +153,7 @@ export function HomePage() {
                 lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
               ].map((s) => (
                 <span key={s} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-500 md:text-emerald-400" /> {s}
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500" /> {s}
                 </span>
               ))}
             </div>
