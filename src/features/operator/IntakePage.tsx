@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Copy,
   Search,
+  Printer,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Field, Badge, Spinner } from '@/components/ui';
 import { PageHeading } from '@/components/shared/common';
@@ -111,6 +112,7 @@ export function IntakePage() {
           created_title: 'Пратката е създадена',
           created_code: 'Номер на пратката',
           to_scan: 'Към сканиране и печат',
+          print_label: 'Печат на етикет',
           copy: 'Копирай',
           copied: 'Копирано',
           parcel_types: {
@@ -168,6 +170,7 @@ export function IntakePage() {
           created_title: 'Shipment created',
           created_code: 'Shipment code',
           to_scan: 'To scan & print',
+          print_label: 'Print label',
           copy: 'Copy',
           copied: 'Copied',
           parcel_types: {
@@ -392,7 +395,9 @@ export function IntakePage() {
   }, [forwardFlag, client, recents]);
 
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [createdShipment, setCreatedShipment] = useState<Shipment | null>(null);
   const [copied, setCopied] = useState(false);
+  const [printingLabel, setPrintingLabel] = useState(false);
   const successRef = useRef<HTMLDivElement>(null);
 
   // Bring the green "created" panel into view (the Create button sits far down
@@ -407,6 +412,42 @@ export function IntakePage() {
     setCopied(true);
     toast.success(createdCode);
     window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  // Print the just-created parcel's 4×6 label straight from the success card — no
+  // detour through the scan station. Same build+print path as the shipment detail
+  // page, so browser mode opens the print dialog and QZ Tray prints silently.
+  const printCreatedLabel = async () => {
+    if (!createdShipment) return;
+    setPrintingLabel(true);
+    try {
+      const clientCode = (await getClientCode(createdShipment.client_id)) ?? '—';
+      const pdf = await buildLabelPdf({
+        public_code: createdShipment.public_code,
+        awb_barcode: createdShipment.awb_barcode,
+        client_code: clientCode,
+        direction: createdShipment.direction,
+        weight_kg: createdShipment.weight_kg,
+        sender: createdShipment.sender,
+        receiver: createdShipment.receiver,
+        is_gift: createdShipment.is_gift,
+        declared_value: createdShipment.declared_value,
+        currency: createdShipment.currency,
+        pieces: createdShipment.pieces,
+        contents: createdShipment.contents,
+        length_cm: createdShipment.length_cm,
+        width_cm: createdShipment.width_cm,
+        height_cm: createdShipment.height_cm,
+      });
+      const r = await getPrinter(settings?.print_method).print({ pdf, title: createdShipment.public_code });
+      if (r.queued) toast.info(t('operator.queued_offline'));
+      else if (r.ok) toast.success(t('operator.printed'));
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setPrintingLabel(false);
+    }
   };
 
   const onSubmit: SubmitHandler<ShipmentInput> = async (data) => {
@@ -456,6 +497,7 @@ export function IntakePage() {
       if (error) throw error;
       const created = row as unknown as Shipment;
       setCreatedCode(created.public_code);
+      setCreatedShipment(created);
       toast.success(t('wizard.created'));
 
       // Auto-create the invoice from the delivery price (charge → invoice).
@@ -681,11 +723,16 @@ export function IntakePage() {
                   {copied && <span className="text-xs font-medium text-success">{L.copied}</span>}
                 </button>
               </div>
-              <Link to="/op/scan">
-                <Button className="gap-2">
-                  <ScanLine className="h-4 w-4" /> {L.to_scan} <ArrowRight className="h-4 w-4" />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button className="gap-2" loading={printingLabel} onClick={() => void printCreatedLabel()}>
+                  <Printer className="h-4 w-4" /> {L.print_label}
                 </Button>
-              </Link>
+                <Link to="/op/scan">
+                  <Button variant="outline" className="gap-2">
+                    <ScanLine className="h-4 w-4" /> {L.to_scan} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
             </CardBody>
           </Card>
         </motion.div>

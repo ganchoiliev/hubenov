@@ -45,8 +45,13 @@ const TRANSITIONS: Record<AnyStatus, AnyStatus[]> = {
   at_uk_hub: ['on_load', 'departed_uk', 'exception'],
   on_load: ['departed_uk', 'at_uk_hub', 'exception'],
   departed_uk: ['arrived_bg_hub', 'exception'],
-  arrived_bg_hub: ['handed_to_econt', 'exception'],
-  handed_to_econt: ['out_for_delivery', 'exception', 'returned'],
+  // Last mile is manual (Econt office hand-off is optional): from "Пристигна в
+  // България" the operator can go straight to the customer-facing milestones —
+  // За доставка (out_for_delivery) then Доставена (delivered), both of which SMS
+  // the customer. handed_to_econt stays available (a silent internal record) but
+  // is no longer a mandatory gate that blocks reaching delivered.
+  arrived_bg_hub: ['out_for_delivery', 'delivered', 'handed_to_econt', 'exception'],
+  handed_to_econt: ['out_for_delivery', 'delivered', 'exception', 'returned'],
   out_for_delivery: ['delivered', 'exception', 'returned'],
   delivered: [],
   exception: ['at_uk_hub', 'arrived_bg_hub', 'returned', 'cancelled'],
