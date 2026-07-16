@@ -113,25 +113,26 @@ export function HomePage() {
               <source src={videoSrc} type="video/mp4" />
             </video>
           )}
-          {/* Desktop-only scrims (legibility without a box); the mobile band stays clean. */}
-          <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-slate-950/60 via-slate-950/20 to-transparent md:block" />
-          <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-44 bg-gradient-to-t from-slate-950/55 to-transparent md:block" />
+          {/* Desktop-only scrim: a cinema lower-third. The text lives in the bottom
+              band (road = darkest, most stable zone), so the film — and the truck's
+              own lettering — stays uncovered in every frame. */}
+          <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-[62%] bg-gradient-to-t from-slate-950/80 via-slate-950/35 to-transparent md:block" />
           {/* Mobile: blend the band's bottom edge into the page. */}
           <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent md:hidden" />
         </div>
-        <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-32 bg-gradient-to-t from-background to-transparent md:block" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-24 bg-gradient-to-t from-background to-transparent md:block" />
 
-        <div className="container pb-12 pt-7 md:py-28 lg:py-32">
+        <div className="container pb-12 pt-7 md:flex md:min-h-[78vh] md:flex-col md:justify-end md:py-0 md:pb-16 lg:min-h-[84vh] lg:pb-20">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="max-w-2xl"
+            className="max-w-2xl md:max-w-3xl"
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 md:border-white/20 md:bg-white/10 md:text-white">
               <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
             </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl md:text-white md:[text-shadow:0_2px_24px_rgba(2,6,23,0.55)] lg:text-6xl">
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:mt-4 md:text-5xl md:text-white md:[text-shadow:0_2px_24px_rgba(2,6,23,0.55)]">
               {t('home.hero_title')}
             </h1>
             <p className="mt-4 max-w-xl text-lg text-muted-fg md:text-white/90 md:[text-shadow:0_1px_12px_rgba(2,6,23,0.5)]">
