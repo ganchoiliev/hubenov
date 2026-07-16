@@ -85,58 +85,57 @@ export function HomePage() {
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {/* Split hero: the text and the film are never composited. The film sits
-          in a cinematic card — fully visible on every viewport, no scrims, no
-          collisions with the truck's own lettering across scenes — while the
-          content keeps native page contrast. Mobile stacks film-first; from lg
-          the film takes the right 7 columns and the content the left 5. */}
-      <section className="overflow-hidden">
-        <div className="container grid items-center gap-8 pb-12 pt-6 md:pt-8 lg:grid-cols-12 lg:gap-12 lg:pb-20 lg:pt-12">
-          {/* Film card */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.985 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="relative overflow-hidden rounded-2xl shadow-lift ring-1 ring-border lg:order-2 lg:col-span-7 lg:rounded-3xl"
-          >
-            <div className="relative aspect-video w-full">
-              {/* Poster/backdrop with a gradient fallback. */}
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-                style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-              />
-              {videoSrc && (
-                <video
-                  key={videoSrc}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="auto"
-                  poster="/images/hero-van.webp"
-                  aria-hidden="true"
-                >
-                  <source src={videoSrc} type="video/mp4" />
-                </video>
-              )}
-            </div>
-          </motion.div>
+      {/* Full-bleed film hero. The collision problem is solved IN the film:
+          every scene is composed with the truck in the right half and clean
+          negative space on the left, where the text lives (how commercials
+          reserve room for title supers). Mobile keeps the film as a clean
+          16:9 band with the content below it. */}
+      <section className="relative isolate overflow-hidden">
+        <div className="relative aspect-video w-full overflow-hidden md:static md:aspect-auto md:overflow-visible">
+          {/* Poster/backdrop with a gradient fallback. */}
+          <div
+            className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
+            style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          />
+          {videoSrc && (
+            <video
+              key={videoSrc}
+              className="absolute inset-0 -z-20 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              poster="/images/hero-van.webp"
+              aria-hidden="true"
+            >
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+          )}
+          {/* Desktop scrims: soft left column for the text + gentle floor. */}
+          <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-slate-950/65 via-slate-950/25 to-transparent md:block" />
+          <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-40 bg-gradient-to-t from-slate-950/50 to-transparent md:block" />
+          {/* Mobile: blend the band's bottom edge into the page. */}
+          <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent md:hidden" />
+        </div>
+        <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-28 bg-gradient-to-t from-background to-transparent md:block" />
 
-          {/* Content */}
+        <div className="container pb-12 pt-7 md:py-24 lg:py-28">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="lg:order-1 lg:col-span-5"
+            className="max-w-2xl"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 md:border-white/20 md:bg-white/10 md:text-white">
               <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
             </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground lg:text-5xl">
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl md:text-white md:[text-shadow:0_2px_24px_rgba(2,6,23,0.55)]">
               {t('home.hero_title')}
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-fg">{t('home.hero_subtitle')}</p>
+            <p className="mt-4 max-w-xl text-lg text-muted-fg md:text-white/90 md:[text-shadow:0_1px_12px_rgba(2,6,23,0.5)]">
+              {t('home.hero_subtitle')}
+            </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link to="/quote" className="block sm:w-auto">
@@ -145,13 +144,17 @@ export function HomePage() {
                 </Button>
               </Link>
               <Link to="/track" className="block sm:w-auto">
-                <Button size="lg" variant="outline" className="w-full gap-2 sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full gap-2 sm:w-auto md:border-white/60 md:bg-white/15 md:text-white md:shadow-lg md:backdrop-blur-md md:hover:bg-white/25"
+                >
                   <Search className="h-4 w-4" /> {t('home.cta_track')}
                 </Button>
               </Link>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80">
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80 md:text-white/85">
               {[
                 lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
@@ -159,7 +162,7 @@ export function HomePage() {
                 lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
               ].map((s) => (
                 <span key={s} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-500" /> {s}
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500 md:text-emerald-400" /> {s}
                 </span>
               ))}
             </div>
