@@ -419,7 +419,7 @@ const SMS_TEMPLATE: Partial<Record<AnyStatus, 'booked' | 'departed' | 'arrived' 
  * Non-milestone statuses are skipped (statusEmail returns null; no SMS template).
  */
 export async function notifyStatusEmails(
-  shipments: { public_code: string; client_id: string }[],
+  shipments: { public_code: string; client_id: string; sender?: { phone?: string | null } | null }[],
   to: AnyStatus,
 ): Promise<void> {
   try {
@@ -457,10 +457,10 @@ export async function notifyStatusEmails(
     await Promise.allSettled(
       shipments.map(async (s) => {
         const c = byId.get(s.client_id);
-        if (!c || c.notify_email === false) return; // opted out of notifications
-        const lc = c.preferred_locale === 'en' ? 'en' : 'bg';
-        // Email (Resend)
-        if (c.email) {
+        if (c?.notify_email === false) return; // explicit per-client opt-out
+        const lc = c?.preferred_locale === 'en' ? 'en' : 'bg';
+        // Email (Resend) — to the client's profile email, when present.
+        if (c && c.email) {
           const mail = statusEmail({
             code: s.public_code,
             status: to,
@@ -474,10 +474,13 @@ export async function notifyStatusEmails(
             });
           }
         }
-        // SMS (Vonage) — milestone statuses only, when a phone is on file.
-        if (smsTpl && c.phone) {
+        // SMS — milestone statuses only. Prefer the client's profile phone; fall
+        // back to the shipment's sender snapshot so walk-in clients with no profile
+        // phone are still reached (the sender is the account holder for the booking).
+        const smsTo = c?.phone ?? s.sender?.phone ?? null;
+        if (smsTpl && smsTo) {
           await supabase.functions.invoke('notify', {
-            body: { channel: 'sms', to: c.phone, template: smsTpl, locale: lc, vars: { code: s.public_code } },
+            body: { channel: 'sms', to: smsTo, template: smsTpl, locale: lc, vars: { code: s.public_code } },
           });
         }
       }),
@@ -521,7 +524,7 @@ export function useUpdateStatus() {
 
       // Best-effort client notification (email now; SMS later). Never throws.
       await notifyStatusEmails(
-        [{ public_code: args.shipment.public_code, client_id: args.shipment.client_id }],
+        [{ public_code: args.shipment.public_code, client_id: args.shipment.client_id, sender: args.shipment.sender }],
         args.to,
       );
     },
