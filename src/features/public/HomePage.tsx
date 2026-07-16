@@ -85,47 +85,60 @@ export function HomePage() {
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
+      {/* The film is the hero. No glass slab: on phones the video is a clean
+          16:9 band with the content BELOW it (nothing covers the media); from
+          md the video is full-bleed and the text sits directly on it over a
+          gradient scrim. One <video> serves both — the wrapper is its
+          positioning context on mobile and goes static at md so inset-0
+          targets the section instead. */}
       <section className="relative isolate overflow-hidden">
-        {/* Background image with a gradient fallback (renders well even if the
-            image isn't present yet). */}
-        <div
-          className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-          style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-        />
-        {videoSrc && (
-          <video
-            key={videoSrc}
-            className="absolute inset-0 -z-20 h-full w-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster="/images/hero-van.webp"
-            aria-hidden="true"
-          >
-            <source src={videoSrc} type="video/mp4" />
-          </video>
-        )}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-background to-transparent" />
+        <div className="relative aspect-video w-full overflow-hidden md:static md:aspect-auto md:overflow-visible">
+          {/* Poster/backdrop with a gradient fallback. */}
+          <div
+            className="absolute inset-0 -z-20 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
+            style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+          />
+          {videoSrc && (
+            <video
+              key={videoSrc}
+              className="absolute inset-0 -z-20 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              poster="/images/hero-van.webp"
+              aria-hidden="true"
+            >
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+          )}
+          {/* Desktop-only scrims (legibility without a box); the mobile band stays clean. */}
+          <div className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-slate-950/60 via-slate-950/20 to-transparent md:block" />
+          <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-44 bg-gradient-to-t from-slate-950/55 to-transparent md:block" />
+          {/* Mobile: blend the band's bottom edge into the page. */}
+          <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent md:hidden" />
+        </div>
+        <div className="absolute inset-x-0 bottom-0 -z-10 hidden h-32 bg-gradient-to-t from-background to-transparent md:block" />
 
-        <div className="container grid items-center gap-10 py-20 md:py-28 lg:grid-cols-12 lg:py-32">
+        <div className="container pb-12 pt-7 md:py-28 lg:py-32">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="rounded-3xl bg-slate-950/55 p-6 ring-1 ring-white/10 backdrop-blur-md sm:p-8 lg:col-span-7"
+            className="max-w-2xl"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 md:border-white/20 md:bg-white/10 md:text-white">
               <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
             </span>
-            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-white md:text-5xl lg:text-6xl">
+            <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl md:text-white md:[text-shadow:0_2px_24px_rgba(2,6,23,0.55)] lg:text-6xl">
               {t('home.hero_title')}
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-white/85">{t('home.hero_subtitle')}</p>
+            <p className="mt-4 max-w-xl text-lg text-muted-fg md:text-white/90 md:[text-shadow:0_1px_12px_rgba(2,6,23,0.5)]">
+              {t('home.hero_subtitle')}
+            </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link to="/quote" className="block sm:w-auto">
                 <Button size="lg" className="w-full gap-2 sm:w-auto">
                   {t('home.cta_quote')} <ArrowRight className="h-4 w-4" />
@@ -135,14 +148,14 @@ export function HomePage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="w-full gap-2 border-white/60 bg-white/15 text-white shadow-lg backdrop-blur-md hover:bg-white/25 sm:w-auto"
+                  className="w-full gap-2 sm:w-auto md:border-white/60 md:bg-white/15 md:text-white md:shadow-lg md:backdrop-blur-md md:hover:bg-white/25"
                 >
                   <Search className="h-4 w-4" /> {t('home.cta_track')}
                 </Button>
               </Link>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-white/85">
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80 md:text-white/85">
               {[
                 lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
@@ -150,7 +163,7 @@ export function HomePage() {
                 lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
               ].map((s) => (
                 <span key={s} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" /> {s}
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500 md:text-emerald-400" /> {s}
                 </span>
               ))}
             </div>

@@ -34,6 +34,8 @@ export const company = {
   phone: env.VITE_COMPANY_PHONE,
   whatsapp: env.VITE_COMPANY_WHATSAPP || env.VITE_COMPANY_PHONE,
   address: env.VITE_COMPANY_ADDRESS,
-  email: 'info@hubenov.delivery', // TODO(owner): confirm contact mailbox is set up
+  // Owner's real inbox (handover 2026-07). Upgrade path: create info@hubenov.delivery
+  // as a forwarder to this address and swap back for a branded public email.
+  email: 'bogoslavvv@gmail.com',
   domain: 'hubenov.delivery',
 } as const;
