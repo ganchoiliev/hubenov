@@ -186,10 +186,8 @@ export function CoveragePage() {
                 <Globe2 className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="truncate font-display text-base font-extrabold text-brand-700">
-                  {L.allTitle}
-                </p>
-                <p className="truncate text-xs text-brand-700/80">{L.allText}</p>
+                <p className="font-display text-base font-extrabold text-brand-700">{L.allTitle}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-brand-700/80">{L.allText}</p>
               </div>
             </div>
           </StaggerItem>

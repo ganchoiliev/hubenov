@@ -47,15 +47,15 @@ interface AboutCopy {
 
 const BG: AboutCopy = {
   badge: 'Манчестър · Eccles',
-  title: 'Семейна работа, а не просто превоз',
-  lead: 'Доставки Хубенов е семейна фирма, родена зад тезгяха на нашия магазин в Манчестър. Свързваме българите във Великобритания с близките им у дома — с грижа, с лице и с име зад всеки колет.',
-  story_title: 'Нашата история',
+  title: 'Не превозваме просто пратки. Превозваме доверие.',
+  lead: 'Понякога една пратка е много повече от кашон. В нея има подарък за дете, домашно приготвени неща за близките, важни документи или просто частица от дома, която трябва да стигне навреме.',
+  story_title: 'Защо го правим',
   story_p1:
-    'Всичко започна от нашия магазин на 542 Liverpool Road в Eccles, Манчестър. Тук сънародниците ни идват за родния вкус — и за хилядите малки неща, които миришат на вкъщи.',
+    'Именно това ни вдъхнови да създадем Доставки Хубенов — услуга, изградена върху доверие, коректност и лично отношение към всеки клиент. За нас всяка пратка има своя история и своя получател, който я очаква.',
   story_p2:
-    'А след пазара винаги идваше един и същ въпрос: „Ще можете ли да пратите това на мама в България?“ Така, колет по колет, се роди и превозът. Днес имаме собствен транспорт и тръгваме с бус всеки петък — без посредници, без презастраховане при чужди подизпълнители.',
+    'Затова работим така, както бихме искали някой да се погрижи за нашите собствени вещи — внимателно, отговорно и с уважение. Вярваме, че качествената услуга не се измерва само с това колко бързо ще пристигне една пратка, а с увереността, че тя е в сигурни ръце през целия път.',
   story_p3:
-    'За нас всяка пратка е лична. Зад нея стои рожден ден, който не искате да пропуснете, лекарство, което трябва да стигне навреме, или просто буркан мед от баба. Затова я пазим така, както бихте го направили вие.',
+    'Всеки ден се стремим да оправдаваме доверието, което клиентите ни гласуват. То е причината да се развиваме и да ставаме все по-добри. Защото за нас това не са просто пратки — превозваме доверие.',
   shop_eyebrow: 'Заповядайте при нас',
   shop_name: 'Доставки Хубенов',
   shop_sub: '4 офиса за приемане на пратки',
@@ -90,15 +90,15 @@ const BG: AboutCopy = {
 
 const EN: AboutCopy = {
   badge: 'Manchester · Eccles',
-  title: 'A family business, not just a courier',
-  lead: 'Hubenov Deliveries is a family business born behind the counter of our shop in Manchester. We connect Bulgarians in the UK with the people they love back home — with care, and a real face and name behind every parcel.',
-  story_title: 'Our story',
+  title: 'We don’t just carry parcels. We carry trust.',
+  lead: 'Sometimes a parcel is far more than a box. Inside it is a present for a child, homemade food for loved ones, important documents — or simply a piece of home that has to arrive on time.',
+  story_title: 'Why we do it',
   story_p1:
-    'It all started in our shop at 542 Liverpool Road in Eccles, Manchester. This is where our community comes for the taste of home — and the thousand small things that smell like home.',
+    'That is exactly what inspired us to create Hubenov Deliveries — a service built on trust, fairness and a personal relationship with every client. To us, every parcel has its own story and its own recipient waiting for it.',
   story_p2:
-    'And after the shopping there was always the same question: "Could you send this to my mum in Bulgaria?" Parcel by parcel, the transport was born. Today we run our own transport and a van leaves every Friday — no middlemen, no reselling the job to outside subcontractors.',
+    'So we work the way we would want someone to care for our own belongings — carefully, responsibly and with respect. We believe good service is not measured only by how fast a parcel arrives, but by the confidence that it is in safe hands the whole way.',
   story_p3:
-    'To us, every parcel is personal. Behind it is a birthday you do not want to miss, medicine that has to arrive on time, or simply a jar of grandma’s honey. So we look after it the way you would yourself.',
+    'Every day we work to live up to the trust our clients place in us. That trust is the reason we keep growing and getting better. Because to us these are not just parcels — we carry trust.',
   shop_eyebrow: 'Come and see us',
   shop_name: 'Hubenov Deliveries',
   shop_sub: '4 parcel drop-off locations',
