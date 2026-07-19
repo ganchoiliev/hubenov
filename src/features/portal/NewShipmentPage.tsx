@@ -155,6 +155,22 @@ export function NewShipmentPage() {
         client_id: profile.id,
         created_by: profile.id,
       });
+      // Office alert: email the owner about the new booking (via the contact
+      // channel → CONTACT_TO). Best-effort — never blocks or fails the booking.
+      void supabase.functions
+        .invoke('contact', {
+          body: {
+            name: normalized.sender.name || profile.full_name || 'Клиент',
+            phone: normalized.sender.phone,
+            message: `Нова онлайн заявка ${shipment.public_code} · ${normalized.weight_kg} кг · до ${
+              normalized.receiver.econt_office_code
+                ? `Еконт офис ${normalized.receiver.econt_office_code}`
+                : normalized.receiver.city || 'адрес'
+            }. Виж я в операторския панел.`,
+            website: '',
+          },
+        })
+        .catch(() => {});
       toast.success(t('wizard.created'));
       navigate(`/portal/shipments/${shipment.id}`);
     } catch {

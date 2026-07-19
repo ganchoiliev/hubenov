@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth';
 import { useRegisterIncoming, useMyIncoming } from '@/lib/queries';
 import { cn, formatDate } from '@/lib/utils';
 import { toE164 } from '@/lib/phone';
+import { supabase } from '@/lib/supabase';
 import { HubAddress } from '@/components/shared/HubAddress';
 import type { Currency } from '@/types/domain';
 
@@ -164,6 +165,20 @@ export function IncomingParcelPage() {
         currency: form.currency,
         notes: `${lang === 'bg' ? 'Входяща пратка' : 'Incoming parcel'}${form.shop.trim() ? ` · ${form.shop.trim()}` : ''}`,
       });
+      // Office alert: email the owner about the expected online parcel (via the
+      // contact channel → CONTACT_TO). Best-effort — never blocks registration.
+      void supabase.functions
+        .invoke('contact', {
+          body: {
+            name: profile.full_name || 'Клиент',
+            phone: toE164('+359', form.rphone.trim()),
+            message: `Нова входяща онлайн пратка ${created.public_code}${
+              form.tracking.trim() ? ` · реф. ${form.tracking.trim().toUpperCase()}` : ''
+            }${form.shop.trim() ? ` · ${form.shop.trim()}` : ''}. Клиентът я очаква на централния адрес.`,
+            website: '',
+          },
+        })
+        .catch(() => {});
       toast.success(`${L.ok} ${created.public_code}`);
       setJustRegistered({ id: created.id, code: created.public_code });
       setForm({ ...EMPTY });

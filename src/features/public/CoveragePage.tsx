@@ -116,7 +116,9 @@ export function CoveragePage() {
   const L = locale === 'bg' ? COPY_BG : COPY_EN;
 
   return (
-    <>
+    // overflow-x-clip: nothing on this page may widen the phone viewport (the
+    // town cloud and card grids stay inside; any stray overflow gets clipped).
+    <div className="overflow-x-clip">
       <ImageHero image="/images/hero-van.webp" title={t('nav.coverage')} subtitle={L.subtitle} />
       <Section>
         {/* Two transport pillars */}
@@ -204,16 +206,16 @@ export function CoveragePage() {
               ? 'Щом има офис на Еконт — доставяме. Ето още градове, които обслужваме всяка седмица:'
               : 'If there is an Econt office, we deliver. Here are more towns we serve every week:'}
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex min-w-0 max-w-full flex-wrap gap-2">
             {MORE_TOWNS.map((c) => (
               <span
                 key={c.en}
-                className="rounded-full border border-border bg-card px-3 py-1 text-sm font-medium text-foreground"
+                className="max-w-full whitespace-normal rounded-full border border-border bg-card px-3 py-1 text-sm font-medium text-foreground"
               >
                 {locale === 'bg' ? c.bg : c.en}
               </span>
             ))}
-            <span className="rounded-full bg-brand px-3 py-1 text-sm font-semibold text-brand-fg">
+            <span className="max-w-full whitespace-normal rounded-full bg-brand px-3 py-1 text-sm font-semibold text-brand-fg">
               {locale === 'bg' ? '… и всяко друго населено място' : '… and every other town or village'}
             </span>
           </div>
@@ -245,6 +247,6 @@ export function CoveragePage() {
         </Link>
       </div>
       </Section>
-    </>
+    </div>
   );
 }

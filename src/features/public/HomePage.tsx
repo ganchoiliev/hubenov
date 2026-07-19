@@ -21,6 +21,7 @@ import { DepartureCountdown } from '@/components/shared/DepartureCountdown';
 import { Section } from '@/components/shared/common';
 import { ShopLogos } from '@/components/shared/ShopLogos';
 import { company } from '@/lib/env';
+import { OFFICES } from '@/lib/offices';
 
 const VALUES = [
   { icon: Truck, titleKey: 'home.value_speed_title', textKey: 'home.value_speed_text' },
@@ -350,21 +351,31 @@ export function HomePage() {
               {t('home.dropoff_title')}
             </h2>
             <p className="mt-3 text-muted-fg">{t('home.dropoff_text')}</p>
-            <div className="mt-5 space-y-1.5 text-sm">
-              <p className="flex items-center gap-2 text-foreground">
-                <MapPin className="h-4 w-4 text-brand" /> {company.address}
-              </p>
-              <p className="text-muted-fg">
-                <a href={`tel:${company.phone.replace(/\s/g, '')}`} className="hover:text-brand">
-                  {company.phone}
-                </a>
-              </p>
-            </div>
+            <ul className="mt-5 space-y-2 text-sm">
+              {OFFICES.map((o) => (
+                <li key={o.slug} className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                  <span className="min-w-0">
+                    <span className="font-semibold text-foreground">
+                      {lang === 'bg' ? o.name_bg : o.name_en}
+                    </span>{' '}
+                    <span className="text-muted-fg">
+                      · {o.address}, {o.postcode}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm text-muted-fg">
+              <a href={`tel:${company.phone.replace(/\s/g, '')}`} className="hover:text-brand">
+                {company.phone}
+              </a>
+            </p>
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-2xl">
             <img
               src="/images/office-exterior.webp"
-              alt={lang === 'bg' ? 'Товарене на буса с колети' : 'Loading parcels into the van'}
+              alt={lang === 'bg' ? 'Нашият офис в Манчестър — зона за приемане на колети' : 'Our Manchester office — customer loading area'}
               loading="lazy"
               decoding="async"
               className="h-full w-full object-cover"
