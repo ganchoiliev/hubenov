@@ -114,9 +114,11 @@ export function HomePage() {
               <source src={videoSrc} type="video/mp4" />
             </video>
           )}
-          {/* Soft blend into the page at the film's bottom edge. */}
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent md:h-16" />
         </div>
+
+        {/* Transit ribbon — the film's "lower third": leaves Friday, in Bulgaria
+            in 2–3 days. A solid band on its own surface, never over the film. */}
+        <TransitRibbon lang={lang} />
 
         <div className="container pb-12 pt-7 md:pb-16 md:pt-10">
           <motion.div
@@ -125,9 +127,14 @@ export function HomePage() {
             transition={{ duration: 0.5 }}
             className="max-w-2xl"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              <Store className="h-3.5 w-3.5" /> Manchester · Eccles · {lang === 'bg' ? 'всеки петък' : 'every Friday'}
-            </span>
+            <Link
+              to="/uk-offices"
+              className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 transition-colors hover:border-brand/40"
+            >
+              <Store className="h-3.5 w-3.5" />
+              {lang === 'bg' ? '4 офиса в UK — виж адресите' : '4 UK offices — see addresses'}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
             <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground md:text-5xl">
               {t('home.hero_title')}
             </h1>
@@ -413,6 +420,54 @@ export function HomePage() {
         </motion.div>
       </Section>
     </>
+  );
+}
+
+/* ── Transit ribbon under the hero film ───────────────────────────────── */
+/** Broadcast-style lower third: departs Friday → in Bulgaria in 2–3 days,
+ *  with a truck that keeps making the run. Solid brand surface, white text. */
+function TransitRibbon({ lang }: { lang: 'bg' | 'en' }) {
+  const reduced = useReducedMotion();
+  return (
+    <div className="relative z-10 bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-700 text-white">
+      <div className="container flex items-center gap-3 py-3 sm:gap-6 md:py-3.5">
+        <div className="shrink-0">
+          <p className="whitespace-nowrap font-display text-sm font-extrabold uppercase tracking-wide sm:text-base">
+            {lang === 'bg' ? 'Всеки петък' : 'Every Friday'}
+          </p>
+          <p className="whitespace-nowrap text-[11px] font-medium text-white/75 sm:text-xs">
+            {lang === 'bg' ? 'тръгва от Манчестър' : 'departs Manchester'}
+          </p>
+        </div>
+
+        <div className="relative h-8 min-w-0 flex-1" aria-hidden="true">
+          <div className="absolute top-1/2 w-full -translate-y-1/2 border-t-2 border-dashed border-white/30" />
+          {reduced ? (
+            <div className="absolute top-1/2 w-full -translate-y-1/2 border-t-2 border-white/80" />
+          ) : (
+            <motion.div
+              className="absolute left-0 top-1/2 -translate-y-1/2 border-t-2 border-white"
+              initial={{ width: '0%' }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.9 }}
+            >
+              <span className="absolute -right-3.5 -top-3.5 flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-700 shadow-soft">
+                <Truck className="h-4 w-4" />
+              </span>
+            </motion.div>
+          )}
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p className="whitespace-nowrap font-display text-sm font-extrabold uppercase tracking-wide sm:text-base">
+            {lang === 'bg' ? 'само 2–3 дни' : 'just 2–3 days'}
+          </p>
+          <p className="whitespace-nowrap text-[11px] font-medium text-white/75 sm:text-xs">
+            {lang === 'bg' ? 'доставка в България' : 'delivery in Bulgaria'}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

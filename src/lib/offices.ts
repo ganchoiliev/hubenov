@@ -79,3 +79,20 @@ export function officeLabel(slug: string | null | undefined, locale: 'bg' | 'en'
   if (!o) return null;
   return locale === 'bg' ? o.name_bg : o.name_en;
 }
+
+/** Google Maps directions link for an office (plain URL, no API key). */
+export function officeMapsUrl(o: Office): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.address}, ${o.city} ${o.postcode}`)}`;
+}
+
+/** The Bulgarian drop-off point for BG → UK baggage (Econt office + named recipient). */
+export const BG_DROPOFF = {
+  office_bg: 'Еконт офис „Гоце Делчев — Панаирски ливади“',
+  office_en: 'Econt office “Gotse Delchev — Panairski Livadi”',
+  city_bg: 'Гоце Делчев',
+  city_en: 'Gotse Delchev',
+  recipient: 'Богослав Хубенов',
+  recipient_en: 'Bogoslav Hubenov',
+  phone: '+359 877 665 144',
+  mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Еконт Гоце Делчев Панаирски ливади')}`,
+} as const;

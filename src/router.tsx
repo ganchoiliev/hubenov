@@ -38,6 +38,9 @@ const ServicesPage = lazyPage(() => import('@/features/public/ServicesPage'), 'S
 const QuotePage = lazyPage(() => import('@/features/public/QuotePage'), 'QuotePage');
 const TrackPage = lazyPage(() => import('@/features/public/TrackPage'), 'TrackPage');
 const CoveragePage = lazyPage(() => import('@/features/public/CoveragePage'), 'CoveragePage');
+const UkOfficesPage = lazyPage(() => import('@/features/public/UkOfficesPage'), 'UkOfficesPage');
+const BgOfficePage = lazyPage(() => import('@/features/public/BgOfficePage'), 'BgOfficePage');
+const SendFromBulgariaPage = lazyPage(() => import('@/features/public/SendFromBulgariaPage'), 'SendFromBulgariaPage');
 const AboutPage = lazyPage(() => import('@/features/public/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('@/features/public/ContactPage'), 'ContactPage');
 const FaqPage = lazyPage(() => import('@/features/public/FaqPage'), 'FaqPage');
@@ -120,6 +123,9 @@ export const router = createBrowserRouter([
       { path: '/quote', element: <QuotePage /> },
       { path: '/track', element: <TrackPage /> },
       { path: '/coverage', element: <CoveragePage /> },
+      { path: '/uk-offices', element: <UkOfficesPage /> },
+      { path: '/bg-office', element: <BgOfficePage /> },
+      { path: '/bg-to-uk', element: <SendFromBulgariaPage /> },
       { path: '/about', element: <AboutPage /> },
       { path: '/contact', element: <ContactPage /> },
       { path: '/faq', element: <FaqPage /> },

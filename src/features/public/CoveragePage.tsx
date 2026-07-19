@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Truck, MapPin, PackageCheck, Store, ArrowRight, Globe2 } from 'lucide-react';
+import { Truck, MapPin, PackageCheck, Store, ArrowRight, Globe2, Luggage } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { Section, ImageHero } from '@/components/shared/common';
@@ -61,7 +61,7 @@ const COPY_BG = {
     'Собствен транспорт от Манчестър до България — всеки петък. Последна миля с Еконт до всяко населено място в страната.',
   ownTitle: 'Собствен курс Манчестър → България',
   ownText:
-    'Превозваме сами, със собствен бус, всеки петък. Без презастраховане при подизпълнители — пратката ви е в наши ръце по целия път до България.',
+    'Превозваме сами, със собствен бус, всеки петък — и пратката е в България само за 2–3 дни. Без подизпълнители: колетът ви е в наши ръце по целия път.',
   econtTitle: 'Доставка с Еконт до цяла България',
   econtText:
     'След пристигане предаваме на Еконт за последна миля — до всеки град и село в страната.',
@@ -83,7 +83,7 @@ const COPY_EN = {
     'Our own transport from Manchester to Bulgaria — every Friday. Econt last-mile delivery to every town and village in the country.',
   ownTitle: 'Own run Manchester → Bulgaria',
   ownText:
-    'We carry it ourselves, in our own van, every Friday. No re-handing to subcontractors — your parcel stays in our hands all the way to Bulgaria.',
+    'We carry it ourselves, in our own van, every Friday — and it is in Bulgaria in just 2–3 days. No subcontractors: your parcel stays in our hands all the way.',
   econtTitle: 'Econt delivery across all of Bulgaria',
   econtText:
     'On arrival we hand over to Econt for the last mile — to every city and village in the country.',
@@ -220,13 +220,44 @@ export function CoveragePage() {
         </div>
       </div>
 
+      {/* Reverse direction: Bulgaria → UK */}
+      <div className="mt-14 flex flex-col gap-6 rounded-3xl border border-border bg-card p-8 shadow-soft md:flex-row md:items-center md:justify-between md:p-10">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+            <Luggage className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-foreground">
+              {locale === 'bg' ? 'Изпращаш от България към Англия?' : 'Sending from Bulgaria to the UK?'}
+            </h2>
+            <p className="mt-2 max-w-2xl text-muted-fg">
+              {locale === 'bg'
+                ? 'Изпрати багажа от който и да е офис на Еконт до нашия офис в Гоце Делчев (Панаирски ливади). Събираме всеки вторник — багажът е в Манчестър в петък същата седмица. Получаваш го в Манчестър, Бърнли или Честър.'
+                : 'Send your baggage from any Econt office to our office in Gotse Delchev (Panairski Livadi). We collect every Tuesday — it is in Manchester on Friday the same week. Collect it in Manchester, Burnley or Chester.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
+          <Link to="/bg-to-uk" className="block">
+            <Button className="w-full gap-2">
+              {locale === 'bg' ? 'Как се изпраща' : 'How it works'} <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link to="/bg-office" className="block">
+            <Button variant="outline" className="w-full gap-2">
+              <MapPin className="h-4 w-4" /> {locale === 'bg' ? 'Адресът в България' : 'The BG address'}
+            </Button>
+          </Link>
+        </div>
+      </div>
+
       {/* Rate */}
       <div className="mt-14 flex flex-col items-center gap-1 rounded-3xl border border-brand/20 bg-brand-50 p-8 text-center dark:bg-brand-50/20">
         <p className="font-display text-4xl font-extrabold text-brand-700">£2 / {locale === 'bg' ? 'кг' : 'kg'}</p>
         <p className="mt-1 max-w-md text-sm text-muted-fg">
           {locale === 'bg'
-            ? 'Прозрачна цена на килограм. При обемни кутии се таксува по-голямото от реалното и обемното тегло.'
-            : 'Transparent per-kilo price. Bulky boxes are charged on the greater of actual and volumetric weight.'}
+            ? 'Прозрачна цена на килограм · минимална такса £20 (покрива до 10 кг). При обемни кутии се таксува по-голямото от реалното и обемното тегло.'
+            : 'Transparent per-kilo price · £20 minimum (covers up to 10 kg). Bulky boxes are charged on the greater of actual and volumetric weight.'}
         </p>
       </div>
 
