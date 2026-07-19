@@ -8,6 +8,9 @@ import {
   Package,
   Banknote,
   ArrowRight,
+  Send,
+  CalendarDays,
+  PenLine,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -17,7 +20,8 @@ import { cn } from '@/lib/utils';
 
 type FeatureKey = 'door' | 'office' | 'cod' | 'gifts' | 'goods';
 
-const FEATURES: Array<{ key: FeatureKey; icon: LucideIcon }> = [
+/** UK → BG card: titles come from i18n (services.*), descriptions from L. */
+const UK_BG_FEATURES: Array<{ key: FeatureKey; icon: LucideIcon }> = [
   { key: 'door', icon: Home },
   { key: 'office', icon: Building2 },
   { key: 'cod', icon: Banknote },
@@ -26,6 +30,17 @@ const FEATURES: Array<{ key: FeatureKey; icon: LucideIcon }> = [
 ];
 // NOTE: the 'door' key now carries the "4 UK drop-off locations" copy and 'cod'
 // the "pay by bank or in office" copy (i18n services.*) — keys kept stable.
+
+type BgUkFeatureKey = 'econt_send' | 'tuesday' | 'friday' | 'collect' | 'label';
+
+/** BG → UK card: direction-specific process (Econt → Гоце Делчев → Tue → Fri). */
+const BG_UK_FEATURES: Array<{ key: BgUkFeatureKey; icon: LucideIcon }> = [
+  { key: 'econt_send', icon: Send },
+  { key: 'tuesday', icon: CalendarDays },
+  { key: 'friday', icon: Truck },
+  { key: 'collect', icon: Building2 },
+  { key: 'label', icon: PenLine },
+];
 
 type DirectionKey = 'uk_bg' | 'bg_uk';
 
@@ -44,7 +59,7 @@ export function ServicesPage() {
           uk_bg_desc:
             'Седмичен курс със собствен бус от Манчестър до цяла България. Заявявате, носите колета в наш офис и ние се грижим за останалото.',
           bg_uk_desc:
-            'Изпращайте колети и подаръци от България до Великобритания — със същата грижа и сигурен собствен транспорт.',
+            'Изпращате багажа през който и да е офис на Еконт до нашия офис в Гоце Делчев — събираме всеки вторник и в петък багажът е в Манчестър.',
           feature_desc: {
             door: 'Манчестър (2 офиса), Бърнли и Куинсфери — носите колета където ви е удобно.',
             office: 'Получавате пратката от избран от вас офис на Еконт — навсякъде в България.',
@@ -52,14 +67,37 @@ export function ServicesPage() {
             gifts: 'Подаръци и лични пратки за роднини — третирани с грижа.',
             goods: 'Търговски стоки с придружаваща фактура и документация.',
           } satisfies Record<FeatureKey, string>,
+          bg_uk_features: {
+            econt_send: {
+              title: 'Изпращане през Еконт',
+              desc: 'От който и да е офис на Еконт — до нашия офис „Гоце Делчев — Панаирски ливади“, получател Богослав Хубенов.',
+            },
+            tuesday: {
+              title: 'Събиране всеки вторник',
+              desc: 'Всички пратки, изпратени чрез Еконт, се събират всеки вторник.',
+            },
+            friday: {
+              title: 'В Манчестър в петък',
+              desc: 'Багажът пристига в офиса ни в Манчестър в петък от същата седмица.',
+            },
+            collect: {
+              title: 'Получаване в 3 офиса',
+              desc: 'Манчестър, Бърнли или Честър — избирате при изпращане.',
+            },
+            label: {
+              title: 'Надпишете багажа',
+              desc: 'Върху всеки багаж: офис на получаване, три имена и английски телефон.',
+            },
+          } satisfies Record<BgUkFeatureKey, { title: string; desc: string }>,
           cta: 'Изчисли цена',
+          cta_guide: 'Как се изпраща',
           included: 'Включва',
         }
       : {
           uk_bg_desc:
             'Weekly run with our own van from Manchester across Bulgaria. You book, drop the parcel at one of our offices, and we handle the rest.',
           bg_uk_desc:
-            'Send parcels and gifts from Bulgaria to the UK — with the same care and secure own transport.',
+            'Send via any Econt office to our office in Gotse Delchev — we collect every Tuesday and the baggage is in Manchester on Friday.',
           feature_desc: {
             door: 'Manchester (2 locations), Burnley and Queensferry — drop off wherever suits you.',
             office: 'Collect from the Econt office you choose — anywhere in Bulgaria.',
@@ -67,7 +105,30 @@ export function ServicesPage() {
             gifts: 'Gifts and personal parcels for family — handled with care.',
             goods: 'Commercial goods with an accompanying invoice and paperwork.',
           } satisfies Record<FeatureKey, string>,
+          bg_uk_features: {
+            econt_send: {
+              title: 'Send via Econt',
+              desc: 'From any Econt office — to our office “Gotse Delchev — Panairski Livadi”, recipient Bogoslav Hubenov.',
+            },
+            tuesday: {
+              title: 'Collected every Tuesday',
+              desc: 'All parcels sent via Econt are collected every Tuesday.',
+            },
+            friday: {
+              title: 'In Manchester on Friday',
+              desc: 'Baggage arrives at our Manchester office on Friday the same week.',
+            },
+            collect: {
+              title: 'Collect at 3 offices',
+              desc: 'Manchester, Burnley or Chester — you choose when sending.',
+            },
+            label: {
+              title: 'Label the baggage',
+              desc: 'On every bag: collection office, full name and a UK phone number.',
+            },
+          } satisfies Record<BgUkFeatureKey, { title: string; desc: string }>,
           cta: 'Get a quote',
+          cta_guide: 'How to send',
           included: 'Included',
         };
 
@@ -102,29 +163,60 @@ export function ServicesPage() {
                   {L.included}
                 </p>
                 <ul className="mt-4 space-y-4">
-                  {FEATURES.map((f) => (
-                    <li key={f.key} className="flex items-start gap-3.5">
-                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                        <f.icon className="h-4.5 w-4.5" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-bold text-foreground">
-                          {t(`services.${f.key}`)}
-                        </span>
-                        <span className="mt-0.5 block text-sm text-muted-fg">
-                          {L.feature_desc[f.key]}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
+                  {dir.key === 'uk_bg'
+                    ? UK_BG_FEATURES.map((f) => (
+                        <li key={f.key} className="flex items-start gap-3.5">
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                            <f.icon className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-foreground">
+                              {t(`services.${f.key}`)}
+                            </span>
+                            <span className="mt-0.5 block text-sm text-muted-fg">
+                              {L.feature_desc[f.key]}
+                            </span>
+                          </span>
+                        </li>
+                      ))
+                    : BG_UK_FEATURES.map((f) => (
+                        <li key={f.key} className="flex items-start gap-3.5">
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                            <f.icon className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-foreground">
+                              {L.bg_uk_features[f.key].title}
+                            </span>
+                            <span className="mt-0.5 block text-sm text-muted-fg">
+                              {L.bg_uk_features[f.key].desc}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
                 </ul>
 
-                <div className="mt-7 pt-2">
-                  <Link to="/quote" className="block">
-                    <Button size="lg" className="w-full gap-2">
-                      {L.cta} <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
+                <div className="mt-7 flex flex-col gap-2.5 pt-2 sm:flex-row">
+                  {dir.key === 'bg_uk' ? (
+                    <>
+                      <Link to="/bg-to-uk" className="block flex-1">
+                        <Button size="lg" className="w-full gap-2">
+                          {L.cta_guide} <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link to="/bg-office" className="block flex-1">
+                        <Button size="lg" variant="outline" className="w-full gap-2">
+                          {locale === 'bg' ? 'Адресът в България' : 'The BG address'}
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <Link to="/quote" className="block w-full">
+                      <Button size="lg" className="w-full gap-2">
+                        {L.cta} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

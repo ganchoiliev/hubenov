@@ -491,7 +491,7 @@ function RouteLine({ lang }: { lang: 'bg' | 'en' }) {
             </span>
           </motion.div>
         </div>
-        <Endpoint code="BG" city={lang === 'bg' ? 'София · Пловдив' : 'Sofia · Plovdiv'} />
+        <Endpoint code="BG" city={lang === 'bg' ? 'офис на Еконт' : 'Econt office'} />
       </div>
       <p className="mt-5 text-center text-sm text-muted-fg">
         {lang === 'bg'
