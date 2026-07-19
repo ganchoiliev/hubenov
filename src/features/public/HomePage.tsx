@@ -147,7 +147,7 @@ export function HomePage() {
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/80">
               {[
-                lang === 'bg' ? 'от £2/кг' : 'from £2/kg',
+                lang === 'bg' ? 'от £2/кг · мин. £20' : 'from £2/kg · £20 min',
                 lang === 'bg' ? 'Курс всеки петък' : 'A van every Friday',
                 lang === 'bg' ? 'Приемане в Манчестър' : 'Drop-off in Manchester',
                 lang === 'bg' ? 'Онлайн проследяване' : 'Online tracking',
@@ -228,8 +228,8 @@ export function HomePage() {
               </h2>
               <p className="mt-4 text-lg text-muted-fg">
                 {lang === 'bg'
-                  ? 'Използвай нашия адрес в Манчестър като адрес за доставка. Получаваме колета вместо теб и го изпращаме до вратата ти в България — с нашия бус всеки петък.'
-                  : 'Use our Manchester address as your delivery address. We receive the parcel for you and forward it to your door in Bulgaria — on our own van every Friday.'}
+                  ? 'Използвай нашия адрес в Манчестър като адрес за доставка. Получаваме колета вместо теб и го изпращаме до офис на Еконт в България — с нашия бус всеки петък.'
+                  : 'Use our Manchester address as your delivery address. We receive the parcel for you and forward it to an Econt office in Bulgaria — on our own van every Friday.'}
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link to="/quote" className="block sm:w-auto">
@@ -268,8 +268,8 @@ export function HomePage() {
                   title: lang === 'bg' ? '3 · Доставяме до България' : '3 · We deliver to Bulgaria',
                   text:
                     lang === 'bg'
-                      ? 'С нашия бус в петък — до врата или офис на Еконт.'
-                      : 'On our Friday van — to your door or an Econt office.',
+                      ? 'С нашия бус в петък — до избран от теб офис на Еконт.'
+                      : 'On our Friday van — to the Econt office you choose.',
                 },
               ].map((s) => (
                 <div key={s.title} className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -429,8 +429,8 @@ function RouteLine({ lang }: { lang: 'bg' | 'en' }) {
       </div>
       <p className="mt-5 text-center text-sm text-muted-fg">
         {lang === 'bg'
-          ? 'Собствен бус всеки петък · до врата или офис на Еконт'
-          : 'Our own van every Friday · to the door or an Econt office'}
+          ? 'Собствен бус всеки петък · доставка до офис на Еконт'
+          : 'Our own van every Friday · delivery to an Econt office'}
       </p>
     </div>
   );

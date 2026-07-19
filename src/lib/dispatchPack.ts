@@ -39,6 +39,8 @@ export async function buildLabelsPack(
         sender: s.sender,
         receiver: s.receiver,
         is_gift: s.is_gift,
+        is_fragile: s.is_fragile,
+        price: s.price,
         declared_value: s.declared_value,
         currency: s.currency,
         pieces: s.pieces,

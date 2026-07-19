@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/toast';
 import { company } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { whatsappUrl, viberUrl, telUrl, mailtoUrl } from '@/lib/contact';
+import { OFFICES } from '@/lib/offices';
 import { WhatsAppIcon } from '@/components/brand/ContactIcons';
 
 interface ContactForm {
@@ -27,7 +28,9 @@ export function ContactPage() {
   const L =
     locale === 'bg'
       ? {
-          dropoff: 'Приемаме колети в магазина — Mini Market Bulgaria / Българска пекарна Хубенови.',
+          dropoff: 'Приемаме колети в 4 наши офиса — вижте адресите по-долу.',
+          offices_title: 'Нашите офиси',
+          hub_badge: 'Главен склад · онлайн пратки',
           form_title: 'Изпратете запитване',
           form_hint: 'Попълнете формата и ще се свържем с вас.',
           name: 'Име',
@@ -44,7 +47,9 @@ export function ContactPage() {
           email_ph: 'вашият@имейл.bg',
         }
       : {
-          dropoff: 'Drop your parcels at the shop — Mini Market Bulgaria / Hubenovi Bulgarian Bakery.',
+          dropoff: 'We accept parcels at 4 of our locations — see the addresses below.',
+          offices_title: 'Our locations',
+          hub_badge: 'Main depot · online parcels',
           form_title: 'Send an enquiry',
           form_hint: 'Fill in the form and we will get back to you.',
           name: 'Name',
@@ -172,9 +177,29 @@ export function ContactPage() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-5 py-4 text-sm text-muted-fg">
-              <Store className="h-5 w-5 shrink-0 text-brand" />
-              <span>Mini Market Bulgaria · Българска пекарна Хубенови</span>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+              <h2 className="flex items-center gap-2 font-display text-lg font-extrabold text-foreground">
+                <Store className="h-5 w-5 text-brand" /> {L.offices_title}
+              </h2>
+              <ul className="mt-4 space-y-3">
+                {OFFICES.map((o) => (
+                  <li key={o.slug} className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold text-foreground">
+                        {locale === 'bg' ? o.name_bg : o.name_en}
+                      </span>
+                      {o.is_hub && (
+                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+                          {L.hub_badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-sm text-muted-fg">
+                      {o.address}, {o.city}, {o.postcode}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             </div>
           </StaggerItem>
         </Stagger>

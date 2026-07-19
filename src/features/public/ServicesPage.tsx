@@ -24,6 +24,8 @@ const FEATURES: Array<{ key: FeatureKey; icon: LucideIcon }> = [
   { key: 'gifts', icon: Gift },
   { key: 'goods', icon: Package },
 ];
+// NOTE: the 'door' key now carries the "4 UK drop-off locations" copy and 'cod'
+// the "pay by bank or in office" copy (i18n services.*) — keys kept stable.
 
 type DirectionKey = 'uk_bg' | 'bg_uk';
 
@@ -40,13 +42,13 @@ export function ServicesPage() {
     locale === 'bg'
       ? {
           uk_bg_desc:
-            'Седмичен курс със собствен бус от Манчестър до цяла България. Заявявате, носите колета в магазина и ние се грижим за останалото.',
+            'Седмичен курс със собствен бус от Манчестър до цяла България. Заявявате, носите колета в наш офис и ние се грижим за останалото.',
           bg_uk_desc:
             'Изпращайте колети и подаръци от България до Великобритания — със същата грижа и сигурен собствен транспорт.',
           feature_desc: {
-            door: 'Доставка до адреса на получателя във всяко населено място.',
-            office: 'Вземане от удобен офис на Еконт — без чакане вкъщи.',
-            cod: 'Получателят плаща при доставка; ние превеждаме сумата.',
+            door: 'Манчестър (2 офиса), Бърнли и Куинсфери — носите колета където ви е удобно.',
+            office: 'Получавате пратката от избран от вас офис на Еконт — навсякъде в България.',
+            cod: 'Плащане по банков път или на място в наш офис — просто и ясно.',
             gifts: 'Подаръци и лични пратки за роднини — третирани с грижа.',
             goods: 'Търговски стоки с придружаваща фактура и документация.',
           } satisfies Record<FeatureKey, string>,
@@ -55,13 +57,13 @@ export function ServicesPage() {
         }
       : {
           uk_bg_desc:
-            'Weekly run with our own van from Manchester across Bulgaria. You book, drop the parcel at the shop, and we handle the rest.',
+            'Weekly run with our own van from Manchester across Bulgaria. You book, drop the parcel at one of our offices, and we handle the rest.',
           bg_uk_desc:
             'Send parcels and gifts from Bulgaria to the UK — with the same care and secure own transport.',
           feature_desc: {
-            door: 'Delivery to the recipient’s address in any town or village.',
-            office: 'Pick-up from a convenient Econt office — no waiting at home.',
-            cod: 'The recipient pays on delivery; we transfer the amount to you.',
+            door: 'Manchester (2 locations), Burnley and Queensferry — drop off wherever suits you.',
+            office: 'Collect from the Econt office you choose — anywhere in Bulgaria.',
+            cod: 'Pay by bank transfer or in person at our office — simple and clear.',
             gifts: 'Gifts and personal parcels for family — handled with care.',
             goods: 'Commercial goods with an accompanying invoice and paperwork.',
           } satisfies Record<FeatureKey, string>,

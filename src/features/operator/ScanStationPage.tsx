@@ -288,6 +288,8 @@ export function ScanStationPage() {
       sender: shipment.sender,
       receiver: shipment.receiver,
       is_gift: shipment.is_gift,
+      is_fragile: shipment.is_fragile,
+      price: shipment.price,
       declared_value: shipment.declared_value,
       currency: shipment.currency,
       pieces: shipment.pieces,

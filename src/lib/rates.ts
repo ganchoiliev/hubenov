@@ -1,8 +1,9 @@
 /**
  * PLACEHOLDER pricing — mirrors supabase/seed.sql so the public quote works
- * before the DB is wired. The business charges a flat £2/kg (chargeable weight =
- * the greater of actual and volumetric). Owner can override in the admin pricing
- * editor / DB.
+ * before the DB is wired. The business charges a flat £2/kg with a £20 minimum
+ * (anything up to 10 kg costs £20; above that it's linear). Chargeable weight =
+ * the greater of actual and volumetric. Owner can override in the admin pricing
+ * editor / DB (migration 0023 set min_charge=20 on the live bands).
  */
 import type { PricingRate } from '@/types/domain';
 
@@ -17,7 +18,7 @@ function perKg(direction: 'UK_BG' | 'BG_UK', pricePerKg: number): PricingRate {
     weight_to_kg: 1000,
     price: 0,
     price_per_kg: pricePerKg,
-    min_charge: 0,
+    min_charge: 20,
     currency: 'GBP',
     volumetric_divisor: 5000,
     surcharge_gift: 0,

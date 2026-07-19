@@ -48,7 +48,7 @@
   },
   "home": {
     "hero_title": "Your parcels to Bulgaria — in safe hands",
-    "hero_subtitle": "Our own transport from Manchester across Bulgaria. A van every Friday. Delivery to the door or to an Econt office.",
+    "hero_subtitle": "Our own transport from Manchester across Bulgaria. A van every Friday. Delivery to an Econt office.",
     "cta_quote": "Get a price",
     "cta_track": "Track a parcel",
     "next_departure": "Next departure",
@@ -63,29 +63,29 @@
     "value_own_title": "Our own transport",
     "value_own_text": "We carry to Bulgaria ourselves — no reliance on subcontractors.",
     "value_econt_title": "Econt delivery",
-    "value_econt_text": "Last mile to anywhere in the country — door or office.",
+    "value_econt_text": "Collect from a convenient Econt office — anywhere in Bulgaria.",
     "value_care_title": "Care for every parcel",
     "value_care_text": "Gifts and personal parcels for family — handled the way you would.",
     "dropoff_title": "Drop off in person",
-    "dropoff_text": "We accept parcels at the Manchester shop — Mini Market Bulgaria / Bulgarian Bakery Hubenovi.",
+    "dropoff_text": "We accept parcels at 4 of our locations — Manchester (2), Burnley and Queensferry.",
     "how_title": "How it works",
     "how_1_title": "Book & quote",
     "how_1_text": "Get a price online and book onto the next van.",
     "how_2_title": "Hand over",
-    "how_2_text": "Bring the parcel to the shop or arrange a collection.",
+    "how_2_text": "Bring the parcel to any of our 4 locations or arrange a collection.",
     "how_3_title": "Transport to BG",
     "how_3_text": "Your parcel travels on our van on Friday.",
     "how_4_title": "Delivery",
-    "how_4_text": "Econt delivers to the door or office; you track it all online."
+    "how_4_text": "Econt delivers to your chosen office; you track it all online."
   },
   "services": {
     "title": "Services",
-    "subtitle": "Two directions, door or office delivery, cash on delivery.",
+    "subtitle": "Two directions, delivery to an Econt office, minimum 10 kg / £20.",
     "uk_bg": "United Kingdom → Bulgaria",
     "bg_uk": "Bulgaria → United Kingdom",
-    "door": "To the door",
+    "door": "4 UK drop-off locations",
     "office": "To an Econt office",
-    "cod": "Cash on delivery (COD)",
+    "cod": "Pay by bank or in office",
     "gifts": "Gifts & personal parcels",
     "goods": "Goods with an invoice"
   },
@@ -300,10 +300,10 @@
     "q1": "When is the next departure?",
     "a1": "There's a van every Friday. We accept bookings until the published cut-off before departure.",
     "q2": "Where in Bulgaria do you deliver?",
-    "a2": "Across all of Bulgaria via Econt — to the door or to an office.",
+    "a2": "Across all of Bulgaria via Econt — you collect from the Econt office you choose.",
     "q3": "Can I send a gift?",
     "a3": "Yes. Gifts and personal parcels are the core of what we do.",
     "q4": "How do I pay?",
-    "a4": "Cash or card at the shop, by bank transfer, or cash on delivery."
+    "a4": "By bank transfer or in person at one of our offices. Minimum delivery price is £20 (up to 10 kg)."
   }
 }

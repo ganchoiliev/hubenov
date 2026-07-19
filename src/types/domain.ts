@@ -42,6 +42,10 @@ export type LoadStatus = 'open' | 'departed' | 'arrived' | 'closed';
 export type InvoiceStatus = 'unpaid' | 'paid' | 'partial' | 'void';
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'card_office' | 'cod';
 
+/** The four physical UK receiving offices (migration 0023). */
+export const OFFICE_SLUGS = ['eccles_central', 'eccles_minimarket', 'burnley', 'queensferry'] as const;
+export type OfficeSlug = (typeof OFFICE_SLUGS)[number];
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -99,6 +103,10 @@ export interface Shipment {
   declared_value: number;
   currency: Currency;
   is_gift: boolean;
+  /** "Чупливо" — printed on the label so handlers see it at a glance. */
+  is_fragile: boolean;
+  /** Which UK office physically received the parcel (null = not set / online). */
+  origin_office: OfficeSlug | null;
   status: AnyStatus;
   price: number | null;
   payment_status: PaymentStatus;

@@ -34,8 +34,8 @@ describe('findRate', () => {
   });
 });
 
-describe('calculateQuote (£2/kg linear)', () => {
-  it('prices a small UK→BG parcel at £2/kg of chargeable weight', () => {
+describe('calculateQuote (£2/kg linear, £20 minimum)', () => {
+  it('floors a small UK→BG parcel at the £20 minimum (up to 10 kg)', () => {
     const q = calculateQuote(
       {
         direction: 'UK_BG',
@@ -48,13 +48,47 @@ describe('calculateQuote (£2/kg linear)', () => {
       },
       PLACEHOLDER_RATES,
     );
-    // volumetric 1.6 > actual 1.5 → chargeable 2.0kg → 2 × £2 = £4
+    // volumetric 1.6 > actual 1.5 → chargeable 2.0kg → 2 × £2 = £4 → floored to £20
     expect(q.chargeable_weight_kg).toBe(2);
-    expect(q.total).toBe(4);
+    expect(q.total).toBe(20);
     expect(q.currency).toBe('GBP');
   });
 
-  it('adds a remote-area surcharge', () => {
+  it('prices exactly £20 at the 10 kg threshold', () => {
+    const q = calculateQuote(
+      {
+        direction: 'UK_BG',
+        weight_kg: 10,
+        length_cm: 10,
+        width_cm: 10,
+        height_cm: 10,
+        is_gift: false,
+        remote_area: false,
+      },
+      PLACEHOLDER_RATES,
+    );
+    // 10kg × £2 = £20 — the floor and the linear price meet here
+    expect(q.total).toBe(20);
+  });
+
+  it('goes linear above 10 kg', () => {
+    const q = calculateQuote(
+      {
+        direction: 'UK_BG',
+        weight_kg: 15,
+        length_cm: 10,
+        width_cm: 10,
+        height_cm: 10,
+        is_gift: false,
+        remote_area: false,
+      },
+      PLACEHOLDER_RATES,
+    );
+    // 15kg × £2 = £30 > £20 floor
+    expect(q.total).toBe(30);
+  });
+
+  it('adds a remote-area surcharge on top of the floored base', () => {
     const q = calculateQuote(
       {
         direction: 'UK_BG',
@@ -67,9 +101,9 @@ describe('calculateQuote (£2/kg linear)', () => {
       },
       PLACEHOLDER_RATES,
     );
-    // 1kg × £2 = £2, + £6 remote = £8
+    // base floored to £20, + £6 remote = £26
     expect(q.surcharges).toEqual([{ label: 'remote', amount: 6 }]);
-    expect(q.total).toBe(8);
+    expect(q.total).toBe(26);
   });
 
   it('uses volumetric weight when bulky-but-light', () => {
@@ -85,7 +119,7 @@ describe('calculateQuote (£2/kg linear)', () => {
       },
       PLACEHOLDER_RATES,
     );
-    // volumetric = 120000/5000 = 24kg → 24 × £2 = £48
+    // volumetric = 120000/5000 = 24kg → 24 × £2 = £48 (above the floor)
     expect(q.chargeable_weight_kg).toBe(24);
     expect(q.total).toBe(48);
   });

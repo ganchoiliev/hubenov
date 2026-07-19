@@ -78,6 +78,10 @@ export const shipmentInputSchema = z.object({
   ),
   currency: currencySchema.default('GBP'),
   is_gift: z.boolean().default(false),
+  // "Чупливо" — printed on the label so every handler sees it.
+  is_fragile: z.boolean().default(false),
+  // Which UK office received the parcel (operator intake only).
+  origin_office: z.enum(['eccles_central', 'eccles_minimarket', 'burnley', 'queensferry']).optional().nullable(),
   // Number of boxes — renders that many label pages "i/N".
   pieces: z
     .preprocess(

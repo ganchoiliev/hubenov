@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Truck, MapPin, PackageCheck, DoorOpen, Store, ArrowRight, Globe2 } from 'lucide-react';
+import { Truck, MapPin, PackageCheck, Store, ArrowRight, Globe2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { Section, ImageHero } from '@/components/shared/common';
@@ -31,14 +31,14 @@ const COPY_BG = {
   econtTitle: 'Доставка с Еконт до цяла България',
   econtText:
     'След пристигане предаваме на Еконт за последна миля — до всеки град и село в страната.',
-  doorTitle: 'До врата',
-  doorText: 'Куриерът доставя директно на посочения адрес на получателя.',
+  doorTitle: '4 офиса в Обединеното кралство',
+  doorText: 'Манчестър (2 офиса), Бърнли и Куинсфери — предайте колета където ви е удобно.',
   officeTitle: 'До офис на Еконт',
-  officeText: 'Получаване от удобен офис на Еконт в избрания град.',
+  officeText: 'Получаване от избран от вас офис на Еконт в избрания град.',
   citiesTitle: 'Градове, които обслужваме',
   citiesText: 'Това са само част от по-големите дестинации — доставяме навсякъде.',
   allTitle: 'Цяла България',
-  allText: 'Всяко населено място — врата или офис, без изключения.',
+  allText: 'Еконт има офис във всяко по-голямо населено място — без изключения.',
   ctaTitle: 'Готови да изпратите?',
   ctaText: 'Изчислете ориентировъчна цена за секунди и запишете пратката за следващия петък.',
   ctaButton: 'Изчисли цена',
@@ -53,14 +53,14 @@ const COPY_EN = {
   econtTitle: 'Econt delivery across all of Bulgaria',
   econtText:
     'On arrival we hand over to Econt for the last mile — to every city and village in the country.',
-  doorTitle: 'To the door',
-  doorText: "The courier delivers straight to the recipient's address.",
+  doorTitle: '4 UK drop-off locations',
+  doorText: 'Manchester (2 locations), Burnley and Queensferry — drop off wherever suits you.',
   officeTitle: 'To an Econt office',
-  officeText: 'Collect from a convenient Econt office in the chosen town.',
+  officeText: 'Collect from the Econt office you choose in your town.',
   citiesTitle: 'Cities we serve',
   citiesText: 'These are just some of the larger destinations — we deliver everywhere.',
   allTitle: 'All of Bulgaria',
-  allText: 'Every settlement — door or office, no exceptions.',
+  allText: 'Econt has an office in every sizeable town — no exceptions.',
   ctaTitle: 'Ready to send?',
   ctaText: 'Get an instant estimate in seconds and book your parcel for the next Friday run.',
   ctaButton: 'Get a quote',
@@ -72,8 +72,8 @@ const PILLARS = [
 ] as const;
 
 const MODES = [
-  { icon: DoorOpen, titleKey: 'doorTitle', textKey: 'doorText' },
-  { icon: Store, titleKey: 'officeTitle', textKey: 'officeText' },
+  { icon: Store, titleKey: 'doorTitle', textKey: 'doorText' },
+  { icon: PackageCheck, titleKey: 'officeTitle', textKey: 'officeText' },
 ] as const;
 
 export function CoveragePage() {

@@ -51,15 +51,15 @@ const BG: AboutCopy = {
   lead: 'Доставки Хубенов е семейна фирма, родена зад тезгяха на нашия магазин в Манчестър. Свързваме българите във Великобритания с близките им у дома — с грижа, с лице и с име зад всеки колет.',
   story_title: 'Нашата история',
   story_p1:
-    'Всичко започна от магазина — Mini Market Bulgaria, Българската пекарна Хубенови на 542 Liverpool Road в Eccles. Тук сънародниците ни идват за родния вкус: пресен хляб, баница, сирене и хилядите малки неща, които миришат на вкъщи.',
+    'Всичко започна от нашия магазин на 542 Liverpool Road в Eccles, Манчестър. Тук сънародниците ни идват за родния вкус — и за хилядите малки неща, които миришат на вкъщи.',
   story_p2:
     'А след пазара винаги идваше един и същ въпрос: „Ще можете ли да пратите това на мама в България?“ Така, колет по колет, се роди и превозът. Днес имаме собствен транспорт и тръгваме с бус всеки петък — без посредници, без презастраховане при чужди подизпълнители.',
   story_p3:
     'За нас всяка пратка е лична. Зад нея стои рожден ден, който не искате да пропуснете, лекарство, което трябва да стигне навреме, или просто буркан мед от баба. Затова я пазим така, както бихте го направили вие.',
   shop_eyebrow: 'Заповядайте при нас',
-  shop_name: 'Mini Market Bulgaria',
-  shop_sub: 'Българска пекарна Хубенови',
-  shop_address_label: 'Адрес за приемане',
+  shop_name: 'Доставки Хубенов',
+  shop_sub: '4 офиса за приемане на пратки',
+  shop_address_label: 'Главен склад',
   shop_phone_label: 'Телефон',
   shop_friday: 'Бус за България — всеки петък',
   values_title: 'В какво вярваме',
@@ -94,15 +94,15 @@ const EN: AboutCopy = {
   lead: 'Hubenov Deliveries is a family business born behind the counter of our shop in Manchester. We connect Bulgarians in the UK with the people they love back home — with care, and a real face and name behind every parcel.',
   story_title: 'Our story',
   story_p1:
-    'It all started in the shop — Mini Market Bulgaria, the Hubenovi Bulgarian bakery at 542 Liverpool Road in Eccles. This is where our community comes for the taste of home: fresh bread, banitsa, cheese and the thousand small things that smell like home.',
+    'It all started in our shop at 542 Liverpool Road in Eccles, Manchester. This is where our community comes for the taste of home — and the thousand small things that smell like home.',
   story_p2:
     'And after the shopping there was always the same question: "Could you send this to my mum in Bulgaria?" Parcel by parcel, the transport was born. Today we run our own transport and a van leaves every Friday — no middlemen, no reselling the job to outside subcontractors.',
   story_p3:
     'To us, every parcel is personal. Behind it is a birthday you do not want to miss, medicine that has to arrive on time, or simply a jar of grandma’s honey. So we look after it the way you would yourself.',
   shop_eyebrow: 'Come and see us',
-  shop_name: 'Mini Market Bulgaria',
-  shop_sub: 'Hubenovi Bulgarian Bakery',
-  shop_address_label: 'Drop-off address',
+  shop_name: 'Hubenov Deliveries',
+  shop_sub: '4 parcel drop-off locations',
+  shop_address_label: 'Main depot',
   shop_phone_label: 'Phone',
   shop_friday: 'Van to Bulgaria — every Friday',
   values_title: 'What we believe',

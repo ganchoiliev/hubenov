@@ -22,7 +22,12 @@ export interface LabelData {
   sender: PartySnapshot;
   receiver: PartySnapshot;
   is_gift: boolean;
+  /** "Чупливо" — prints a bold FRAGILE strip so every handler sees it. */
+  is_fragile?: boolean;
   declared_value: number;
+  /** Delivery price charged to the client — printed on the label (not the
+   *  goods value; customs value stays on the customs doc). */
+  price?: number | null;
   currency: string;
   /** Total boxes in this shipment (default 1). Renders one page per box. */
   pieces?: number;
@@ -146,7 +151,17 @@ function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode:
     }
   }
 
-  // ── Footer: weight (+ dims) and gift / value ────────────────────────────────
+  // ── Fragile strip: impossible to miss, right above the footer ──────────────
+  if (data.is_fragile) {
+    const fh = 18;
+    page.drawRectangle({ x: M, y: 68, width: W - 2 * M, height: fh, color: rgb(0.77, 0.12, 0.12) });
+    const ft = 'ЧУПЛИВО  ·  FRAGILE  ·  HANDLE WITH CARE';
+    const fs = 9;
+    const fw = bold.widthOfTextAtSize(ft, fs);
+    page.drawText(ft, { x: M + (W - 2 * M - fw) / 2, y: 68 + 5.5, size: fs, font: bold, color: rgb(1, 1, 1) });
+  }
+
+  // ── Footer: weight (+ dims), gift/goods and the DELIVERY price charged ─────
   line(64);
   const dims =
     data.length_cm && data.width_cm && data.height_cm
@@ -154,8 +169,12 @@ function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode:
       : '';
   page.drawText(`Тегло: ${data.weight_kg.toFixed(1)} кг${dims}`, { x: M, y: 48, size: 10, font: bold, color: INK });
   page.drawText(data.is_gift ? 'ПОДАРЪК / GIFT' : 'СТОКА / GOODS', { x: M, y: 32, size: 9, font, color: INK });
-  const val = `Стойност: ${data.declared_value.toFixed(2)} ${data.currency}`;
-  page.drawText(val, { x: W - M - font.widthOfTextAtSize(val, 9), y: 32, size: 9, font, color: INK });
+  // The charged delivery price (what the client pays us), not the goods value.
+  if (data.price != null && data.price > 0) {
+    const cur = data.currency === 'GBP' ? '£' : `${data.currency} `;
+    const val = `Доставка: ${cur}${data.price.toFixed(2)}`;
+    page.drawText(val, { x: W - M - bold.widthOfTextAtSize(val, 9), y: 32, size: 9, font: bold, color: INK });
+  }
 }
 
 function block(page: Page, font: Font, bold: Font, title: string, p: PartySnapshot, startY: number): number {

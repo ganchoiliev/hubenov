@@ -34,6 +34,10 @@ import {
 } from '@/lib/queries';
 import { transliterate } from '@/lib/translit';
 import { buildLabelPdf } from '@/lib/label';
+import { calculateQuote } from '@/lib/pricing';
+import { PLACEHOLDER_RATES } from '@/lib/rates';
+import { OFFICES } from '@/lib/offices';
+import { cn } from '@/lib/utils';
 import { getPrinter } from '@/providers/print';
 import { supabase } from '@/lib/supabase';
 import { shipmentInputSchema, type ShipmentInput } from '@/schemas';
@@ -79,6 +83,8 @@ export function IntakePage() {
           direction: 'Посока',
           parcel_type: 'Тип пратка',
           is_gift: 'Подарък / лична пратка',
+          is_fragile: 'Чупливо — печата се на етикета',
+          received_at: 'Приета в офис',
           sender: 'Подател',
           receiver: 'Получател',
           parcel: 'Колет',
@@ -137,6 +143,8 @@ export function IntakePage() {
           direction: 'Direction',
           parcel_type: 'Parcel type',
           is_gift: 'Gift / personal parcel',
+          is_fragile: 'Fragile — printed on the label',
+          received_at: 'Received at office',
           sender: 'Sender',
           receiver: 'Receiver',
           parcel: 'Parcel',
@@ -322,6 +330,8 @@ export function IntakePage() {
       direction: 'UK_BG',
       parcel_type: 'parcel',
       is_gift: false,
+      is_fragile: false,
+      origin_office: 'eccles_central',
       currency: 'GBP',
       pieces: 1,
       contents: '',
@@ -400,6 +410,38 @@ export function IntakePage() {
   const [printingLabel, setPrintingLabel] = useState(false);
   const successRef = useRef<HTMLDivElement>(null);
 
+  // ── Auto-suggest the delivery price from the weight (min £20 / £2 per kg) ──
+  // Fills "Цена за доставка" as the operator types the weight; the moment they
+  // edit the price by hand, the suggestion stops overriding them.
+  const [priceTouched, setPriceTouched] = useState(false);
+  const wWeight = watch('weight_kg');
+  const wLen = watch('length_cm');
+  const wWid = watch('width_cm');
+  const wHei = watch('height_cm');
+  useEffect(() => {
+    if (priceTouched) return;
+    const kg = Number(wWeight);
+    if (!Number.isFinite(kg) || kg <= 0) return;
+    try {
+      const q = calculateQuote(
+        {
+          direction,
+          weight_kg: kg,
+          length_cm: Number(wLen) || 0,
+          width_cm: Number(wWid) || 0,
+          height_cm: Number(wHei) || 0,
+          is_gift: false,
+          remote_area: false,
+          currency: 'GBP',
+        },
+        PLACEHOLDER_RATES,
+      );
+      setValue('price', q.total);
+    } catch {
+      /* no rate — leave the field alone */
+    }
+  }, [wWeight, wLen, wWid, wHei, direction, priceTouched, setValue]);
+
   // Bring the green "created" panel into view (the Create button sits far down
   // the form, so the confirmation would otherwise appear off-screen).
   useEffect(() => {
@@ -431,6 +473,8 @@ export function IntakePage() {
         sender: createdShipment.sender,
         receiver: createdShipment.receiver,
         is_gift: createdShipment.is_gift,
+        is_fragile: createdShipment.is_fragile,
+        price: createdShipment.price,
         declared_value: createdShipment.declared_value,
         currency: createdShipment.currency,
         pieces: createdShipment.pieces,
@@ -465,6 +509,8 @@ export function IntakePage() {
           direction: data.direction,
           parcel_type: data.parcel_type,
           is_gift: data.is_gift,
+          is_fragile: data.is_fragile,
+          origin_office: data.origin_office ?? null,
           sender: {
             ...data.sender,
             country: sender,
@@ -529,6 +575,8 @@ export function IntakePage() {
             sender: created.sender,
             receiver: created.receiver,
             is_gift: created.is_gift,
+            is_fragile: created.is_fragile,
+            price: created.price,
             declared_value: created.declared_value,
             currency: created.currency,
             pieces: created.pieces,
@@ -544,6 +592,7 @@ export function IntakePage() {
       }
       autoPrintRef.current = false;
       setInboundRef(null);
+      setPriceTouched(false);
       reset();
     } catch {
       toast.error(t('common.error'));
@@ -760,14 +809,49 @@ export function IntakePage() {
               </Field>
             </div>
 
-            <label className="flex items-center gap-2.5 text-sm font-medium text-foreground">
-              <input
-                type="checkbox"
-                {...register('is_gift')}
-                className="h-4 w-4 rounded border-input text-brand focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {L.is_gift}
-            </label>
+            {/* Which of the 4 UK offices physically received the parcel. */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-foreground">{L.received_at}</p>
+              <div className="flex flex-wrap gap-2">
+                {OFFICES.map((o) => {
+                  const selected = watch('origin_office') === o.slug;
+                  return (
+                    <button
+                      key={o.slug}
+                      type="button"
+                      onClick={() => setValue('origin_office', o.slug)}
+                      className={cn(
+                        'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                        selected
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-border bg-card text-muted-fg hover:border-brand/50 hover:text-foreground',
+                      )}
+                    >
+                      {locale === 'bg' ? o.name_bg : o.name_en}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <label className="flex items-center gap-2.5 text-sm font-medium text-foreground">
+                <input
+                  type="checkbox"
+                  {...register('is_gift')}
+                  className="h-4 w-4 rounded border-input text-brand focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {L.is_gift}
+              </label>
+              <label className="flex items-center gap-2.5 text-sm font-medium text-foreground">
+                <input
+                  type="checkbox"
+                  {...register('is_fragile')}
+                  className="h-4 w-4 rounded border-input text-red-600 focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {L.is_fragile}
+              </label>
+            </div>
           </CardBody>
         </Card>
 
@@ -897,7 +981,16 @@ export function IntakePage() {
             <p className="-mt-1 text-xs text-muted-fg">{L.dims_optional}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={L.price} hint={L.price_hint} error={errors.price?.message} htmlFor="price">
-                <Input id="price" type="number" step="0.01" min="0" {...register('price', num)} />
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register('price', {
+                    ...num,
+                    onChange: () => setPriceTouched(true),
+                  })}
+                />
               </Field>
               <Field
                 label={L.declared_value}

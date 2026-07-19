@@ -31,8 +31,9 @@ export function NewShipmentPage() {
   const { profile } = useAuth();
   const createShipment = useCreateShipment();
   const [step, setStep] = useState(0);
-  // Econt-office delivery is the norm; default to it (address mode stays available).
-  const [deliveryMode, setDeliveryMode] = useState<'address' | 'office'>('office');
+  // Delivery in Bulgaria is to an Econt office ONLY (no door option); the mode
+  // is fixed and kept as a const so the validation below reads naturally.
+  const deliveryMode = 'office' as const;
   const [agreed, setAgreed] = useState(false);
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const stepDescriptions =
@@ -250,8 +251,6 @@ export function NewShipmentPage() {
                     t={t}
                     lang={lang}
                     isBg={receiverIsBg}
-                    mode={deliveryMode}
-                    setMode={setDeliveryMode}
                     setValue={setValue}
                     officeCode={watch('receiver.econt_office_code') ?? null}
                   />
@@ -406,8 +405,6 @@ function ReceiverStep({
   t,
   lang,
   isBg,
-  mode,
-  setMode,
   setValue,
   officeCode,
 }: {
@@ -416,8 +413,6 @@ function ReceiverStep({
   t: (k: string) => string;
   lang: 'bg' | 'en';
   isBg: boolean;
-  mode: 'address' | 'office';
-  setMode: (m: 'address' | 'office') => void;
   setValue: (name: any, value: any) => void;
   officeCode: string | null;
 }) {
@@ -451,39 +446,14 @@ function ReceiverStep({
         </Field>
       </div>
 
-      {/* Econt only serves Bulgaria → only offer the choice for BG receivers */}
+      {/* Delivery in Bulgaria is to an Econt office ONLY — no door option. */}
       {isBg && (
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">{T.method}</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('address');
-                setValue('receiver.econt_office_code', null);
-              }}
-              className={cn(
-                'rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
-                mode === 'address' ? 'border-brand bg-brand text-brand-fg' : 'border-border hover:bg-muted',
-              )}
-            >
-              {T.addr}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('office')}
-              className={cn(
-                'rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
-                mode === 'office' ? 'border-brand bg-brand text-brand-fg' : 'border-border hover:bg-muted',
-              )}
-            >
-              {T.office}
-            </button>
-          </div>
+        <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-700">
+          {T.office} · {T.hint}
         </div>
       )}
 
-      {!isBg || mode === 'address' ? (
+      {!isBg ? (
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field label={t('wizard.address')} error={e?.line1?.message}>
