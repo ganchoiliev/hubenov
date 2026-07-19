@@ -9,7 +9,7 @@ import { company } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { whatsappUrl, viberUrl, telUrl, mailtoUrl } from '@/lib/contact';
 import { OFFICES } from '@/lib/offices';
-import { WhatsAppIcon } from '@/components/brand/ContactIcons';
+import { WhatsAppIcon, FacebookIcon } from '@/components/brand/ContactIcons';
 
 interface ContactForm {
   name: string;
@@ -128,6 +128,11 @@ export function ContactPage() {
                     </Button>
                   </a>
                 </div>
+                <a href={company.facebook} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button variant="outline" className="w-full gap-2 hover:border-[#1877F2]/40 hover:text-[#1877F2]">
+                    <FacebookIcon className="h-4 w-4 text-[#1877F2]" /> Facebook
+                  </Button>
+                </a>
                 <a
                   href={mailtoUrl('Запитване')}
                   className="inline-flex items-center gap-2 text-sm text-brand-700 hover:underline"

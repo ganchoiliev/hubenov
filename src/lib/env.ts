@@ -38,4 +38,5 @@ export const company = {
   // as a forwarder to this address and swap back for a branded public email.
   email: 'bogoslavvv@gmail.com',
   domain: 'hubenov.delivery',
+  facebook: 'https://www.facebook.com/profile.php?id=61554729133249',
 } as const;

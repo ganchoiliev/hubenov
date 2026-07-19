@@ -9,7 +9,7 @@ import { Button, Spinner } from '@/components/ui';
 import { company } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { whatsappUrl } from '@/lib/contact';
-import { WhatsAppIcon } from '@/components/brand/ContactIcons';
+import { WhatsAppIcon, FacebookIcon } from '@/components/brand/ContactIcons';
 
 const NAV = [
   { to: '/', key: 'nav.home', end: true },
@@ -279,6 +279,16 @@ export function PublicLayout() {
           <div className="space-y-3">
             <Logo />
             <p className="max-w-xs text-sm text-muted-fg">{t('footer.made')}.</p>
+            <a
+              href={company.facebook}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-[#1877F2]/40 hover:text-[#1877F2]"
+            >
+              <FacebookIcon className="h-4 w-4 text-[#1877F2]" />
+              {lang === 'en' ? 'Follow us on Facebook' : 'Последвайте ни във Facebook'}
+            </a>
           </div>
           <div className="space-y-2 text-sm">
             <p className="font-semibold text-foreground">{t('footer.address_label')}</p>
