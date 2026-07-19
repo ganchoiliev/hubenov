@@ -20,6 +20,9 @@ interface Rate {
   weight_from_kg: number;
   weight_to_kg: number;
   price: number;
+  /** Linear tariff (migration 0023): base = max(min_charge, kg × price_per_kg). */
+  price_per_kg?: number | null;
+  min_charge?: number | null;
   currency: string;
   volumetric_divisor: number;
   surcharge_gift: number;
@@ -72,13 +75,21 @@ Deno.serve(async (req) => {
   if (input.is_gift && band.surcharge_gift) surcharges.push({ label: 'gift', amount: band.surcharge_gift });
   if (input.remote_area && band.surcharge_remote) surcharges.push({ label: 'remote', amount: band.surcharge_remote });
 
-  const total = Math.round((band.price + surcharges.reduce((s, x) => s + x.amount, 0)) * 100) / 100;
+  // Per-kg tariff when defined (£2/kg with a £20 floor after 0023); otherwise
+  // the legacy flat band price. Same math as the client preview engine.
+  const perKg = Number(band.price_per_kg ?? 0);
+  const base =
+    perKg > 0
+      ? Math.max(Number(band.min_charge ?? 0), Math.round(cw * perKg * 100) / 100)
+      : band.price;
+
+  const total = Math.round((base + surcharges.reduce((s, x) => s + x.amount, 0)) * 100) / 100;
 
   return new Response(
     JSON.stringify({
       direction: input.direction,
       chargeable_weight_kg: cw,
-      base_price: band.price,
+      base_price: base,
       surcharges,
       total,
       currency: input.currency ?? band.currency,
