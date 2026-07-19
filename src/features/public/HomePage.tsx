@@ -363,7 +363,7 @@ export function HomePage() {
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-2xl">
             <img
-              src="/images/van-loading.webp"
+              src="/images/office-exterior.webp"
               alt={lang === 'bg' ? 'Товарене на буса с колети' : 'Loading parcels into the van'}
               loading="lazy"
               decoding="async"

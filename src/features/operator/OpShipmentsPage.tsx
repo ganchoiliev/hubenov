@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag, Clock } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag, Clock, Store } from 'lucide-react';
 import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { OnlineBadge } from '@/components/shared/OnlineBadge';
 import { getParcelOrigin } from '@/lib/parcelOrigin';
+import { OFFICES, officeLabel } from '@/lib/offices';
 import { formatDateTime, cn } from '@/lib/utils';
 import { PageHeading, EmptyState } from '@/components/shared/common';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -47,6 +48,7 @@ const COPY = {
     selected: 'избрани',
     exportCsv: 'Експорт CSV',
     onlineFilter: 'Онлайн пратки',
+    officeAll: 'Всички офиси',
     selectAll: 'Избери всички',
     addToLoad: 'Добави в курс…',
     setStatus: 'Промени статус…',
@@ -83,6 +85,7 @@ const COPY = {
     selected: 'selected',
     exportCsv: 'Export CSV',
     onlineFilter: 'Online parcels',
+    officeAll: 'All offices',
     selectAll: 'Select all',
     addToLoad: 'Add to load…',
     setStatus: 'Set status…',
@@ -216,6 +219,7 @@ export function OpShipmentsPage() {
   const del = useDeleteShipment();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AnyStatus | 'all'>('all');
+  const [officeFilter, setOfficeFilter] = useState<string>('all');
   const [view, setView] = useState<'active' | 'delivered' | 'all'>('active');
   const [onlineOnly, setOnlineOnly] = useState(false);
 
@@ -275,6 +279,7 @@ export function OpShipmentsPage() {
       if (view === 'active' && isTerminal(s.status)) return false;
       if (view === 'delivered' && s.status !== 'delivered') return false;
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+      if (officeFilter !== 'all' && s.origin_office !== officeFilter) return false;
       if (onlineOnly && !getParcelOrigin(s).isOnline) return false;
       if (!q) return true;
       return (
@@ -284,7 +289,7 @@ export function OpShipmentsPage() {
         s.receiver.name.toLowerCase().includes(q)
       );
     });
-  }, [data, query, statusFilter, onlineOnly, view]);
+  }, [data, query, statusFilter, officeFilter, onlineOnly, view]);
 
   const viewCounts = {
     all: (data ?? []).length,
@@ -420,6 +425,20 @@ export function OpShipmentsPage() {
             className="w-full pl-9"
           />
         </div>
+        <div className="relative sm:w-60">
+          <Store className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-fg" />
+          <Dropdown
+            value={officeFilter}
+            onChange={(v) => setOfficeFilter(v)}
+            options={[
+              { value: 'all', label: L.officeAll },
+              ...OFFICES.map((o) => ({ value: o.slug, label: locale === 'bg' ? o.name_bg : o.name_en })),
+            ]}
+            ariaLabel={L.officeAll}
+            align="right"
+            className="w-full pl-9"
+          />
+        </div>
         <Button
           variant={onlineOnly ? 'primary' : 'outline'}
           onClick={() => setOnlineOnly((v) => !v)}
@@ -515,6 +534,11 @@ export function OpShipmentsPage() {
                             {s.weight_kg} {t('common.kg')}
                           </span>
                           <OnlineBadge shipment={s} />
+                          {officeLabel(s.origin_office, locale) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
+                              <Store className="h-3 w-3" /> {officeLabel(s.origin_office, locale)}
+                            </span>
+                          )}
                         </p>
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-fg">
                           <Clock className="h-3 w-3 shrink-0" /> {formatDateTime(s.created_at, dateLocale)}

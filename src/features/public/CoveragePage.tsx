@@ -22,6 +22,40 @@ const CITIES: readonly CityEntry[] = [
   { bg: 'Благоевград', en: 'Blagoevgrad' },
 ] as const;
 
+/** The chip cloud under the big cities — makes "everywhere" concrete. */
+const MORE_TOWNS: readonly CityEntry[] = [
+  { bg: 'Шумен', en: 'Shumen' },
+  { bg: 'Добрич', en: 'Dobrich' },
+  { bg: 'Сливен', en: 'Sliven' },
+  { bg: 'Хасково', en: 'Haskovo' },
+  { bg: 'Пазарджик', en: 'Pazardzhik' },
+  { bg: 'Перник', en: 'Pernik' },
+  { bg: 'Ямбол', en: 'Yambol' },
+  { bg: 'Враца', en: 'Vratsa' },
+  { bg: 'Габрово', en: 'Gabrovo' },
+  { bg: 'Видин', en: 'Vidin' },
+  { bg: 'Кърджали', en: 'Kardzhali' },
+  { bg: 'Кюстендил', en: 'Kyustendil' },
+  { bg: 'Монтана', en: 'Montana' },
+  { bg: 'Ловеч', en: 'Lovech' },
+  { bg: 'Разград', en: 'Razgrad' },
+  { bg: 'Търговище', en: 'Targovishte' },
+  { bg: 'Силистра', en: 'Silistra' },
+  { bg: 'Смолян', en: 'Smolyan' },
+  { bg: 'Дупница', en: 'Dupnitsa' },
+  { bg: 'Казанлък', en: 'Kazanlak' },
+  { bg: 'Асеновград', en: 'Asenovgrad' },
+  { bg: 'Димитровград', en: 'Dimitrovgrad' },
+  { bg: 'Горна Оряховица', en: 'Gorna Oryahovitsa' },
+  { bg: 'Сандански', en: 'Sandanski' },
+  { bg: 'Петрич', en: 'Petrich' },
+  { bg: 'Велинград', en: 'Velingrad' },
+  { bg: 'Карлово', en: 'Karlovo' },
+  { bg: 'Троян', en: 'Troyan' },
+  { bg: 'Свищов', en: 'Svishtov' },
+  { bg: 'Ботевград', en: 'Botevgrad' },
+] as const;
+
 const COPY_BG = {
   subtitle:
     'Собствен транспорт от Манчестър до България — всеки петък. Последна миля с Еконт до всяко населено място в страната.',
@@ -158,6 +192,32 @@ export function CoveragePage() {
             </div>
           </StaggerItem>
         </Stagger>
+
+        {/* Everywhere, made concrete: a town cloud + the Econt-office rule. */}
+        <div className="mt-6 rounded-3xl border border-brand/20 bg-brand-50 p-6 dark:bg-brand-50/20 sm:p-8">
+          <h3 className="flex items-center gap-2 font-display text-xl font-extrabold tracking-tight text-brand-700">
+            <Globe2 className="h-5 w-5" />
+            {locale === 'bg' ? 'Доставяме навсякъде в България' : 'We deliver everywhere in Bulgaria'}
+          </h3>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-fg">
+            {locale === 'bg'
+              ? 'Щом има офис на Еконт — доставяме. Ето още градове, които обслужваме всяка седмица:'
+              : 'If there is an Econt office, we deliver. Here are more towns we serve every week:'}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {MORE_TOWNS.map((c) => (
+              <span
+                key={c.en}
+                className="rounded-full border border-border bg-card px-3 py-1 text-sm font-medium text-foreground"
+              >
+                {locale === 'bg' ? c.bg : c.en}
+              </span>
+            ))}
+            <span className="rounded-full bg-brand px-3 py-1 text-sm font-semibold text-brand-fg">
+              {locale === 'bg' ? '… и всяко друго населено място' : '… and every other town or village'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Rate */}
