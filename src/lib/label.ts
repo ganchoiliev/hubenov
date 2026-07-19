@@ -71,6 +71,22 @@ export async function renderBarcodePng(text: string): Promise<Uint8Array> {
   return dataUrlToBytes(dataUrl);
 }
 
+/** Tracking QR: deep-links to THIS parcel's public tracking page. */
+export function renderQrPng(text: string): Uint8Array {
+  if (typeof document === 'undefined') {
+    throw new Error('renderQrPng requires a DOM');
+  }
+  const canvas = document.createElement('canvas');
+  bwipjs.toCanvas(canvas, {
+    bcid: 'qrcode',
+    text,
+    scale: 4,
+    paddingwidth: 0,
+    paddingheight: 0,
+  });
+  return dataUrlToBytes(canvas.toDataURL('image/png'));
+}
+
 export async function buildLabelPdf(data: LabelData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const { font, bold } = await embedUnicodeFonts(doc);
@@ -83,14 +99,24 @@ export async function buildLabelPdf(data: LabelData): Promise<Uint8Array> {
     barcode = null;
   }
 
+  // Tracking QR — scans straight to THIS parcel's tracking page.
+  let qr: Img | null = null;
+  try {
+    qr = await doc.embedPng(
+      renderQrPng(`https://hubenov.delivery/track?code=${encodeURIComponent(data.public_code)}`),
+    );
+  } catch {
+    qr = null;
+  }
+
   const total = Math.max(1, Math.floor(data.pieces ?? 1));
   for (let i = 1; i <= total; i++) {
-    drawLabel(doc.addPage([W, H]), font, bold, data, barcode, i, total);
+    drawLabel(doc.addPage([W, H]), font, bold, data, barcode, qr, i, total);
   }
   return doc.save();
 }
 
-function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode: Img | null, idx: number, total: number): void {
+function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode: Img | null, qr: Img | null, idx: number, total: number): void {
   const line = (y: number) =>
     page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.8, color: HAIR });
 
@@ -161,19 +187,34 @@ function drawLabel(page: Page, font: Font, bold: Font, data: LabelData, barcode:
     page.drawText(ft, { x: M + (W - 2 * M - fw) / 2, y: 68 + 5.5, size: fs, font: bold, color: rgb(1, 1, 1) });
   }
 
-  // ── Footer: weight (+ dims), gift/goods and the DELIVERY price charged ─────
+  // ── Footer: facts left, tracking QR right ──────────────────────────────────
+  // Left column: weight (+dims), gift/goods, the charged DELIVERY price.
+  // Right: a QR that opens THIS parcel's tracking page, with the track URL
+  // spelled out underneath for people who don't scan.
   line(64);
+  const qrSize = 50;
   const dims =
     data.length_cm && data.width_cm && data.height_cm
       ? `  ·  ${trimNum(data.length_cm)}×${trimNum(data.width_cm)}×${trimNum(data.height_cm)} см`
       : '';
-  page.drawText(`Тегло: ${data.weight_kg.toFixed(1)} кг${dims}`, { x: M, y: 48, size: 10, font: bold, color: INK });
-  page.drawText(data.is_gift ? 'ПОДАРЪК / GIFT' : 'СТОКА / GOODS', { x: M, y: 32, size: 9, font, color: INK });
+  page.drawText(`Тегло: ${data.weight_kg.toFixed(1)} кг${dims}`, { x: M, y: 50, size: 9.5, font: bold, color: INK });
+  page.drawText(data.is_gift ? 'ПОДАРЪК / GIFT' : 'СТОКА / GOODS', { x: M, y: 37, size: 8.5, font, color: INK });
   // The charged delivery price (what the client pays us), not the goods value.
   if (data.price != null && data.price > 0) {
     const cur = data.currency === 'GBP' ? '£' : `${data.currency} `;
-    const val = `Доставка: ${cur}${data.price.toFixed(2)}`;
-    page.drawText(val, { x: W - M - bold.widthOfTextAtSize(val, 9), y: 32, size: 9, font: bold, color: INK });
+    page.drawText(`Доставка: ${cur}${data.price.toFixed(2)}`, { x: M, y: 24, size: 9, font: bold, color: INK });
+  }
+  // Tracking line — always present, even without the QR.
+  page.drawText('Проследи пратката си:', { x: M, y: 10, size: 7, font: bold, color: GREEN });
+  page.drawText('hubenov.delivery/track', {
+    x: M + bold.widthOfTextAtSize('Проследи пратката си:', 7) + 4,
+    y: 10,
+    size: 7,
+    font,
+    color: INK,
+  });
+  if (qr) {
+    page.drawImage(qr, { x: W - M - qrSize, y: 7, width: qrSize, height: qrSize });
   }
 }
 
