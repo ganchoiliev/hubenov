@@ -36,8 +36,15 @@
     <meta name="twitter:description" content="Собствен транспорт UK→BG, курс всеки петък. Проследяване и моментална оферта." />
     <meta name="twitter:image" content="https://hubenov.delivery/og-image.jpg" />
 
-    <!-- Preload the LCP hero so it paints fast on mobile -->
-    <link rel="preload" as="image" href="/images/hero-van.webp" fetchpriority="high" />
+    <!-- Preload the LCP hero (responsive: phones get the light 800px file) -->
+    <link
+      rel="preload"
+      as="image"
+      href="/images/hero-van.webp"
+      imagesrcset="/images/hero-van-800.webp 800w, /images/hero-van.webp 1280w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
 
     <!-- Self-hosted Manrope (§9). Preload the two above-the-fold subsets
          (Cyrillic H1 + Latin brand/English) so the heading paints in the brand

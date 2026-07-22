@@ -25,7 +25,13 @@ const queryClient = new QueryClient({
   },
 });
 
-initSentry(); // error monitoring — no-op unless VITE_SENTRY_LOADER_URL is set
+// Error monitoring only on the authenticated app (/op, /portal, /login) — the
+// public marketing pages stay free of the Sentry bundle (it was the heaviest
+// third-party weight there: replay + tracing + preconnects). No-op unless
+// VITE_SENTRY_LOADER_URL is set.
+if (/^\/(op|portal|login|reset-password)(\/|$)/.test(window.location.pathname)) {
+  initSentry();
+}
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Root element #root not found');

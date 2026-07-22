@@ -33,7 +33,10 @@ const lazyPage = <K extends string>(factory: () => Promise<Record<K, React.Compo
   lazy(() => factory().then((m) => ({ default: m[key] })));
 
 // Public
-const HomePage = lazyPage(() => import('@/features/public/HomePage'), 'HomePage');
+// HomePage is eager (in the main bundle), not lazy: it's the landing page every
+// visitor loads first, so code-splitting it saves nothing on first paint — and
+// the lazy fallback→content swap was shifting the footer (desktop CLS 0.33).
+import { HomePage } from '@/features/public/HomePage';
 const ServicesPage = lazyPage(() => import('@/features/public/ServicesPage'), 'ServicesPage');
 const QuotePage = lazyPage(() => import('@/features/public/QuotePage'), 'QuotePage');
 const TrackPage = lazyPage(() => import('@/features/public/TrackPage'), 'TrackPage');

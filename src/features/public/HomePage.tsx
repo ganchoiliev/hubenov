@@ -108,11 +108,20 @@ export function HomePage() {
           object-cover trims the frame edges instead of covering it with UI. */}
       <section className="relative isolate overflow-hidden">
         <div className="relative aspect-video max-h-[70vh] min-h-[260px] w-full overflow-hidden">
-          {/* Poster/backdrop with a gradient fallback. */}
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950"
-            style={{ backgroundImage: "url('/images/hero-van.webp')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-          />
+          {/* Poster/backdrop with a gradient fallback. This <img> is the LCP
+              element; srcset serves a light 800px file to phones. */}
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950">
+            <img
+              src="/images/hero-van.webp"
+              srcSet="/images/hero-van-800.webp 800w, /images/hero-van.webp 1280w"
+              sizes="100vw"
+              alt=""
+              aria-hidden="true"
+              fetchPriority="high"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </div>
           {videoSrc && (
             <video
               key={videoSrc}
