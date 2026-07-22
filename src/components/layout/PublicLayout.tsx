@@ -211,7 +211,7 @@ export function PublicLayout() {
         </div>
 
         {open && (
-          <nav className="border-t border-border bg-background px-4 py-3 lg:hidden">
+          <nav className="max-h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-background px-4 py-3 lg:hidden">
             <div className="flex flex-col gap-1">
               {NAV.map((n) => (
                 <NavLink
@@ -348,13 +348,20 @@ export function PublicLayout() {
         </div>
       </footer>
 
-      {/* Floating WhatsApp — one-tap contact for the non-techy audience */}
+      {/* Floating WhatsApp — one-tap contact for the non-techy audience.
+          Hidden while the mobile menu is open so it never overlaps the menu's
+          Вход / language row (a FAB always yields to an open full-screen menu). */}
       <a
         href={whatsappUrl()}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={t('contact.whatsapp')}
-        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lift transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+        aria-hidden={open}
+        tabIndex={open ? -1 : undefined}
+        className={cn(
+          'fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lift transition-all duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2',
+          open && 'pointer-events-none translate-y-3 opacity-0',
+        )}
       >
         <WhatsAppIcon className="h-7 w-7" />
       </a>
