@@ -36,6 +36,85 @@
     <meta name="twitter:description" content="Собствен транспорт UK→BG, курс всеки петък. Проследяване и моментална оферта." />
     <meta name="twitter:image" content="https://hubenov.delivery/og-image.jpg" />
 
+    <!-- Structured data (schema.org). Static in the served HTML so crawlers and
+         AI engines read the entity, service and pricing without executing JS.
+         The FAQPage schema lives on /faq (rendered there). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "LocalBusiness",
+            "@id": "https://hubenov.delivery/#business",
+            "name": "Доставки Хубенов",
+            "alternateName": "Hubenov Delivery",
+            "url": "https://hubenov.delivery/",
+            "logo": "https://hubenov.delivery/apple-touch-icon.png",
+            "image": "https://hubenov.delivery/og-image.jpg",
+            "description": "Parcel and baggage delivery between the United Kingdom and Bulgaria. Own weekly van from Manchester; delivery to any Econt office across Bulgaria in 2-3 days. From £2/kg, £20 minimum.",
+            "telephone": "+44 7895 909915",
+            "email": "bogoslavvv@gmail.com",
+            "priceRange": "££",
+            "currenciesAccepted": "GBP",
+            "paymentAccepted": "Bank transfer, Cash in office",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "542 Liverpool Road, Eccles",
+              "addressLocality": "Manchester",
+              "postalCode": "M30 7JA",
+              "addressCountry": "GB"
+            },
+            "areaServed": [
+              { "@type": "Country", "name": "United Kingdom" },
+              { "@type": "Country", "name": "Bulgaria" }
+            ],
+            "sameAs": ["https://www.facebook.com/profile.php?id=61554729133249"],
+            "makesOffer": [
+              {
+                "@type": "Offer",
+                "priceCurrency": "GBP",
+                "priceSpecification": {
+                  "@type": "UnitPriceSpecification",
+                  "price": "2.00",
+                  "priceCurrency": "GBP",
+                  "referenceQuantity": {
+                    "@type": "QuantitativeValue",
+                    "value": "1",
+                    "unitCode": "KGM"
+                  }
+                },
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Parcel delivery from the UK to Bulgaria",
+                  "description": "Weekly van from Manchester to Bulgaria, delivery to any Econt office. From £2/kg with a £20 minimum (covers up to 10 kg), typically 2-3 days.",
+                  "serviceType": "Courier and parcel delivery"
+                }
+              },
+              {
+                "@type": "Offer",
+                "priceCurrency": "GBP",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Baggage delivery from Bulgaria to the UK",
+                  "description": "Send via any Econt office to our Gotse Delchev drop-off (Panairski Livadi); collected every Tuesday, in Manchester by Friday the same week.",
+                  "serviceType": "Courier and parcel delivery"
+                }
+              }
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://hubenov.delivery/#website",
+            "url": "https://hubenov.delivery/",
+            "name": "Доставки Хубенов",
+            "alternateName": "Hubenov Delivery",
+            "inLanguage": ["bg", "en"],
+            "publisher": { "@id": "https://hubenov.delivery/#business" }
+          }
+        ]
+      }
+    </script>
+
     <!-- Preload the LCP hero (responsive: phones get the light 800px file) -->
     <link
       rel="preload"

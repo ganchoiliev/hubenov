@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AnimatePresence, m as motion } from 'framer-motion';
 import { ChevronDown, HelpCircle } from 'lucide-react';
 import { Section, PageHeading } from '@/components/shared/common';
+import { JsonLd } from '@/components/shared/JsonLd';
 import { cn } from '@/lib/utils';
 
 interface QA {
@@ -16,6 +17,22 @@ export function FaqPage() {
 
   const extra: Record<'bg' | 'en', QA[]> = {
     bg: [
+      {
+        q: 'Колко струва доставка на пратка от Великобритания до България?',
+        a: 'Цената е £2 на килограм, с минимална такса £20 (покрива до 10 кг). Таксува се по-голямото от реалното и обемното тегло. Изчислете ориентировъчна цена на страница „Оферта".',
+      },
+      {
+        q: 'За колко време пристига пратка от Великобритания до България?',
+        a: 'Изпращаме със собствен бус от Манчестър всеки петък. Пратката пристига в България за 2-3 дни и се доставя до избран от вас офис на Еконт.',
+      },
+      {
+        q: 'Как да изпратя пратка от Великобритания до България?',
+        a: 'Изчислете цена онлайн, донесете пратката в наш офис във Великобритания и ние я изпращаме с буса в петък до избран офис на Еконт в България. Плащане по банков път или в офиса.',
+      },
+      {
+        q: 'Къде мога да оставя пратка в Манчестър?',
+        a: 'Централният ни офис е на 542 Liverpool Road, Eccles, Манчестър M30 7JA — само този адрес приема онлайн пратки. Имаме още офиси в Eccles, Бърнли и Куинсфери за лично донесени пратки.',
+      },
       {
         q: 'Как се определя крайната цена?',
         a: 'Онлайн офертата е ориентировъчна. Окончателната цена се потвърждава при приемане на пратката — измерваме реалното тегло и размери, защото те определят таксуваното тегло.',
@@ -34,6 +51,22 @@ export function FaqPage() {
       },
     ],
     en: [
+      {
+        q: 'How much does it cost to send a parcel from the UK to Bulgaria?',
+        a: 'It is £2 per kilogram with a £20 minimum charge (covers up to 10 kg). You are charged on the greater of actual and volumetric weight. Get an instant estimate on the “Get a quote” page.',
+      },
+      {
+        q: 'How long does delivery from the UK to Bulgaria take?',
+        a: 'We send on our own van from Manchester every Friday. Parcels reach Bulgaria in 2-3 days and are delivered to the Econt office you choose.',
+      },
+      {
+        q: 'How do I send a parcel from the UK to Bulgaria?',
+        a: 'Get a price online, bring the parcel to one of our UK offices, and we ship it on the Friday van to the Econt office you choose in Bulgaria. Pay by bank transfer or in the office.',
+      },
+      {
+        q: 'Where can I drop off a parcel in Manchester?',
+        a: 'Our central office is 542 Liverpool Road, Eccles, Manchester M30 7JA — this is the only address for online parcels. We also have drop-off points in Eccles, Burnley and Queensferry for walk-in parcels.',
+      },
       {
         q: 'How is the final price decided?',
         a: 'The online quote is an estimate. The final price is confirmed when we take in your parcel — we measure the actual weight and dimensions, as these determine the chargeable weight.',
@@ -63,8 +96,21 @@ export function FaqPage() {
 
   const [open, setOpen] = useState<number | null>(0);
 
+  // FAQPage schema generated from the SAME items rendered below, so the
+  // structured data can never drift from the visible content (a Google rule).
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((it) => ({
+      '@type': 'Question',
+      name: it.q,
+      acceptedAnswer: { '@type': 'Answer', text: it.a },
+    })),
+  };
+
   return (
     <Section>
+      <JsonLd data={faqSchema} />
       <div className="mx-auto max-w-3xl">
         <PageHeading title={t('faq.title')} />
 
