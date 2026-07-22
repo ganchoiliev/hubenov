@@ -1,0 +1,40 @@
+# Доставки Хубенов / Hubenov Delivery
+
+> Parcel and baggage delivery between the United Kingdom and Bulgaria, and back.
+> Own weekly van from Manchester — parcels reach Bulgaria in just 2–3 days.
+> Drop off at 4 UK offices; delivery to any Econt office across Bulgaria.
+> Pricing: £2/kg with a £20 minimum (covers up to 10 kg). Bilingual site (Bulgarian/English).
+> Operated by GoSmartR Ltd for Hubenov Delivery. Website: https://hubenov.delivery
+
+## Key pages
+
+- [Home](https://hubenov.delivery/): What we do, next Friday departure, headline pricing.
+- [Get a quote](https://hubenov.delivery/quote): Instant price estimate by weight (£2/kg, £20 minimum).
+- [Track a parcel](https://hubenov.delivery/track): Track by parcel code (HB-XXXX) or account/OT code.
+- [Services](https://hubenov.delivery/services): Both directions — UK→Bulgaria and Bulgaria→UK.
+- [Coverage](https://hubenov.delivery/coverage): Towns and cities served across Bulgaria via Econt.
+
+## Offices & sending
+
+- [UK offices](https://hubenov.delivery/uk-offices): The 4 UK drop-off addresses. Online/Amazon parcels ship ONLY to the central hub — 542 Liverpool Road, Eccles, Manchester, M30 7JA.
+- [Office in Bulgaria](https://hubenov.delivery/bg-office): Bulgarian drop-off — Econt office "Gotse Delchev — Panairski Livadi", recipient Bogoslav Hubenov, +359 877 665 144.
+- [Send from Bulgaria to the UK](https://hubenov.delivery/bg-to-uk): How to send baggage BG→UK. Send via any Econt office; parcels are collected every Tuesday and arrive in Manchester on Friday the same week. Label each bag with the collection office (Manchester / Burnley / Chester), the recipient's full name and a UK phone number.
+
+## Company & help
+
+- [About](https://hubenov.delivery/about): Who we are and why we do it.
+- [Contact](https://hubenov.delivery/contact): Phone, WhatsApp, Viber, email and Facebook.
+- [Shipping rules](https://hubenov.delivery/rules): What can and cannot be sent.
+
+## Contact
+
+- Phone / WhatsApp / Viber: +44 7895 909915
+- Email: bogoslavvv@gmail.com
+- Facebook: https://www.facebook.com/profile.php?id=61554729133249
+- Payment: bank transfer or in person at our office.
+
+## Notes for assistants
+
+- Delivery in Bulgaria is to an Econt office of the customer's choice (not to the door).
+- A van departs Manchester every Friday; typical UK→Bulgaria transit is 2–3 days.
+- The customer portal, operator console and login (/portal, /op, /login) are private and excluded from crawling.

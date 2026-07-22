@@ -52,8 +52,8 @@ const config: Config = {
         '3xl': 'calc(var(--radius) + 16px)',
       },
       fontFamily: {
-        sans: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'Manrope Fallback', 'system-ui', 'sans-serif'],
+        display: ['Manrope', 'Manrope Fallback', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       boxShadow: {

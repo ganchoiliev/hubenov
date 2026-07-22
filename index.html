@@ -37,23 +37,26 @@
     <meta name="twitter:image" content="https://hubenov.delivery/og-image.jpg" />
 
     <!-- Preload the LCP hero so it paints fast on mobile -->
-    <link rel="preload" as="image" href="/images/hero-van.webp" />
+    <link rel="preload" as="image" href="/images/hero-van.webp" fetchpriority="high" />
 
-    <!-- Cyrillic-friendly display font (§9) — loaded without blocking render -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Self-hosted Manrope (§9). Preload the two above-the-fold subsets
+         (Cyrillic H1 + Latin brand/English) so the heading paints in the brand
+         font immediately — no third-party round-trip, no late swap → stable CLS.
+         @font-face + metric fallback live in src/index.css. -->
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
-      media="print"
-      onload="this.media='all'"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/manrope-cyrillic-wght-normal.woff2"
+      crossorigin
     />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
-      />
-    </noscript>
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/manrope-latin-wght-normal.woff2"
+      crossorigin
+    />
   </head>
   <body>
     <div id="root"></div>

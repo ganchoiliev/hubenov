@@ -78,9 +78,23 @@ export function HomePage() {
     }
     const mq = window.matchMedia('(min-width: 768px)');
     const apply = () => setVideoSrc(mq.matches ? '/video/hero.mp4' : '/video/hero-mobile.mp4');
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    // Defer the video until after first paint so it never competes with the
+    // hero poster for LCP (esp. on throttled mobile). The poster is the LCP
+    // element; the film enhances it a beat later.
+    let t: number | undefined;
+    const start = () => {
+      t = window.setTimeout(() => {
+        apply();
+        mq.addEventListener('change', apply);
+      }, 200);
+    };
+    if (document.readyState === 'complete') start();
+    else window.addEventListener('load', start, { once: true });
+    return () => {
+      window.removeEventListener('load', start);
+      mq.removeEventListener('change', apply);
+      window.clearTimeout(t);
+    };
   }, [prefersReduced]);
 
   return (
