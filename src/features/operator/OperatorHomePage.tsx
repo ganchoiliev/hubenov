@@ -80,6 +80,8 @@ export function OperatorHomePage() {
           active: 'Активни пратки',
           today: 'Днес приети',
           delivered: 'Доставени',
+          uninvoiced: 'Пратки без фактура',
+          uninvoicedHint: 'приети, но още не са фактурирани — възможна пропусната сума',
           inflight: 'Пратки по статус',
           none: 'Няма активни пратки',
           reconTitle: 'COD за получаване от Еконт',
@@ -124,6 +126,8 @@ export function OperatorHomePage() {
           active: 'Active parcels',
           today: 'Received today',
           delivered: 'Delivered',
+          uninvoiced: 'Parcels without an invoice',
+          uninvoicedHint: 'received but not invoiced yet — a possible missed charge',
           inflight: 'Parcels by status',
           none: 'No active parcels',
           reconTitle: 'COD awaiting payout from Econt',
@@ -243,6 +247,25 @@ export function OperatorHomePage() {
         <Stat label={L.due} value={money(dash?.invoices.due)} hint={L.dueHint} />
         <Stat label={L.paid} value={money(dash?.invoices.paid)} hint={L.paidHint} />
       </div>
+
+      {/* Revenue-leak guard: parcels received but never invoiced. Only shows when
+          there is something to catch, so a clean day stays quiet. */}
+      {(dash?.shipments.uninvoiced ?? 0) > 0 && (
+        <Link to="/op/shipments?uninvoiced=1" className="mt-4 block">
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-soft transition-colors hover:bg-amber-100 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-300">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-display text-base font-extrabold">
+                {dash?.shipments.uninvoiced} · {L.uninvoiced}
+              </p>
+              <p className="text-sm text-amber-800/80 dark:text-amber-200/70">{L.uninvoicedHint}</p>
+            </div>
+            <ArrowRight className="ml-auto h-5 w-5 shrink-0" />
+          </div>
+        </Link>
+      )}
 
       {/* Ops */}
       <div className="mt-4 grid gap-4 sm:grid-cols-3">

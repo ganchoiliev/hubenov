@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag, Clock, Store } from 'lucide-react';
+import { Search, Package, ArrowRight, Filter, Trash2, Printer, X, Download, ListChecks, ShoppingBag, Clock, Store, AlertTriangle } from 'lucide-react';
 import { Button, Card, CardBody, Input, Skeleton, Badge } from '@/components/ui';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -48,6 +48,8 @@ const COPY = {
     selected: 'избрани',
     exportCsv: 'Експорт CSV',
     onlineFilter: 'Онлайн пратки',
+    uninvoicedFilter: 'Без фактура',
+    noInvoice: 'Без фактура',
     officeAll: 'Всички офиси',
     selectAll: 'Избери всички',
     addToLoad: 'Добави в курс…',
@@ -85,6 +87,8 @@ const COPY = {
     selected: 'selected',
     exportCsv: 'Export CSV',
     onlineFilter: 'Online parcels',
+    uninvoicedFilter: 'No invoice',
+    noInvoice: 'No invoice',
     officeAll: 'All offices',
     selectAll: 'Select all',
     addToLoad: 'Add to load…',
@@ -222,6 +226,8 @@ export function OpShipmentsPage() {
   const [officeFilter, setOfficeFilter] = useState<string>('all');
   const [view, setView] = useState<'active' | 'delivered' | 'all'>('active');
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [uninvoicedOnly, setUninvoicedOnly] = useState(searchParams.get('uninvoiced') === '1');
 
   const onDelete = async (s: Shipment) => {
     const ok = await confirm({
@@ -270,6 +276,29 @@ export function OpShipmentsPage() {
     },
   });
 
+  // Which parcels carry a (non-void) invoice — powers the "без фактура" flag.
+  const { data: invoicedIds } = useQuery({
+    queryKey: ['invoiced-shipment-ids'],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data: rows, error } = await supabase
+        .from('invoices')
+        .select('shipment_id, status')
+        .not('shipment_id', 'is', null)
+        .limit(5000);
+      if (error) throw error;
+      const set = new Set<string>();
+      for (const r of (rows ?? []) as { shipment_id: string | null; status: string }[]) {
+        if (r.shipment_id && r.status !== 'void') set.add(r.shipment_id);
+      }
+      return set;
+    },
+  });
+  const isUninvoiced = useCallback(
+    (s: Shipment) =>
+      invoicedIds != null && !invoicedIds.has(s.id) && s.status !== 'cancelled' && s.status !== 'returned',
+    [invoicedIds],
+  );
+
   const filtered = useMemo(() => {
     const shipments = data ?? [];
     const q = query.trim().toLowerCase();
@@ -281,6 +310,7 @@ export function OpShipmentsPage() {
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
       if (officeFilter !== 'all' && s.origin_office !== officeFilter) return false;
       if (onlineOnly && !getParcelOrigin(s).isOnline) return false;
+      if (uninvoicedOnly && !isUninvoiced(s)) return false;
       if (!q) return true;
       return (
         s.public_code.toLowerCase().includes(q) ||
@@ -289,7 +319,7 @@ export function OpShipmentsPage() {
         s.receiver.name.toLowerCase().includes(q)
       );
     });
-  }, [data, query, statusFilter, officeFilter, onlineOnly, view]);
+  }, [data, query, statusFilter, officeFilter, onlineOnly, uninvoicedOnly, isUninvoiced, view]);
 
   const viewCounts = {
     all: (data ?? []).length,
@@ -448,6 +478,15 @@ export function OpShipmentsPage() {
         >
           <ShoppingBag className="h-4 w-4" /> {L.onlineFilter}
         </Button>
+        <Button
+          variant={uninvoicedOnly ? 'primary' : 'outline'}
+          onClick={() => setUninvoicedOnly((v) => !v)}
+          aria-pressed={uninvoicedOnly}
+          title={L.uninvoicedFilter}
+          className="gap-2 sm:shrink-0"
+        >
+          <AlertTriangle className="h-4 w-4" /> {L.uninvoicedFilter}
+        </Button>
         <Button variant="outline" onClick={onExport} disabled={filtered.length === 0} className="gap-2 sm:shrink-0">
           <Download className="h-4 w-4" /> {L.exportCsv}
         </Button>
@@ -534,6 +573,14 @@ export function OpShipmentsPage() {
                             {s.weight_kg} {t('common.kg')}
                           </span>
                           <OnlineBadge shipment={s} />
+                          {isUninvoiced(s) && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300"
+                              title={L.noInvoice}
+                            >
+                              <AlertTriangle className="h-3 w-3" /> {L.noInvoice}
+                            </span>
+                          )}
                           {officeLabel(s.origin_office, locale) && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
                               <Store className="h-3 w-3" /> {officeLabel(s.origin_office, locale)}

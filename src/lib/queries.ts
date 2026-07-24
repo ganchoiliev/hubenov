@@ -841,7 +841,7 @@ export function useCreateClient() {
 
 /* ── Operator dashboard (money + ops at-a-glance) ─────────────────────────── */
 export interface OperatorDashboard {
-  shipments: { total: number; active: number; today: number; delivered: number; byStatus: Record<string, number> };
+  shipments: { total: number; active: number; today: number; delivered: number; uninvoiced: number; byStatus: Record<string, number> };
   invoices: { paid: Record<string, number>; due: Record<string, number>; dueCount: number };
   cod: {
     collecting: Record<string, number>; // out for collection (in transit)
@@ -856,8 +856,8 @@ export function useOperatorDashboard() {
     queryKey: ['dashboard'],
     queryFn: async (): Promise<OperatorDashboard> => {
       const [shRes, invRes, codRes] = await Promise.all([
-        supabase.from('shipments').select('status, created_at').limit(5000),
-        supabase.from('invoices').select('amount, currency, status').limit(5000),
+        supabase.from('shipments').select('id, status, created_at').limit(5000),
+        supabase.from('invoices').select('shipment_id, amount, currency, status').limit(5000),
         supabase
           .from('courier_shipments')
           .select('cod_amount, cod_currency, cod_remitted_at, shipments!shipment_id(status, currency)')
@@ -865,7 +865,7 @@ export function useOperatorDashboard() {
           .limit(5000),
       ]);
 
-      const sh = (shRes.data ?? []) as { status: string; created_at: string }[];
+      const sh = (shRes.data ?? []) as { id: string; status: string; created_at: string }[];
       const startToday = new Date();
       startToday.setHours(0, 0, 0, 0);
       const terminal = new Set(['delivered', 'cancelled', 'returned']);
@@ -880,18 +880,28 @@ export function useOperatorDashboard() {
         if (new Date(s.created_at) >= startToday) today += 1;
       }
 
-      const inv = (invRes.data ?? []) as { amount: number; currency: string; status: string }[];
+      const inv = (invRes.data ?? []) as { shipment_id: string | null; amount: number; currency: string; status: string }[];
       const paid: Record<string, number> = {};
       const due: Record<string, number> = {};
       let dueCount = 0;
+      const invoicedShipmentIds = new Set<string>();
       for (const i of inv) {
         if (i.status === 'void') continue; // cancelled — excluded from all totals
+        if (i.shipment_id) invoicedShipmentIds.add(i.shipment_id);
         if (i.status === 'paid') {
           paid[i.currency] = (paid[i.currency] ?? 0) + Number(i.amount);
         } else {
           due[i.currency] = (due[i.currency] ?? 0) + Number(i.amount); // unpaid + partial
           dueCount += 1;
         }
+      }
+
+      // Parcels with no (non-void) invoice — a silent revenue leak. Cancelled and
+      // returned parcels are legitimately uninvoiced, so they don't count.
+      const uninvoicedExempt = new Set(['cancelled', 'returned']);
+      let uninvoiced = 0;
+      for (const s of sh) {
+        if (!uninvoicedExempt.has(s.status) && !invoicedShipmentIds.has(s.id)) uninvoiced += 1;
       }
 
       const cod = (codRes.data ?? []) as unknown as {
@@ -922,7 +932,7 @@ export function useOperatorDashboard() {
       }
 
       return {
-        shipments: { total: sh.length, active, today, delivered, byStatus },
+        shipments: { total: sh.length, active, today, delivered, uninvoiced, byStatus },
         invoices: { paid, due, dueCount },
         cod: { collecting, awaiting, collectingCount, awaitingCount },
       };
