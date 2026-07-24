@@ -503,6 +503,33 @@ export function IntakePage() {
     }
     try {
       const { sender, receiver } = countriesFor(data.direction);
+
+      // Guarantee a delivery price. The auto-suggested price is written via
+      // setValue, but a `valueAsNumber` registered input reads its value back
+      // from the (still-empty) DOM node at submit, so the suggestion can be
+      // dropped and the parcel would save unpriced + uninvoiced. Fall back to the
+      // same weight-based suggestion here so a parcel is NEVER saved without a price.
+      let effectivePrice = data.price && data.price > 0 ? data.price : null;
+      if (effectivePrice == null) {
+        try {
+          effectivePrice = calculateQuote(
+            {
+              direction: data.direction,
+              weight_kg: data.weight_kg,
+              length_cm: data.length_cm || 0,
+              width_cm: data.width_cm || 0,
+              height_cm: data.height_cm || 0,
+              is_gift: false,
+              remote_area: false,
+              currency: data.currency,
+            },
+            PLACEHOLDER_RATES,
+          ).total;
+        } catch {
+          effectivePrice = null;
+        }
+      }
+
       const { data: row, error } = await supabase
         .from('shipments')
         .insert({
@@ -527,7 +554,7 @@ export function IntakePage() {
           width_cm: data.width_cm,
           height_cm: data.height_cm,
           declared_value: data.declared_value,
-          price: data.price ?? null,
+          price: effectivePrice,
           currency: data.currency,
           pieces: data.pieces,
           contents: data.contents?.trim() || null,
@@ -548,11 +575,11 @@ export function IntakePage() {
 
       // Auto-create the invoice from the delivery price (charge → invoice).
       // Best-effort: a failure here must not undo the created shipment.
-      if (data.price && data.price > 0) {
+      if (effectivePrice && effectivePrice > 0) {
         try {
           const inv = await createInvoice.mutateAsync({
             client_id: client.id,
-            amount: data.price,
+            amount: effectivePrice,
             currency: data.currency,
             shipment_id: created.id,
           });
