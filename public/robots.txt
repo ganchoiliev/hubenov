@@ -5,5 +5,6 @@ Disallow: /portal
 Disallow: /login
 
 Sitemap: https://hubenov.delivery/sitemap.xml
+Sitemap: https://hubenov.delivery/sitemap-1.xml
 # AI-agent index (see PageSpeed "Agentic browsing"):
 # https://hubenov.delivery/llms.txt
