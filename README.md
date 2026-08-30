@@ -106,6 +106,25 @@ supabase/
   functions/      pricing · label-render · customs-docs · econt-proxy(W2) · track-poll(W2) · notify(W2)
 ```
 
+## SEO / AI-engine visibility — prerendered public routes
+
+Crawlers and AI engines (Googlebot for the first pass, GPTBot, bingbot, ClaudeBot, PerplexityBot) do **not**
+run the SPA. `npm run build` therefore writes a static HTML file per public route (`dist/faq.html` → served for
+`/faq` via `cleanUrls` in `vercel.json`) with its own `<title>`, meta description, canonical, Open Graph tags,
+page JSON-LD and the fully rendered markup in `#root`. The client boots normally and replaces it.
+
+The markup comes from `prerender/snapshots/*.json`, captured from the built app in headless Chromium:
+
+```bash
+npx playwright install chromium   # once
+npm run prerender                 # rebuild → snapshot every sitemap route → inject
+git add prerender && git commit
+```
+
+**Re-run it whenever public-page copy changes** — a stale snapshot only affects what crawlers read, never what
+users see, but it is what gets cited. Routes are read from `public/sitemap.xml`, so add new pages there first.
+Portal, operator and login routes are never prerendered (`robots.txt` also disallows them).
+
 ## Data & security
 
 - **RLS on every table.** Clients touch only their own rows; staff (owner/operator/driver) touch all.

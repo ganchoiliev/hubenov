@@ -119,7 +119,7 @@ export function CoveragePage() {
     // overflow-x-clip: nothing on this page may widen the phone viewport (the
     // town cloud and card grids stay inside; any stray overflow gets clipped).
     <div className="overflow-x-clip">
-      <ImageHero image="/images/hero-van.webp" title={t('nav.coverage')} subtitle={L.subtitle} />
+      <ImageHero image="/images/coverage-real.webp" title={t('nav.coverage')} subtitle={L.subtitle} />
       <Section>
         {/* Two transport pillars */}
       <Stagger className="grid gap-5 md:grid-cols-2">

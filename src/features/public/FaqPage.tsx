@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, m as motion } from 'framer-motion';
+import { m as motion } from 'framer-motion';
 import { ChevronDown, HelpCircle } from 'lucide-react';
 import { Section, PageHeading } from '@/components/shared/common';
 import { JsonLd } from '@/components/shared/JsonLd';
@@ -162,24 +162,21 @@ export function FaqPage() {
                   </button>
                 </h3>
 
-                <AnimatePresence initial={false}>
-                  {isOpen && (
-                    <motion.div
-                      id={panelId}
-                      role="region"
-                      aria-labelledby={buttonId}
-                      key="content"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.18, ease: 'easeOut' }}
-                    >
-                      <p className="px-5 pb-5 pl-[4.5rem] text-sm leading-relaxed text-muted-fg">
-                        {item.a}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Every answer stays in the DOM (collapsed via height, not
+                    unmounted) so crawlers, AI engines and the build-time
+                    prerender read all Q&As, matching the FAQPage schema. */}
+                <motion.div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={buttonId}
+                  aria-hidden={!isOpen}
+                  initial={false}
+                  animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="overflow-hidden"
+                >
+                  <p className="px-5 pb-5 pl-[4.5rem] text-sm leading-relaxed text-muted-fg">{item.a}</p>
+                </motion.div>
               </div>
             );
           })}

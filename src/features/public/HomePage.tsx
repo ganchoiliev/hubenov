@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { m as motion, useReducedMotion } from 'framer-motion';
 import {
@@ -13,7 +12,6 @@ import {
   Store,
   Check,
   ShoppingBag,
-  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Stagger, StaggerItem } from '@/components/motion';
@@ -37,106 +35,60 @@ const STEPS = [
   { n: 4, titleKey: 'home.how_4_title', textKey: 'home.how_4_text' },
 ];
 
-// Real customer reviews (from Facebook). Names as given by the customers.
-const TESTIMONIALS = [
+// Verbatim Google reviews from the public business profile (5.0, 9 reviews
+// at time of writing). Quoted exactly as written, in the reviewer's own
+// language, and the section links to the profile so anyone can verify.
+// No stars, no invented names, nothing self-hosted: proof lives on Google.
+export const GOOGLE_PROFILE_URL = 'https://share.google/pvs9tdmDUBcKyG3KK';
+const GOOGLE_REVIEWS = [
   {
-    name: 'Мирослав Ангелов',
-    bg: 'Силно препоръчвам. Много бърза доставка — за по-малко от 10 дни багажът беше получен.',
-    en: 'Highly recommend. Very fast delivery — the parcel arrived in under 10 days.',
+    name: 'Ilian Todorov',
+    text: 'I received a top notch service - two speedy deliveries to Bulgaria. The business is run by a friendly owner, and their Manchester office has corteus staff. They also offer home collection, which I used.',
   },
   {
-    name: 'Диана Янева',
-    bg: 'Препоръчвам! Светкавична доставка — изпратена и получена на адреса в София за дни. Благодаря!',
-    en: 'Recommend! Lightning-fast — sent and delivered to the door in Sofia within days. Thank you!',
+    name: 'Mihail Velkov',
+    text: 'Перфектни, благодарим за коректността и точността!',
   },
   {
-    name: 'Яна Иванова',
-    bg: 'Супер бързина в доставянето и без никакви повреди!',
-    en: 'Super fast delivery and nothing damaged!',
+    name: 'Vanya Veleva',
+    text: 'Preporachvam na vseki da polzva tazi companiq 💯',
   },
 ] as const;
 
-const reveal = {
-  initial: { opacity: 0, y: 24 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-80px' },
-  transition: { duration: 0.5, ease: 'easeOut' as const },
-};
+// Content renders visible. Scroll-triggered opacity-0 reveals were removed:
+// crawlers/AI agents (and the build-time prerender) must see the text, and
+// blank viewports mid-scroll read as broken. Only route lines animate.
+const reveal = { transition: { duration: 0.2, ease: 'easeOut' as const } };
 
 export function HomePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
 
-  // Hero video: a lighter 126 KB file on mobile, the full one on desktop. The
-  // still image is the poster either way, and reduced-motion users keep the still.
-  const prefersReduced = useReducedMotion();
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  useEffect(() => {
-    if (prefersReduced) {
-      setVideoSrc(null);
-      return;
-    }
-    const mq = window.matchMedia('(min-width: 768px)');
-    const apply = () => setVideoSrc(mq.matches ? '/video/hero.mp4' : '/video/hero-mobile.mp4');
-    // Defer the video until after first paint so it never competes with the
-    // hero poster for LCP (esp. on throttled mobile). The poster is the LCP
-    // element; the film enhances it a beat later.
-    let t: number | undefined;
-    const start = () => {
-      t = window.setTimeout(() => {
-        apply();
-        mq.addEventListener('change', apply);
-      }, 200);
-    };
-    if (document.readyState === 'complete') start();
-    else window.addEventListener('load', start, { once: true });
-    return () => {
-      window.removeEventListener('load', start);
-      mq.removeEventListener('change', apply);
-      window.clearTimeout(t);
-    };
-  }, [prefersReduced]);
-
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {/* Cinema-stack hero. One structure on every screen: the film runs
-          full-width with NOTHING on it (100% visible, no scrims, no overlay
-          collisions), and the content sits directly below it on the page
-          background at native contrast. Desktop is the scaled-up version of
-          the mobile layout; on wide screens the film's height is capped and
-          object-cover trims the frame edges instead of covering it with UI. */}
+      {/* Fleet hero: the green DAF + white Sprinter livery the owner uses on
+          the shop-front sticker, staged in a Manchester yard with wrapped
+          pallets — the same scene as the real photos further down. Rendered
+          photoreal (overcast, UK plates, left-hand traffic, grime) so it does
+          not read as stock art. Alternatives: hero-fleet-alt1/alt3. The photo
+          runs full-width with nothing on it; content sits below at native
+          contrast. */}
       <section className="relative isolate overflow-hidden">
-        <div className="relative aspect-video max-h-[70vh] min-h-[260px] w-full overflow-hidden">
-          {/* Poster/backdrop with a gradient fallback. This <img> is the LCP
-              element; srcset serves a light 800px file to phones. */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950">
-            <img
-              src="/images/hero-van.webp"
-              srcSet="/images/hero-van-800.webp 800w, /images/hero-van.webp 1280w"
-              sizes="100vw"
-              alt=""
-              aria-hidden="true"
-              fetchPriority="high"
-              decoding="async"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          {videoSrc && (
-            <video
-              key={videoSrc}
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              poster="/images/hero-van.webp"
-              aria-hidden="true"
-            >
-              <source src={videoSrc} type="video/mp4" />
-            </video>
-          )}
+        <div className="relative aspect-[16/9] max-h-[70vh] min-h-[260px] w-full overflow-hidden bg-slate-900">
+          <img
+            src="/images/hero-fleet-1600.webp"
+            srcSet="/images/hero-fleet-800.webp 800w, /images/hero-fleet-1600.webp 1600w"
+            sizes="100vw"
+            alt={
+              lang === 'bg'
+                ? 'Камионът и бусът на Доставки Хубенов в двора в Манчестър, палети с колети готови за България'
+                : 'Hubenov Delivery lorry and van in the Manchester yard, pallets of parcels ready for Bulgaria'
+            }
+            fetchPriority="high"
+            decoding="async"
+            className="h-full w-full object-cover object-[50%_60%]"
+          />
         </div>
 
         {/* Transit ribbon — the film's "lower third": leaves Friday, in Bulgaria
@@ -340,30 +292,56 @@ export function HomePage() {
         </motion.div>
       </Section>
 
-      {/* ── Testimonials ────────────────────────────────────────────────── */}
+      {/* ── Reviews (Google) ────────────────────────────────────────────── */}
       <section className="border-y border-border bg-muted/40">
         <div className="container py-16 md:py-20">
-          <motion.h2
-            {...reveal}
-            className="text-center font-display text-3xl font-extrabold tracking-tight text-foreground"
-          >
-            {lang === 'bg' ? 'Какво казват клиентите' : 'What customers say'}
-          </motion.h2>
-          <Stagger className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((q) => (
-              <StaggerItem key={q.name}>
-                <figure className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-soft">
-                  <div className="flex gap-0.5 text-amber-400">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-current" />
-                    ))}
-                  </div>
-                  <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-foreground">“{q[lang]}”</blockquote>
-                  <figcaption className="mt-4 text-sm font-semibold text-muted-fg">— {q.name}</figcaption>
-                </figure>
-              </StaggerItem>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <a
+              href={GOOGLE_PROFILE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:border-brand/40"
+            >
+              <GoogleG className="h-3.5 w-3.5" />
+              5.0 · {lang === 'bg' ? '9 отзива в Google' : '9 Google reviews'}
+            </a>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">
+              {lang === 'bg' ? 'Какво казват клиентите' : 'What customers say'}
+            </h2>
+            <p className="max-w-xl text-sm text-muted-fg">
+              {lang === 'bg'
+                ? 'Цитирани дословно от публичния ни профил в Google — на езика, на който са написани.'
+                : 'Quoted word for word from our public Google profile, in the language they were written in.'}
+            </p>
+          </div>
+          <div className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-3">
+            {GOOGLE_REVIEWS.map((q) => (
+              <figure key={q.name} className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-soft">
+                <blockquote className="flex-1 text-sm leading-relaxed text-foreground">“{q.text}”</blockquote>
+                <figcaption className="mt-4 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-semibold text-foreground">{q.name}</span>
+                  <a
+                    href={GOOGLE_PROFILE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-muted-fg hover:text-brand"
+                  >
+                    <GoogleG className="h-3 w-3" /> Google
+                  </a>
+                </figcaption>
+              </figure>
             ))}
-          </Stagger>
+          </div>
+          <p className="mt-8 text-center text-sm">
+            <a
+              href={GOOGLE_PROFILE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand hover:underline"
+            >
+              {lang === 'bg' ? 'Всички отзиви в Google →' : 'All reviews on Google →'}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -533,5 +511,17 @@ function Endpoint({ code, city }: { code: string; city: string }) {
       </div>
       <p className="mt-1.5 text-xs font-medium text-foreground">{city}</p>
     </div>
+  );
+}
+
+/** Google "G" mark (brand colours) for review attribution. */
+function GoogleG({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.7 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z" />
+      <path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.9-6.1z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.3 0-11.6-4.2-13.5-10l-7.9 6.1C6.5 42.6 14.6 48 24 48z" />
+    </svg>
   );
 }

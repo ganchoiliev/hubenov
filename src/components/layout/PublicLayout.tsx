@@ -149,10 +149,68 @@ export function PublicLayout() {
       '/faq': t('nav.faq'),
       '/contact': t('nav.contact'),
     };
+    // Per-page meta descriptions — query-shaped, so the snippet answers the
+    // search (price, schedule, where to drop off) instead of repeating the brand.
+    const descriptions: Record<string, { bg: string; en: string }> = {
+      '/': {
+        bg: 'Колети и багаж от Великобритания до България за 2–3 дни. Собствен камион всеки петък от Манчестър, доставка до всеки офис на Еконт. От £2/кг, минимум £20.',
+        en: 'Parcels and baggage from the UK to Bulgaria in 2–3 days. Our own lorry leaves Manchester every Friday; delivery to any Econt office. From £2/kg, £20 minimum.',
+      },
+      '/services': {
+        bg: 'Доставка на колети Великобритания → България и България → Великобритания. Собствен транспорт, курс всеки петък, доставка до офис на Еконт.',
+        en: 'Parcel delivery UK → Bulgaria and Bulgaria → UK. Own transport, Friday departures, delivery to an Econt office.',
+      },
+      '/quote': {
+        bg: 'Изчислете цената за колет до България за секунди: £2/кг, минимум £20 (до 10 кг). Без скрити такси.',
+        en: 'Price a parcel to Bulgaria in seconds: £2/kg, £20 minimum (covers 10 kg). No hidden fees.',
+      },
+      '/track': {
+        bg: 'Проследете пратката си по номер (HB-XXXX) — от приемане в Манчестър до офиса на Еконт в България.',
+        en: 'Track your parcel by number (HB-XXXX) — from drop-off in Manchester to the Econt office in Bulgaria.',
+      },
+      '/coverage': {
+        bg: 'Доставяме до всеки офис на Еконт в България — София, Пловдив, Варна, Бургас, Гоце Делчев и всички по-малки градове.',
+        en: 'We deliver to every Econt office in Bulgaria — Sofia, Plovdiv, Varna, Burgas, Gotse Delchev and every smaller town.',
+      },
+      '/uk-offices': {
+        bg: 'Четири офиса за предаване на колети в Англия: Манчестър (542 Liverpool Road, Eccles), Бърнли и Честър. Онлайн поръчки — само до централния адрес.',
+        en: 'Four UK drop-off offices: Manchester (542 Liverpool Road, Eccles), Burnley and Chester. Online orders ship to the central hub only.',
+      },
+      '/bg-office': {
+        bg: 'Офис в България: Еконт „Гоце Делчев — Панаирски ливади“. Изпратете багаж за Англия чрез всеки офис на Еконт.',
+        en: 'Our Bulgarian drop-off: Econt “Gotse Delchev — Panairski Livadi”. Send baggage to the UK via any Econt office.',
+      },
+      '/bg-to-uk': {
+        bg: 'Как да изпратите багаж от България за Англия: чрез всеки офис на Еконт, събираме всеки вторник, в Манчестър в петък същата седмица.',
+        en: 'How to send baggage from Bulgaria to the UK: via any Econt office, collected every Tuesday, in Manchester by Friday the same week.',
+      },
+      '/about': {
+        bg: 'Кои сме ние: Доставки Хубенов — услуга за българите в Англия, изградена върху доверие и лично отношение. Собствен транспорт от Манчестър, реални офиси, познати лица.',
+        en: 'Who we are: Hubenov Delivery — a service for Bulgarians in the UK built on trust and personal care. Own transport from Manchester, real offices, familiar faces.',
+      },
+      '/faq': {
+        bg: 'Отговори на най-честите въпроси: колко струва, кога тръгва курсът, какво може да се изпраща, как се плаща, как да получа колет от Amazon в България.',
+        en: 'Answers to the common questions: price, departure days, what can be sent, how to pay, how to receive an Amazon parcel in Bulgaria.',
+      },
+      '/contact': {
+        bg: 'Телефон, WhatsApp, Viber и имейл на Доставки Хубенов. Офис: 542 Liverpool Road, Eccles, Manchester M30 7JA.',
+        en: 'Phone, WhatsApp, Viber and email for Hubenov Delivery. Office: 542 Liverpool Road, Eccles, Manchester M30 7JA.',
+      },
+    };
     const page = titles[pathname];
     document.title = page
       ? `${page} · ${brand}`
       : `${brand} — ${lang === 'en' ? 'Parcels UK ⇄ Bulgaria' : 'Колети Великобритания ⇄ България'}`;
+    const desc = descriptions[pathname]?.[lang];
+    if (desc) {
+      let meta = document.querySelector<HTMLMetaElement>("meta[name='description']");
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'description';
+        document.head.appendChild(meta);
+      }
+      meta.content = desc;
+    }
     let link = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
     if (!link) {
       link = document.createElement('link');
@@ -179,7 +237,7 @@ export function PublicLayout() {
                   end={n.end}
                   className={({ isActive }) =>
                     cn(
-                      'rounded-lg px-2.5 py-2 text-sm font-medium transition-colors xl:px-3',
+                      'whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium transition-colors xl:px-3',
                       isActive ? 'text-brand' : 'text-muted-fg hover:text-foreground',
                     )
                   }

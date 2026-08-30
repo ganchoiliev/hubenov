@@ -157,10 +157,6 @@ export function AboutPage() {
         <div className="grid items-start gap-10 lg:grid-cols-5">
           {/* Narrative */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.35 }}
             className="lg:col-span-3"
           >
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
@@ -175,10 +171,6 @@ export function AboutPage() {
 
           {/* Shop card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.35, delay: 0.05 }}
             className="lg:col-span-2"
           >
             <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">

@@ -14,12 +14,10 @@ import { Stagger, StaggerItem } from '@/components/motion';
 import { OFFICES, officeMapsUrl } from '@/lib/offices';
 import { company } from '@/lib/env';
 
-const reveal = {
-  initial: { opacity: 0, y: 24 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-80px' },
-  transition: { duration: 0.5, ease: 'easeOut' as const },
-};
+// Content renders visible. Scroll-triggered opacity-0 reveals were removed:
+// crawlers/AI agents (and the build-time prerender) must see the text, and
+// blank viewports mid-scroll read as broken. Only route lines animate.
+const reveal = { transition: { duration: 0.2, ease: 'easeOut' as const } };
 
 export function UkOfficesPage() {
   const { i18n } = useTranslation();
