@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { m as motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
+import { m as motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, useTransform } from 'framer-motion';
 import {
   Truck,
   ShieldCheck,
@@ -487,8 +487,11 @@ function TransitRibbon({ lang, videoRef }: { lang: 'bg' | 'en'; videoRef: RefObj
   // Spring smooths the hand-over from the pre-film clock to the film's own
   // clock (no visible hop when the video attaches); the wrap at 100 → 0 is a
   // hard jump so the truck never runs backwards.
-  const smooth = useSpring(progress, { stiffness: 60, damping: 20, mass: 0.6 });
-  const width = useMotionTemplate`${smooth}%`;
+  // Critically damped so it cannot overshoot, and clamped anyway: an
+  // overshoot past 100% pushed the line under the right-hand label on phones.
+  const smooth = useSpring(progress, { stiffness: 80, damping: 30, mass: 0.5, restDelta: 0.05 });
+  const clamped = useTransform(smooth, (v) => Math.min(100, Math.max(0, v)));
+  const width = useMotionTemplate`${clamped}%`;
 
   useEffect(() => {
     if (reduced) return;
@@ -521,7 +524,7 @@ function TransitRibbon({ lang, videoRef }: { lang: 'bg' | 'en'; videoRef: RefObj
           </p>
         </div>
 
-        <div className="relative h-8 min-w-0 flex-1" aria-hidden="true">
+        <div className="relative mr-3.5 h-8 min-w-0 flex-1" aria-hidden="true">
           <div className="absolute top-1/2 w-full -translate-y-1/2 border-t-2 border-dashed border-white/30" />
           {reduced ? (
             <div className="absolute top-1/2 w-full -translate-y-1/2 border-t-2 border-white/80" />
