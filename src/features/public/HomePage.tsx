@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { m as motion, useReducedMotion } from 'framer-motion';
+import { m as motion, useMotionTemplate, useMotionValue, useReducedMotion } from 'framer-motion';
 import {
   Truck,
   ShieldCheck,
@@ -72,6 +72,7 @@ export function HomePage() {
   // and for Save-Data connections.
   const prefersReduced = useReducedMotion();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   useEffect(() => {
     if (prefersReduced) return;
     const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
@@ -122,6 +123,7 @@ export function HomePage() {
           {videoSrc && (
             <video
               key={videoSrc}
+              ref={videoRef}
               className="absolute inset-0 h-full w-full object-cover object-[50%_55%]"
               autoPlay
               muted
@@ -140,7 +142,7 @@ export function HomePage() {
 
         {/* Transit ribbon — the film's "lower third": leaves Friday, in Bulgaria
             in 2–3 days. A solid band on its own surface, never over the film. */}
-        <TransitRibbon lang={lang} />
+        <TransitRibbon lang={lang} videoRef={videoRef} />
 
         <div className="container pb-12 pt-7 md:pb-16 md:pt-10">
           <motion.div
@@ -472,10 +474,34 @@ export function HomePage() {
 }
 
 /* ── Transit ribbon under the hero film ───────────────────────────────── */
-/** Broadcast-style lower third: departs Friday → in Bulgaria in 2–3 days,
- *  with a truck that keeps making the run. Solid brand surface, white text. */
-function TransitRibbon({ lang }: { lang: 'bg' | 'en' }) {
+/** Broadcast-style lower third: departs Friday → in Bulgaria in 2–3 days.
+ *  The truck's progress is driven by the hero film itself (currentTime /
+ *  duration, sampled every frame), so one full crossing = one full loop of
+ *  the scenes and the two never drift. Before the film attaches, or when it
+ *  cannot play, a clock with the same period keeps the same pace. */
+const LOOP_SECONDS = 14.75; // must match public/video/hero-loop.* duration
+function TransitRibbon({ lang, videoRef }: { lang: 'bg' | 'en'; videoRef: RefObject<HTMLVideoElement | null> }) {
   const reduced = useReducedMotion();
+  const progress = useMotionValue(0);
+  const width = useMotionTemplate`${progress}%`;
+
+  useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const v = videoRef.current;
+      const p =
+        v && v.duration > 0 && !v.paused && !v.ended
+          ? v.currentTime / v.duration
+          : ((now - t0) / 1000 % LOOP_SECONDS) / LOOP_SECONDS;
+      progress.set(Math.min(100, Math.max(0, p * 100)));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced, progress, videoRef]);
+
   return (
     <div className="relative z-10 bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-700 text-white">
       <div className="container flex items-center gap-3 py-3 sm:gap-6 md:py-3.5">
@@ -495,9 +521,7 @@ function TransitRibbon({ lang }: { lang: 'bg' | 'en' }) {
           ) : (
             <motion.div
               className="absolute left-0 top-1/2 -translate-y-1/2 border-t-2 border-white"
-              initial={{ width: '0%' }}
-              animate={{ width: '100%' }}
-              transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.9 }}
+              style={{ width }}
             >
               <span className="absolute -right-3.5 -top-3.5 flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-700 shadow-soft">
                 <Truck className="h-4 w-4" />
