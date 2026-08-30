@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { track } from '@/lib/track';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Phone, Send, PackageCheck, Store, MessageCircle, Mail } from 'lucide-react';
 import { Button, Card, CardBody, Input, Textarea, Field } from '@/components/ui';
@@ -89,6 +90,7 @@ export function ContactPage() {
       if (error || (data as { ok?: boolean } | null)?.ok === false) {
         throw error ?? new Error('contact_failed');
       }
+      track('contact_form_submitted', { has_email: Boolean(form.email) });
       toast.success(L.thanks);
       setForm(EMPTY);
     } catch {

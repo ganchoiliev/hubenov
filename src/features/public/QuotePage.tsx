@@ -8,6 +8,7 @@ import { Calculator, Package2, Phone, MessageCircle } from 'lucide-react';
 import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui';
 import { Section, PageHeading } from '@/components/shared/common';
 import { quoteInputSchema, type QuoteInput } from '@/schemas';
+import { track, weightBucket } from '@/lib/track';
 import { getCourier } from '@/providers/courier';
 import { formatMoney } from '@/lib/utils';
 import { whatsappUrl, viberUrl, telUrl } from '@/lib/contact';
@@ -48,6 +49,12 @@ export function QuotePage() {
       const q = await getCourier().calculate(data);
       setQuote(q);
       setLastInput(data);
+      track('quote_calculated', {
+        direction: data.direction,
+        weight: weightBucket(data.weight_kg),
+        price: Math.round(q.total),
+        lang,
+      });
     } finally {
       setPending(false);
     }

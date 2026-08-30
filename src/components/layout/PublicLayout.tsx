@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Link, useLocation, ScrollRestoration } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useContactTapTracking } from '@/lib/track';
 import { Phone, MapPin, Menu, X, ArrowUpRight, ChevronDown, Building2, Luggage } from 'lucide-react';
 import { Fragment, Suspense, useState, useEffect, useRef } from 'react';
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -130,6 +131,7 @@ function OfficesMenu({ lang }: { lang: 'bg' | 'en' }) {
 
 export function PublicLayout() {
   const { t, i18n } = useTranslation();
+  useContactTapTracking();
   const { pathname } = useLocation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
   const [open, setOpen] = useState(false);

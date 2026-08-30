@@ -1,4 +1,5 @@
 import { useEffect, useState, Fragment } from 'react';
+import { track, weightBucket } from '@/lib/track';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm, type UseFormRegister, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -171,6 +172,7 @@ export function NewShipmentPage() {
           },
         })
         .catch(() => {});
+      track('booking_submitted', { direction: data.direction, weight: weightBucket(data.weight_kg) });
       toast.success(t('wizard.created'));
       navigate(`/portal/shipments/${shipment.id}`);
     } catch {
