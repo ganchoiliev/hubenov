@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { m as motion, useMotionTemplate, useMotionValue, useReducedMotion } from 'framer-motion';
+import { m as motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
 import {
   Truck,
   ShieldCheck,
@@ -102,7 +102,8 @@ export function HomePage() {
           ДОСТАВКИ livery from the owner's shop-window poster, so the site and
           the shop front show the same truck. The still is the first frame of
           the loop (yard, van, pallets) so the film attaches without a jump;
-          hero-fleet-alt-road is the poster/OG shot. Rendered photoreal
+          (it is literally frame 0 of hero-loop.mp4, so the film attaches with
+          no visible cut); hero-fleet-alt-road is the poster/OG shot. Rendered photoreal
           (overcast Manchester, UK plates, grime) so it does not read as stock
           art. Full-width, nothing over it; content sits below. */}
       <section className="relative isolate overflow-hidden">
@@ -483,7 +484,11 @@ const LOOP_SECONDS = 14.75; // must match public/video/hero-loop.* duration
 function TransitRibbon({ lang, videoRef }: { lang: 'bg' | 'en'; videoRef: RefObject<HTMLVideoElement | null> }) {
   const reduced = useReducedMotion();
   const progress = useMotionValue(0);
-  const width = useMotionTemplate`${progress}%`;
+  // Spring smooths the hand-over from the pre-film clock to the film's own
+  // clock (no visible hop when the video attaches); the wrap at 100 → 0 is a
+  // hard jump so the truck never runs backwards.
+  const smooth = useSpring(progress, { stiffness: 60, damping: 20, mass: 0.6 });
+  const width = useMotionTemplate`${smooth}%`;
 
   useEffect(() => {
     if (reduced) return;
@@ -495,12 +500,14 @@ function TransitRibbon({ lang, videoRef }: { lang: 'bg' | 'en'; videoRef: RefObj
         v && v.duration > 0 && !v.paused && !v.ended
           ? v.currentTime / v.duration
           : ((now - t0) / 1000 % LOOP_SECONDS) / LOOP_SECONDS;
-      progress.set(Math.min(100, Math.max(0, p * 100)));
+      const next = Math.min(100, Math.max(0, p * 100));
+      if (next < progress.get() - 50) smooth.jump(next);
+      progress.set(next);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduced, progress, videoRef]);
+  }, [reduced, progress, smooth, videoRef]);
 
   return (
     <div className="relative z-10 bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-700 text-white">
