@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { m as motion, useReducedMotion } from 'framer-motion';
 import {
@@ -64,16 +65,45 @@ export function HomePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage === 'en' ? 'en' : 'bg';
 
+  // Hero film: a seamless 3-scene loop of the fleet (the same white Actros as
+  // the shop-front poster). The still is the LCP element and the poster; the
+  // film is attached only after `load`, picks a 640px file on phones and the
+  // 1280px file on desktop, and is skipped entirely for reduced-motion users
+  // and for Save-Data connections.
+  const prefersReduced = useReducedMotion();
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (prefersReduced) return;
+    const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
+    if (nav.connection?.saveData) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => setVideoSrc(mq.matches ? '/video/hero-loop.mp4' : '/video/hero-loop-mobile.mp4');
+    let t: number | undefined;
+    const start = () => {
+      t = window.setTimeout(() => {
+        apply();
+        mq.addEventListener('change', apply);
+      }, 300);
+    };
+    if (document.readyState === 'complete') start();
+    else window.addEventListener('load', start, { once: true });
+    return () => {
+      window.removeEventListener('load', start);
+      mq.removeEventListener('change', apply);
+      window.clearTimeout(t);
+    };
+  }, [prefersReduced]);
+
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {/* Fleet hero: the green DAF + white Sprinter livery the owner uses on
-          the shop-front sticker, staged in a Manchester yard with wrapped
-          pallets — the same scene as the real photos further down. Rendered
-          photoreal (overcast, UK plates, left-hand traffic, grime) so it does
-          not read as stock art. Alternatives: hero-fleet-alt1/alt3. The photo
-          runs full-width with nothing on it; content sits below at native
-          contrast. */}
+      {/* Fleet hero: the white Mercedes Actros with the dark-red HUBENOV /
+          ДОСТАВКИ livery from the owner's shop-window poster, so the site and
+          the shop front show the same truck. The still is the first frame of
+          the loop (yard, van, pallets) so the film attaches without a jump;
+          hero-fleet-alt-road is the poster/OG shot. Rendered photoreal
+          (overcast Manchester, UK plates, grime) so it does not read as stock
+          art. Full-width, nothing over it; content sits below. */}
       <section className="relative isolate overflow-hidden">
         <div className="relative aspect-[16/9] max-h-[70vh] min-h-[260px] w-full overflow-hidden bg-slate-900">
           <img
@@ -82,13 +112,30 @@ export function HomePage() {
             sizes="100vw"
             alt={
               lang === 'bg'
-                ? 'Камионът и бусът на Доставки Хубенов в двора в Манчестър, палети с колети готови за България'
-                : 'Hubenov Delivery lorry and van in the Manchester yard, pallets of parcels ready for Bulgaria'
+                ? 'Камионът и бусът на Доставки Хубенов в двора в Манчестър — колети за България всеки петък'
+                : 'Hubenov Delivery lorry and van in the Manchester yard — parcels to Bulgaria every Friday'
             }
             fetchPriority="high"
             decoding="async"
-            className="h-full w-full object-cover object-[50%_60%]"
+            className="h-full w-full object-cover object-[50%_55%]"
           />
+          {videoSrc && (
+            <video
+              key={videoSrc}
+              className="absolute inset-0 h-full w-full object-cover object-[50%_55%]"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              poster="/images/hero-fleet-1600.webp"
+              aria-hidden="true"
+              disablePictureInPicture
+            >
+              <source src={videoSrc.replace('.mp4', '.webm')} type="video/webm" />
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+          )}
         </div>
 
         {/* Transit ribbon — the film's "lower third": leaves Friday, in Bulgaria
